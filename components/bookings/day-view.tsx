@@ -1,7 +1,7 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { DaySummaryPanel } from "@/components/day-summary-panel";
 import { C } from "@/lib/colors";
-import { WEEKDAY_NAMES, bookingCoversDay, dayOfMonth, type ActiveMonth } from "@/lib/calendar";
+import { WEEKDAY_NAMES, bookingCoversDay, dayOfMonth, isToday, type ActiveMonth } from "@/lib/calendar";
 import type { Booking, Issue, Property, Schedule } from "@/lib/types";
 
 /** context/07-mockup.jsx DayView — horizontal day strip. */
@@ -54,13 +54,18 @@ export function DayView({
             const hasIssue = issues.some((i) => dayOfMonth(i.date) === day);
             const hasShift = schedules.some((s) => dayOfMonth(s.date) === day);
             const isSelected = currentDay === day;
+            const isCurrentDay = isToday(activeMonth, day);
             const dotColor = hasBooking ? "var(--accent, #111111)" : hasShift ? C.teal : hasIssue ? "var(--accent, #111111)" : null;
             return (
               <button
                 key={day}
                 onClick={() => setSelectedDay(day)}
                 className="flex-shrink-0 flex flex-col items-center gap-1 px-2 py-2 rounded-xl"
-                style={{ background: isSelected ? C.text : C.bg, border: isSelected ? "none" : `1px solid ${C.border}`, minWidth: 44 }}
+                style={{
+                  background: isSelected ? C.text : C.bg,
+                  border: isSelected ? "none" : isCurrentDay ? `2px solid ${C.teal}` : `1px solid ${C.border}`,
+                  minWidth: 44,
+                }}
               >
                 <span className="text-[10px] font-medium" style={{ color: isSelected ? "rgba(255,255,255,0.6)" : C.muted }}>
                   {WEEKDAY_NAMES[new Date(year, month, day).getDay()]}

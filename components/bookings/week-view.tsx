@@ -3,7 +3,7 @@ import { Card } from "@/components/primitives";
 import { DaySummaryPanel } from "@/components/day-summary-panel";
 import { C } from "@/lib/colors";
 import { ISSUE_TYPE_LABEL, SCHEDULE_TYPE_LABEL } from "@/lib/labels";
-import { WEEKDAY_NAMES, bookingCoversDay, dayOfMonth, type ActiveMonth } from "@/lib/calendar";
+import { WEEKDAY_NAMES, bookingCoversDay, dayOfMonth, isToday, type ActiveMonth } from "@/lib/calendar";
 import type { Booking, Issue, Property, Schedule } from "@/lib/types";
 
 /** context/07-mockup.jsx WeekView. */
@@ -71,12 +71,16 @@ export function WeekView({
             const shiftsToday = schedules.filter((s) => dayOfMonth(s.date) === day);
             const issuesToday = issues.filter((i) => dayOfMonth(i.date) === day);
             const isSelected = selectedDay === day;
+            const isCurrentDay = isToday(activeMonth, day);
             return (
               <button
                 key={day}
                 onClick={() => setSelectedDay(day)}
                 className="text-left rounded-xl p-2 min-h-32 flex flex-col"
-                style={{ background: C.bg, border: isSelected ? `2px solid ${C.text}` : `1px solid ${C.border}` }}
+                style={{
+                  background: C.bg,
+                  border: isSelected ? `2px solid ${C.text}` : isCurrentDay ? `2px solid ${C.teal}` : `1px solid ${C.border}`,
+                }}
               >
                 <div className="flex items-center justify-between mb-1.5">
                   <p className="text-xs font-semibold" style={{ color: C.text }}>

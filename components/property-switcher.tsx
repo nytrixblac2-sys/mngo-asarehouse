@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Loader2 } from "lucide-react";
 import { C } from "@/lib/colors";
 import { useAppStore } from "@/store/use-app-store";
 import { useCreateProperty, useDeleteProperty, useUpdateProperty } from "@/lib/queries/properties";
@@ -101,21 +101,26 @@ export function PropertySwitcher({ properties, canEdit }: { properties: Property
                     Edit profile
                   </button>
                   {confirmDeleteId === p.id ? (
-                    <>
-                      <button
-                        onClick={() => {
-                          deleteProperty.mutate(p.id);
-                          setConfirmDeleteId(null);
-                        }}
-                        className="text-xs font-semibold"
-                        style={{ color: "var(--accent, #111111)" }}
-                      >
-                        Confirm delete
-                      </button>
-                      <button onClick={() => setConfirmDeleteId(null)} className="text-xs font-medium" style={{ color: C.muted }}>
-                        Cancel
-                      </button>
-                    </>
+                    deleteProperty.isPending && deleteProperty.variables === p.id ? (
+                      <span className="flex items-center gap-1.5 text-xs font-medium" style={{ color: C.muted }}>
+                        <Loader2 size={12} className="animate-spin" /> Deleting…
+                      </span>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => {
+                            deleteProperty.mutate(p.id, { onSuccess: () => setConfirmDeleteId(null) });
+                          }}
+                          className="text-xs font-semibold"
+                          style={{ color: "var(--accent, #111111)" }}
+                        >
+                          Confirm delete
+                        </button>
+                        <button onClick={() => setConfirmDeleteId(null)} className="text-xs font-medium" style={{ color: C.muted }}>
+                          Cancel
+                        </button>
+                      </>
+                    )
                   ) : (
                     properties.length > 1 && (
                       <button onClick={() => setConfirmDeleteId(p.id)} className="text-xs font-medium" style={{ color: C.muted }}>
@@ -178,9 +183,14 @@ export function PropertySwitcher({ properties, canEdit }: { properties: Property
             setProfileFor(null);
           }}
           onDelete={() => {
-            deleteProperty.mutate(profileFor.id);
-            setProfileFor(null);
+            // Stay open (showing the loading state) until the request
+            // resolves — same fix as property creation, user feedback 2026-08.
+            deleteProperty.mutate(profileFor.id, {
+              onSuccess: () => setProfileFor(null),
+            });
           }}
+          isDeleting={deleteProperty.isPending && deleteProperty.variables === profileFor.id}
+          deleteError={deleteProperty.isError && deleteProperty.variables === profileFor.id ? (deleteProperty.error as Error) : null}
           canDelete={properties.length > 1}
         />
       )}

@@ -1,7 +1,7 @@
 import { Card } from "@/components/primitives";
 import { DaySummaryPanel } from "@/components/day-summary-panel";
 import { C } from "@/lib/colors";
-import { WEEKDAY_NAMES, bookingCoversDay, dayOfMonth, type ActiveMonth } from "@/lib/calendar";
+import { WEEKDAY_NAMES, bookingCoversDay, dayOfMonth, isToday, type ActiveMonth } from "@/lib/calendar";
 import type { Booking, Issue, Property, Schedule } from "@/lib/types";
 
 /** context/07-mockup.jsx MonthView. */
@@ -55,6 +55,7 @@ export function MonthView({
           {days.map((day) => {
             const booking = bookings.find((b) => bookingCoversDay(b, day) || dayOfMonth(b.checkIn) === day);
             const isSelected = selectedDay === day;
+            const isCurrentDay = isToday(activeMonth, day);
             const dotColor = booking
               ? showPropertyTag
                 ? properties.find((p) => p.id === booking.propertyId)?.color ?? "var(--accent, #111111)"
@@ -67,7 +68,7 @@ export function MonthView({
                 className="aspect-square rounded-lg flex flex-col items-center justify-center text-xs relative p-1"
                 style={{
                   background: booking ? `${dotColor}18` : C.bg,
-                  border: isSelected ? `2px solid ${C.text}` : "1px solid transparent",
+                  border: isSelected ? `2px solid ${C.text}` : isCurrentDay ? `2px solid ${C.teal}` : "1px solid transparent",
                 }}
               >
                 <span style={{ color: booking ? dotColor ?? undefined : C.text, fontWeight: booking ? 700 : 500 }}>{day}</span>

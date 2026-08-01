@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, X } from "lucide-react";
+import { Check, Loader2, X } from "lucide-react";
 import { C, THEME_COLORS } from "@/lib/colors";
 import type { Allocation, Currency, Property } from "@/lib/types";
 import type { UpdatePropertyInput } from "@/lib/queries/properties";
@@ -28,12 +28,16 @@ export function PropertyProfileModal({
   onSave,
   onDelete,
   canDelete,
+  isDeleting,
+  deleteError,
 }: {
   property: Property;
   onClose: () => void;
   onSave: (input: UpdatePropertyInput) => void;
   onDelete: () => void;
   canDelete: boolean;
+  isDeleting: boolean;
+  deleteError: Error | null;
 }) {
   const [color, setColor] = useState(property.color);
   const [currencies, setCurrencies] = useState<Currency[]>(property.currencies);
@@ -90,6 +94,17 @@ export function PropertyProfileModal({
     if (!canSave) return;
     onSave({ color, currencies, allocation, rooms, facilities });
   };
+
+  if (isDeleting) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-6" style={{ background: "rgba(0,0,0,0.35)" }}>
+        <div className="w-full max-w-sm rounded-2xl p-10 flex flex-col items-center gap-3" style={{ background: "#fff" }}>
+          <Loader2 size={24} className="animate-spin" style={{ color: C.muted }} />
+          <p className="text-sm font-semibold" style={{ color: C.text }}>Deleting {property.name}…</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-6" style={{ background: "rgba(0,0,0,0.35)" }}>
@@ -246,10 +261,13 @@ export function PropertyProfileModal({
           {canDelete && (
             <div className="pt-2" style={{ borderTop: `1px solid ${C.border}` }}>
               {confirmDelete ? (
-                <div className="flex items-center gap-3 mt-3">
-                  <span className="text-xs" style={{ color: C.muted }}>Delete {property.name}? This can&apos;t be undone.</span>
-                  <button onClick={onDelete} className="text-xs font-semibold" style={{ color: "var(--accent, #111111)" }}>Confirm</button>
-                  <button onClick={() => setConfirmDelete(false)} className="text-xs font-semibold" style={{ color: C.muted }}>Cancel</button>
+                <div className="flex flex-col gap-2 mt-3">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs" style={{ color: C.muted }}>Delete {property.name}? This can&apos;t be undone.</span>
+                    <button onClick={onDelete} className="text-xs font-semibold" style={{ color: "var(--accent, #111111)" }}>Confirm</button>
+                    <button onClick={() => setConfirmDelete(false)} className="text-xs font-semibold" style={{ color: C.muted }}>Cancel</button>
+                  </div>
+                  {deleteError && <p className="text-xs text-destructive">{deleteError.message}</p>}
                 </div>
               ) : (
                 <button onClick={() => setConfirmDelete(true)} className="text-xs font-semibold mt-3" style={{ color: C.muted }}>

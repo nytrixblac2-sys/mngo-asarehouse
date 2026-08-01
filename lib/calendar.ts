@@ -24,6 +24,15 @@ export function dayOfMonth(dateStr: string): number {
   return Number(dateStr.slice(8, 10));
 }
 
+/** Whether `day` (in the currently-viewed month/year) is the real current
+ * date — user feedback, 2026-08: none of Day/Week/Month view actually
+ * marked today, only the user's *selected* day, which defaults to day 1
+ * rather than today. */
+export function isToday(activeMonth: { year: number; month: number }, day: number): boolean {
+  const now = new Date();
+  return now.getFullYear() === activeMonth.year && now.getMonth() === activeMonth.month && now.getDate() === day;
+}
+
 /**
  * Whether a booking visually touches `day` in the month grid currently
  * being viewed — context/07-mockup.jsx bookingCoversDay. Scoped to a
