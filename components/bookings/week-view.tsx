@@ -86,14 +86,14 @@ export function WeekView({
                     <div className="flex items-center gap-1">
                       <span
                         onClick={(e) => { e.stopPropagation(); onLogIssue(day); }}
-                        className="w-4 h-4 rounded-full flex items-center justify-center"
+                        className="w-4 h-4 rounded-full flex items-center justify-center cursor-pointer"
                         style={{ background: "var(--accent-soft, rgba(0,0,0,0.07))", color: "var(--accent, #111111)" }}
                       >
                         <AlertTriangle size={9} />
                       </span>
                       <span
                         onClick={(e) => { e.stopPropagation(); onSchedule(day); }}
-                        className="w-4 h-4 rounded-full flex items-center justify-center"
+                        className="w-4 h-4 rounded-full flex items-center justify-center cursor-pointer"
                         style={{ background: C.tealSoft, color: C.teal }}
                       >
                         <Plus size={10} />

@@ -142,4 +142,33 @@
   html {
     @apply font-sans;
   }
+
+  /* Global clickable-affordance: Tailwind's Preflight resets buttons to
+     cursor: default, so without this every button in the app showed a
+     plain arrow cursor on hover instead of a pointer — user feedback,
+     2026-08-01. Also covers non-<button> interactive elements marked with
+     .cursor-pointer (a handful of clickable cards/icons that can't be real
+     <button>s, e.g. the Issues/Schedules expandable cards). A subtle
+     brightness dip on hover gives visible "this is a button" feedback
+     regardless of the element's own background/text color. */
+  button:not(:disabled),
+  a,
+  select,
+  label[for],
+  input[type="checkbox"],
+  input[type="radio"],
+  [role="button"],
+  .cursor-pointer {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
+  button:not(:disabled):hover,
+  a:hover,
+  [role="button"]:hover,
+  .cursor-pointer:hover {
+    filter: brightness(0.95);
+    transition: filter 0.1s ease;
+  }
 }
