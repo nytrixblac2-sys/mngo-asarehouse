@@ -4,7 +4,7 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Version
 
-Current version: **1.0.2.3**
+Current version: **1.0.2.4**
 
 Versioning scheme: `1.0.0.0` → `1.0.0.1` → … → `1.0.0.9` → `1.0.1.0` → … The last segment increments once per completed build stage; it rolls into the third segment after 9. See "Version Log" at the bottom of this file for what shipped in each version.
 
@@ -74,9 +74,11 @@ Versioning scheme: `1.0.0.0` → `1.0.0.1` → … → `1.0.0.9` → `1.0.1.0` �
 
 - **v1.0.2.3** — `sidebarOpen` (the `TabsSidebar` toggle) reset to closed on every page refresh, same root cause as `activePropertyId` before v1.0.2.1: local `useState` in `AppShell` rather than persisted state. Moved into `store/use-app-store.ts`'s already-persisted Zustand store alongside `activePropertyId`. `tsc`, lint, and build all clean.
 
+- **v1.0.2.4** — CSV import (v1.0.1.5) always reported "Imported 0 bookings" on its success screen, regardless of how many rows actually succeeded — a real, user-reported "did this even work?" scare on the first real historical-backfill attempt. Root cause: `components/csv-import-modal.tsx`'s success message read `validRows.length`, a `useMemo` deliberately gated on `step === "preview"` (`if (step !== "preview") return [];`) so the preview table doesn't recompute needlessly on other steps — but that same guard meant the instant `step` became `"done"`, the memo recomputed to an empty array, silently zeroing out the count the success screen then displayed. The import itself was never broken. **Verified directly against the live database**: the user's own 20-row Airbnb CSV import had in fact created all 20 real bookings correctly (real guest names, correct EUR amounts, `CONFIRMED` status, `AIRBNB` source, all timestamped within the same second) — confirmed to the user their data was intact and they should *not* re-run the import (would have created 20 duplicates). Fixed by reading the actual count from the mutation's resolved server response instead of the stale memo. `tsc`, lint, and a clean production build all pass.
+
 ## In Progress
 
-- Nothing currently in progress. **Real production usage has started** — the user has signed up their actual business and is live-testing the app in a browser for the first time (as opposed to every prior stage's curl/scripted verification), which is exactly how the v1.0.2.0–v1.0.2.3 bugs were found. Expect more of this kind of live-usage bug report going forward rather than planned build stages.
+- Nothing currently in progress. **Real production usage has started** — the user has signed up their actual business and is live-testing the app in a browser for the first time (as opposed to every prior stage's curl/scripted verification), which is exactly how the v1.0.2.0–v1.0.2.4 bugs were found. Expect more of this kind of live-usage bug report going forward rather than planned build stages.
 
 ## Next Up
 
@@ -235,3 +237,4 @@ Versioning scheme: `1.0.0.0` → `1.0.0.1` → … → `1.0.0.9` → `1.0.1.0` �
 - **1.0.2.1** — Five fixes from the user's first real property-creation flow: the property switcher wasn't reactive to creates/edits/deletes (needed a manual reload — `useEffectiveUserOptional()` added so `TopBar`/`TabsSidebar`/`AppShell` can safely use `useProperties()` from outside `EffectiveUserProvider`), the "All properties" dropdown didn't close on outside click, the active property reset on every refresh (now persisted via Zustand `persist`, `previewUser` deliberately excluded), creating a property gave no indication where splits/rooms are configured afterward (now auto-opens the profile editor), and the create-property modal closed instantly with no loading or error feedback (now shows a spinner and surfaces failures inline). `tsc`, lint, and build all clean; verification approach shifted for pure client-side fixes now that the database holds real data (see Session Notes).
 - **1.0.2.2** — Deleting a property had the same instant-close-no-feedback bug creation had, in both places it can be triggered (switcher dropdown, profile modal) — fixed identically (loading state + inline error, keyed per-property so the right row/modal reflects its own pending state). Added a "today" indicator (`lib/calendar.ts` `isToday`) to all three booking calendar views — none of them previously marked the actual current date, only the user's selected day. `tsc`, lint, and build all clean.
 - **1.0.2.3** — The sidebar toggle reset to closed on every page refresh (same cause as `activePropertyId` before v1.0.2.1: local `useState` instead of persisted state) — moved into the existing persisted Zustand store. `tsc`, lint, and build all clean.
+- **1.0.2.4** — CSV import's success screen always said "Imported 0 bookings" regardless of actual outcome, caused by reading a `useMemo` that resets to empty the moment the step changes away from "preview" instead of the real server response. The import itself worked fine the whole time — confirmed live by checking the user's actual 20-row import had genuinely created all 20 bookings. Fixed to read the real count from the mutation response. `tsc`, lint, and build all clean.
