@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { C } from "@/lib/colors";
 import { NAV_ITEMS } from "@/lib/nav";
 import { useAppStore } from "@/store/use-app-store";
+import { useProperties } from "@/lib/queries/properties";
 import type { Property, User } from "@/lib/types";
 import { signOut } from "@/app/(app)/actions";
 import { ProfileModal } from "./profile-modal";
@@ -16,7 +17,7 @@ export function TabsSidebar({
   effectiveCanEdit,
   realUser,
   realCanEdit,
-  properties,
+  properties: initialProperties,
 }: {
   effectiveCanEdit: boolean;
   realUser: User;
@@ -27,6 +28,7 @@ export function TabsSidebar({
   const exitPreview = useAppStore((s) => s.exitPreview);
   const pathname = usePathname();
   const navItems = effectiveCanEdit ? NAV_ITEMS : NAV_ITEMS.filter((i) => i.key !== "team");
+  const properties = useProperties(initialProperties).data ?? initialProperties;
 
   return (
     <div className="flex-shrink-0 flex flex-col p-3" style={{ width: 200, height: "100%", borderRight: `1px solid ${C.border}` }}>

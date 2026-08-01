@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { C } from "@/lib/colors";
 import { useAppStore } from "@/store/use-app-store";
@@ -15,6 +15,7 @@ export function PropertySwitcher({ properties, canEdit }: { properties: Property
   const [showAddForm, setShowAddForm] = useState(false);
   const [profileFor, setProfileFor] = useState<Property | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
 
   const activePropertyId = useAppStore((s) => s.activePropertyId);
   const setActivePropertyId = useAppStore((s) => s.setActivePropertyId);
@@ -26,8 +27,21 @@ export function PropertySwitcher({ properties, canEdit }: { properties: Property
   const current = properties.find((p) => p.id === activePropertyId);
   const label = activePropertyId === "all" ? "All properties" : current?.name ?? "All properties";
 
+  // User feedback, 2026-08: clicking anywhere outside the open dropdown
+  // should close it, same as any standard dropdown menu.
+  useEffect(() => {
+    if (!open) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
   return (
-    <div className="relative ml-2">
+    <div className="relative ml-2" ref={rootRef}>
       <button onClick={() => setOpen((o) => !o)} className="flex items-center gap-1.5">
         {current && <div className="w-2 h-2 rounded-full" style={{ background: current.color }} />}
         <span className="text-base font-bold" style={{ color: C.text }}>
@@ -135,7 +149,14 @@ export function PropertySwitcher({ properties, canEdit }: { properties: Property
           onClose={() => setShowAddForm(false)}
           onSubmit={(input) => {
             createProperty.mutate(input, {
-              onSuccess: (created) => setActivePropertyId(created.id),
+              // Immediately open the profile editor for the new property —
+              // creation is name-only (Architecture Decision 42), and
+              // without this the color/currencies/allocation/rooms step
+              // that comes next isn't discoverable. User feedback, 2026-08.
+              onSuccess: (created) => {
+                setActivePropertyId(created.id);
+                setProfileFor(created);
+              },
             });
             setShowAddForm(false);
           }}

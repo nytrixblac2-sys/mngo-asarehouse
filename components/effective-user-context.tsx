@@ -35,3 +35,14 @@ export function useEffectiveUser(): EffectiveUserContextValue {
   if (!ctx) throw new Error("useEffectiveUser must be used within EffectiveUserProvider");
   return ctx;
 }
+
+/** Like useEffectiveUser, but returns null instead of throwing outside the
+ * provider — for shared hooks (lib/queries/properties.ts useProperties)
+ * that need to work both inside page content (wrapped in
+ * EffectiveUserProvider) and in AppShell chrome like TopBar/TabsSidebar
+ * (rendered as the provider's siblings, not its descendants — see
+ * components/app-shell.tsx). Outside the provider there's no preview
+ * state to apply, which is the correct behavior there anyway. */
+export function useEffectiveUserOptional(): EffectiveUserContextValue | null {
+  return useContext(EffectiveUserContext);
+}

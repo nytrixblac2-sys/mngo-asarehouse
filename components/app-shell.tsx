@@ -4,6 +4,7 @@ import { Eye } from "lucide-react";
 import { useState, type CSSProperties, type ReactNode } from "react";
 import { C } from "@/lib/colors";
 import { useAppStore } from "@/store/use-app-store";
+import { useProperties } from "@/lib/queries/properties";
 import type { Property, User } from "@/lib/types";
 import { TopBar } from "./top-bar";
 import { TabsSidebar } from "./tabs-sidebar";
@@ -36,7 +37,7 @@ function withAlpha(hex: string, alpha: number) {
  * directly, never the effective ones — see components/profile-modal.tsx.
  */
 export function AppShell({
-  properties,
+  properties: initialProperties,
   realUser,
   children,
 }: {
@@ -48,6 +49,10 @@ export function AppShell({
   const activePropertyId = useAppStore((s) => s.activePropertyId);
   const previewUser = useAppStore((s) => s.previewUser);
   const exitPreview = useAppStore((s) => s.exitPreview);
+  // Reactive so the accent theme color updates the moment a property is
+  // created/recolored/deleted, not just after a page reload — same fix as
+  // TopBar/TabsSidebar (lib/queries/properties.ts useProperties doc comment).
+  const properties = useProperties(initialProperties).data ?? initialProperties;
 
   const realCanEdit = realUser.role === "ACCOUNT_OWNER" || realUser.role === "CO_MANAGER";
   const effectiveUser: User = previewUser ?? realUser;
