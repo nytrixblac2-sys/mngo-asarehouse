@@ -147,7 +147,14 @@ export function PropertySwitcher({ properties, canEdit }: { properties: Property
       {showAddForm && (
         <PropertyForm
           onClose={() => setShowAddForm(false)}
+          isPending={createProperty.isPending}
+          isError={createProperty.isError}
+          error={createProperty.error as Error | null}
           onSubmit={(input) => {
+            // Stay open (showing the loading state) until the request
+            // actually finishes — previously closed instantly regardless
+            // of outcome, so there was no feedback while in flight and a
+            // failed request would silently vanish. User feedback, 2026-08.
             createProperty.mutate(input, {
               // Immediately open the profile editor for the new property —
               // creation is name-only (Architecture Decision 42), and
@@ -156,9 +163,9 @@ export function PropertySwitcher({ properties, canEdit }: { properties: Property
               onSuccess: (created) => {
                 setActivePropertyId(created.id);
                 setProfileFor(created);
+                setShowAddForm(false);
               },
             });
-            setShowAddForm(false);
           }}
         />
       )}
