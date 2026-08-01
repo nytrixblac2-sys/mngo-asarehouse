@@ -82,6 +82,7 @@ export function CsvImportModal({
   const [rows, setRows] = useState<Record<string, string>[]>([]);
   const [mapping, setMapping] = useState<Mapping>(EMPTY_MAPPING);
   const [propertyId, setPropertyId] = useState(defaultPropertyId || properties[0]?.id || "");
+  const [importedCount, setImportedCount] = useState(0);
 
   const bulkImport = useBulkImportBookings();
 
@@ -156,7 +157,18 @@ export function CsvImportModal({
           source: r.source,
         })),
       },
-      { onSuccess: () => setStep("done") }
+      {
+        // Read the count from the actual server response, not
+        // validRows.length — that's a useMemo gated on step === "preview"
+        // (see parsedRows above), so it silently resets to 0 the instant
+        // step becomes "done", making the success message always say
+        // "Imported 0 bookings" regardless of what really happened. User
+        // feedback, 2026-08.
+        onSuccess: (created) => {
+          setImportedCount(created.length);
+          setStep("done");
+        },
+      }
     );
   };
 
@@ -409,7 +421,7 @@ export function CsvImportModal({
                 <Check size={24} style={{ color: C.teal }} />
               </div>
               <p className="text-sm font-semibold" style={{ color: C.text }}>
-                Imported {validRows.length} booking{validRows.length !== 1 ? "s" : ""}
+                Imported {importedCount} booking{importedCount !== 1 ? "s" : ""}
               </p>
               <button
                 onClick={onClose}
