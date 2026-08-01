@@ -1,0 +1,346 @@
+// MNGO database schema — see context/02-architecture-context.md ("Storage
+// Model", "Auth and Access Control Model", "Financial Calculation Model")
+// and context/01-project-overview.md for the product model this encodes.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ── Enums ────────────────────────────────────────────────────────────────
+
+/// context/01-project-overview.md "Authentication and Roles".
+/// Team Member is V2 (out of scope) and intentionally omitted.
+enum Role {
+  ACCOUNT_OWNER
+  CO_MANAGER
+  PROPERTY_OWNER
+}
+
+/// Resolves Open Question 7 ("how does a new Account Owner sign up and
+/// create a workspace"). A workspace is created PENDING at public signup
+/// (app/signup) and stays inaccessible — the (app) layout blocks every
+/// role — until a platform admin (lib/admin.ts, env-allow-listed emails,
+/// not a workspace Role) approves it via /admin. Keeps the "nothing exists
+/// unless someone specific created it on purpose" model intact even with
+/// public signup: an approval gate, not an open door.
+enum WorkspaceStatus {
+  PENDING
+  ACTIVE
+  REJECTED
+}
+
+/// GHS and EUR only — context/02-architecture-context.md invariant #2:
+/// GHS and EUR balances are never mixed, converted, or aggregated.
+enum Currency {
+  GHS
+  EUR
+}
+
+enum BookingSource {
+  AIRBNB
+  LOCAL
+}
+
+enum BookingStatus {
+  EXPECTED
+  CONFIRMED
+}
+
+/// context/02-architecture-context.md "Financial Calculation Model" uses the
+/// generic term "management", not the Oak & Co. brand name — MNGO is a
+/// reusable product and Oak & Co. is one reference-implementation workspace.
+enum ExpenseCategory {
+  OWNERS
+  OPERATIONS
+  MANAGEMENT
+}
+
+enum ScheduleType {
+  CLEANING
+  REPAIR
+  SUPERVISION
+  TRAINING
+}
+
+enum IssueType {
+  GUEST_COMPLAINT
+  MAINTENANCE
+  NOTE
+}
+
+enum IssueStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+}
+
+// ── Core tenancy ─────────────────────────────────────────────────────────
+
+/// Every workspace has exactly one Account Owner.
+/// context/02-architecture-context.md "Auth and Access Control Model".
+/// `accountOwnerId` is nullable to break the circular FK with `User.workspaceId`
+/// (both tables reference each other): create the Workspace first, then the
+/// owner User with that workspaceId, then set accountOwnerId. The API layer
+/// enforces that every workspace has exactly one owner once bootstrap
+/// completes — it is never left null after creation finishes.
+model Workspace {
+  id             String          @id @default(uuid()) @db.Uuid
+  name           String
+  accountOwnerId String?         @unique @db.Uuid
+  /// See WorkspaceStatus doc comment — gates all (app) access until a
+  /// platform admin approves the signup.
+  status         WorkspaceStatus @default(PENDING)
+  /// Manual paid/unpaid flag, admin-toggled from /admin — no payment
+  /// processor integration for V1 (billing handled outside MNGO).
+  paid           Boolean         @default(false)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  accountOwner User?          @relation("WorkspaceAccountOwner", fields: [accountOwnerId], references: [id])
+  users        User[]         @relation("WorkspaceUsers")
+  properties   Property[]
+  bookings     Booking[]
+  expenses     Expense[]
+  manualIncome ManualIncome[]
+  schedules    Schedule[]
+  issues       Issue[]
+  teamMembers  TeamMember[]
+}
+
+/// App-level user profile. `authId` links to the Supabase Auth user
+/// (auth.users.id) — Supabase Auth owns credentials; this table owns role
+/// and workspace membership.
+model User {
+  id          String   @id @default(uuid()) @db.Uuid
+  authId      String   @unique @db.Uuid
+  workspaceId String   @db.Uuid
+  name        String
+  email       String   @unique
+  role        Role
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace      Workspace      @relation("WorkspaceUsers", fields: [workspaceId], references: [id], onDelete: Cascade)
+  ownedWorkspace Workspace?     @relation("WorkspaceAccountOwner")
+  properties     UserProperty[]
+
+  @@index([workspaceId])
+}
+
+/// Scopes a PROPERTY_OWNER role user to specific properties.
+/// context/02-architecture-context.md "Auth and Access Control Model".
+model UserProperty {
+  id         String @id @default(uuid()) @db.Uuid
+  userId     String @db.Uuid
+  propertyId String @db.Uuid
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, propertyId])
+  @@index([propertyId])
+}
+
+// ── Properties ───────────────────────────────────────────────────────────
+
+/// context/02-architecture-context.md "Property Theming Model" and
+/// "Financial Calculation Model". `allocation` shape:
+/// { GHS?: { owners, operations, management }, EUR?: { owners, operations, management } }
+/// (percentages, must sum to 100 per currency — enforced at the API layer).
+/// `prevBalanceGhs` / `prevBalanceEur` shape: { owners: number, management: number }.
+model Property {
+  id             String     @id @default(uuid()) @db.Uuid
+  workspaceId    String     @db.Uuid
+  name           String
+  color          String     @default("#111111")
+  rooms          String[]   @default([])
+  facilities     String[]   @default([])
+  currencies     Currency[] @default([GHS])
+  allocation     Json
+  prevBalanceGhs Json
+  prevBalanceEur Json
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  workspace    Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  owners       UserProperty[]
+  bookings     Booking[]
+  expenses     Expense[]
+  manualIncome ManualIncome[]
+  schedules    Schedule[]
+  issues       Issue[]
+
+  @@index([workspaceId])
+}
+
+// ── Bookings ─────────────────────────────────────────────────────────────
+
+/// context/01-project-overview.md "Bookings". `paidAt` is set server-side
+/// only at confirmation time — context/02-architecture-context.md invariant #4.
+model Booking {
+  id          String        @id @default(uuid()) @db.Uuid
+  workspaceId String        @db.Uuid
+  propertyId  String        @db.Uuid
+  guest       String
+  checkIn     DateTime      @db.Date
+  checkOut    DateTime      @db.Date
+  amount      Decimal       @db.Decimal(10, 2)
+  currency    Currency
+  source      BookingSource
+  status      BookingStatus @default(EXPECTED)
+  paidAt      DateTime?     @db.Date
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  property  Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([propertyId])
+}
+
+// ── Financials ───────────────────────────────────────────────────────────
+
+/// context/01-project-overview.md "Financials". GHS expenses get the 1%
+/// MoMo charge applied at read time (lib/financials.ts), never stored.
+model Expense {
+  id          String          @id @default(uuid()) @db.Uuid
+  workspaceId String          @db.Uuid
+  propertyId  String          @db.Uuid
+  date        DateTime        @db.Date
+  description String
+  amount      Decimal         @db.Decimal(10, 2)
+  currency    Currency
+  category    ExpenseCategory
+  person      String?
+  createdAt   DateTime        @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  property  Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([propertyId])
+}
+
+/// Manual income entries — owner contributions, top-ups.
+/// context/01-project-overview.md "Financials".
+model ManualIncome {
+  id          String   @id @default(uuid()) @db.Uuid
+  workspaceId String   @db.Uuid
+  propertyId  String   @db.Uuid
+  date        DateTime @db.Date
+  description String
+  amount      Decimal  @db.Decimal(10, 2)
+  currency    Currency
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  property  Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([propertyId])
+}
+
+// ── Issues & Schedules ───────────────────────────────────────────────────
+
+/// context/01-project-overview.md "Issues & Schedules".
+/// `status` reuses the IssueStatus enum (OPEN/IN_PROGRESS/RESOLVED) rather
+/// than a duplicate — same three-state lifecycle, user decision 2026-08-01:
+/// schedules need "some status... just like the way the status for the
+/// issues." A schedule starts OPEN and gets closed out (RESOLVED) with an
+/// optional note on how it went, same mechanism as Issue/IssueStatusEvent.
+model Schedule {
+  id          String       @id @default(uuid()) @db.Uuid
+  workspaceId String       @db.Uuid
+  propertyId  String       @db.Uuid
+  type        ScheduleType
+  date        DateTime     @db.Date
+  assignedTo  String
+  note        String?
+  status      IssueStatus  @default(OPEN)
+  createdAt   DateTime     @default(now())
+
+  workspace     Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  property      Property              @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  statusHistory ScheduleStatusEvent[]
+
+  @@index([workspaceId])
+  @@index([propertyId])
+}
+
+model ScheduleStatusEvent {
+  id         String      @id @default(uuid()) @db.Uuid
+  scheduleId String      @db.Uuid
+  status     IssueStatus
+  /// Free-text note on how the task went — user decision 2026-08-01: "write
+  /// notes on how they did it and then also close it."
+  note       String?
+  at         DateTime    @default(now())
+
+  schedule Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  @@index([scheduleId])
+}
+
+/// Every status change is timestamped and stored in `statusHistory`.
+/// context/01-project-overview.md "Issues & Schedules". `status` is
+/// nullable: NOTE-type issues are informational only and never enter the
+/// Open/In Progress/Resolved lifecycle — context/07-mockup.jsx IssueForm:
+/// `status: type === 'Note' ? null : 'Open'`. GUEST_COMPLAINT and
+/// MAINTENANCE always start at OPEN.
+model Issue {
+  id          String       @id @default(uuid()) @db.Uuid
+  workspaceId String       @db.Uuid
+  propertyId  String       @db.Uuid
+  date        DateTime     @db.Date
+  type        IssueType
+  description String
+  guest       String?
+  status      IssueStatus?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  workspace     Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  property      Property           @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  statusHistory IssueStatusEvent[]
+
+  @@index([workspaceId])
+  @@index([propertyId])
+}
+
+model IssueStatusEvent {
+  id      String      @id @default(uuid()) @db.Uuid
+  issueId String      @db.Uuid
+  status  IssueStatus
+  /// Free-text note on a status change — user decision 2026-08-01: "for the
+  /// issues, there's also supposed to be some notes."
+  note    String?
+  at      DateTime    @default(now())
+
+  issue Issue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+
+  @@index([issueId])
+}
+
+// ── Team ─────────────────────────────────────────────────────────────────
+
+/// context/01-project-overview.md "Properties and Team". Payment history is
+/// derived from Expense rows where category = MANAGEMENT and person = name
+/// — there is no separate payments table (matches context/07-mockup.jsx
+/// TeamMemberDetail, which reads history straight off expenses).
+model TeamMember {
+  id          String   @id @default(uuid()) @db.Uuid
+  workspaceId String   @db.Uuid
+  name        String
+  role        String
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+}

@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Issue" ALTER COLUMN "status" DROP NOT NULL,
+ALTER COLUMN "status" DROP DEFAULT;
