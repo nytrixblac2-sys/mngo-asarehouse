@@ -9,11 +9,12 @@ import type { WorkspaceUser } from "@/lib/users";
  * Zustand: active property, preview user, navigation history"). "all"
  * means the "All properties" view.
  *
- * activePropertyId is persisted to localStorage (superseding an earlier
- * decision to reset it every session, matching the mockup's default) —
- * user feedback, 2026-08: losing your selected property on every refresh
- * was surprising in real daily use, even though it matched the mockup's
- * own (untested-across-reloads) default.
+ * activePropertyId and sidebarOpen are persisted to localStorage
+ * (superseding an earlier decision to reset activePropertyId every
+ * session, matching the mockup's default) — user feedback, 2026-08:
+ * losing your selected property, and separately the sidebar toggle, on
+ * every refresh was surprising in real daily use, even though it matched
+ * the mockup's own (untested-across-reloads) default.
  *
  * previewUser is deliberately NOT persisted — Architecture Decision 1:
  * client-side only, never touches the Supabase session, and must not
@@ -28,6 +29,8 @@ interface AppStore {
   previewUser: WorkspaceUser | null;
   setPreviewUser: (user: WorkspaceUser) => void;
   exitPreview: () => void;
+  sidebarOpen: boolean;
+  setSidebarOpen: (open: boolean) => void;
 }
 
 export const useAppStore = create<AppStore>()(
@@ -38,10 +41,12 @@ export const useAppStore = create<AppStore>()(
       previewUser: null,
       setPreviewUser: (user) => set({ previewUser: user, activePropertyId: "all" }),
       exitPreview: () => set({ previewUser: null }),
+      sidebarOpen: false,
+      setSidebarOpen: (open) => set({ sidebarOpen: open }),
     }),
     {
       name: "mngo-app-store",
-      partialize: (state) => ({ activePropertyId: state.activePropertyId }),
+      partialize: (state) => ({ activePropertyId: state.activePropertyId, sidebarOpen: state.sidebarOpen }),
     }
   )
 );

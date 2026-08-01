@@ -1,7 +1,7 @@
 "use client";
 
 import { Eye } from "lucide-react";
-import { useState, type CSSProperties, type ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { C } from "@/lib/colors";
 import { useAppStore } from "@/store/use-app-store";
 import { useProperties } from "@/lib/queries/properties";
@@ -45,7 +45,8 @@ export function AppShell({
   realUser: User;
   children: ReactNode;
 }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const sidebarOpen = useAppStore((s) => s.sidebarOpen);
+  const setSidebarOpen = useAppStore((s) => s.setSidebarOpen);
   const activePropertyId = useAppStore((s) => s.activePropertyId);
   const previewUser = useAppStore((s) => s.previewUser);
   const exitPreview = useAppStore((s) => s.exitPreview);
