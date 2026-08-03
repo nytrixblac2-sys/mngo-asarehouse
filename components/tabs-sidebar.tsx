@@ -3,16 +3,19 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { FileText } from "lucide-react";
 import { C } from "@/lib/colors";
 import { NAV_ITEMS } from "@/lib/nav";
 import { useAppStore } from "@/store/use-app-store";
 import { useProperties } from "@/lib/queries/properties";
+import { useWorkspace } from "@/lib/queries/workspace";
 import type { Property, User } from "@/lib/types";
 import { signOut } from "@/app/(app)/actions";
 import { ProfileModal } from "./profile-modal";
+import { GenerateReportModal } from "./generate-report-modal";
 
-/** context/07-mockup.jsx TabsSidebar, minus "Generate report" — still
- * out of scope (PDF export is V2, context/01-project-overview.md). */
+/** context/07-mockup.jsx TabsSidebar. "Generate report" restored per user
+ * decision 2026-08-03 (was previously left out — PDF export was V2). */
 export function TabsSidebar({
   effectiveCanEdit,
   realUser,
@@ -25,10 +28,12 @@ export function TabsSidebar({
   properties: Property[];
 }) {
   const [showProfile, setShowProfile] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
   const exitPreview = useAppStore((s) => s.exitPreview);
   const pathname = usePathname();
   const navItems = effectiveCanEdit ? NAV_ITEMS : NAV_ITEMS.filter((i) => i.key !== "team");
   const properties = useProperties(initialProperties).data ?? initialProperties;
+  const workspaceName = useWorkspace().data?.name ?? "Management";
 
   return (
     <div className="flex-shrink-0 flex flex-col p-3" style={{ width: 200, height: "100%", borderRight: `1px solid ${C.border}` }}>
@@ -49,6 +54,15 @@ export function TabsSidebar({
         ))}
       </div>
       <div className="mt-auto flex flex-col gap-1 pt-3" style={{ borderTop: `1px solid ${C.border}` }}>
+        {effectiveCanEdit && (
+          <button
+            onClick={() => setShowReportModal(true)}
+            className="w-full text-left text-sm px-3 py-2.5 rounded-xl flex items-center gap-2"
+            style={{ color: C.text, fontWeight: 500 }}
+          >
+            <FileText size={14} /> Generate report
+          </button>
+        )}
         <button
           onClick={() => setShowProfile(true)}
           className="w-full text-left text-sm px-3 py-2.5 rounded-xl"
@@ -74,6 +88,13 @@ export function TabsSidebar({
           realCanEdit={realCanEdit}
           properties={properties}
           onClose={() => setShowProfile(false)}
+        />
+      )}
+      {effectiveCanEdit && showReportModal && (
+        <GenerateReportModal
+          properties={properties}
+          managementLabel={workspaceName}
+          onClose={() => setShowReportModal(false)}
         />
       )}
     </div>

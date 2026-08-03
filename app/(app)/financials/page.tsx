@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, FileText } from "lucide-react";
 import { Card, Pill } from "@/components/primitives";
 import { CurrencyToggle } from "@/components/currency-toggle";
 import { SubToggle } from "@/components/sub-toggle";
 import { AddIncomeForm } from "@/components/add-income-form";
 import { ExpenseForm } from "@/components/expense-form";
+import { GenerateReportModal } from "@/components/generate-report-modal";
 import { EmptyPropertyState } from "@/components/empty-property-state";
 import { useEffectiveUser } from "@/components/effective-user-context";
 import { useAppStore } from "@/store/use-app-store";
@@ -39,6 +40,7 @@ export default function FinancialsPage() {
   const [oakcoSub, setOakcoSub] = useState<"income" | "expenses">("income");
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [showIncomeForm, setShowIncomeForm] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
 
   const today = new Date();
   const [fYear, setFYear] = useState(today.getFullYear());
@@ -176,6 +178,15 @@ export default function FinancialsPage() {
         <button onClick={goToNextMonth} className="p-2 rounded-full" style={{ background: C.card, border: `1px solid ${C.border}` }}>
           <ChevronRight size={16} style={{ color: C.text }} />
         </button>
+        {effectiveCanEdit && (
+          <button
+            onClick={() => setShowReportModal(true)}
+            className="flex items-center gap-2 text-sm font-semibold px-4 py-2.5 rounded-full ml-2"
+            style={{ background: C.card, border: `1px solid ${C.border}`, color: C.text }}
+          >
+            <FileText size={16} /> Generate report
+          </button>
+        )}
       </div>
 
       <div className="flex items-center gap-1 rounded-full p-1 w-fit" style={{ background: "#F2F2F2" }}>
@@ -387,6 +398,16 @@ export default function FinancialsPage() {
           defaultPropertyId={defaultPropertyId}
           team={team}
           managementLabel={workspaceName}
+        />
+      )}
+      {effectiveCanEdit && showReportModal && (
+        <GenerateReportModal
+          properties={properties}
+          defaultPropertyId={activeProperty.id}
+          defaultYear={fYear}
+          defaultMonth={fMonth}
+          managementLabel={managementLabel}
+          onClose={() => setShowReportModal(false)}
         />
       )}
     </div>

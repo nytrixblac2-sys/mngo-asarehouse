@@ -3,21 +3,23 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Menu, PanelLeft, ChevronLeft, ChevronRight } from "lucide-react";
+import { Menu, PanelLeft, ChevronLeft, ChevronRight, FileText } from "lucide-react";
 import { C } from "@/lib/colors";
 import { NAV_ITEMS } from "@/lib/nav";
 import { useAppStore } from "@/store/use-app-store";
 import { useProperties } from "@/lib/queries/properties";
+import { useWorkspace } from "@/lib/queries/workspace";
 import type { Property, User } from "@/lib/types";
 import { signOut } from "@/app/(app)/actions";
 import { PropertySwitcher } from "./property-switcher";
 import { ProfileModal } from "./profile-modal";
+import { GenerateReportModal } from "./generate-report-modal";
 
 /**
- * context/07-mockup.jsx TopBar, minus Search and "Generate report" — both
- * depend on screens/features not yet built (search has nothing real to
- * search over yet; PDF report generation is out of scope for V1 per
- * context/01-project-overview.md).
+ * context/07-mockup.jsx TopBar, minus Search — still has nothing real to
+ * search over. "Generate report" was originally left out for the same
+ * reason PDF export was V2 (context/01-project-overview.md); restored here
+ * per user decision 2026-08-03 to build PDF export.
  */
 export function TopBar({
   properties: initialProperties,
@@ -38,6 +40,7 @@ export function TopBar({
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
   const exitPreview = useAppStore((s) => s.exitPreview);
   const pathname = usePathname();
   const router = useRouter();
@@ -46,6 +49,7 @@ export function TopBar({
   // prop so there's no loading flash, but updates instantly on
   // create/edit/delete instead of needing a full page reload.
   const properties = useProperties(initialProperties).data ?? initialProperties;
+  const workspaceName = useWorkspace().data?.name ?? "Management";
 
   return (
     <div className="flex items-center gap-1 px-4 py-3" style={{ borderBottom: `1px solid ${C.border}` }}>
@@ -83,6 +87,15 @@ export function TopBar({
               </Link>
             ))}
             <div style={{ borderTop: `1px solid ${C.border}`, margin: "6px 0" }} />
+            {effectiveCanEdit && (
+              <button
+                onClick={() => { setShowReportModal(true); setMenuOpen(false); }}
+                className="w-full text-left text-sm px-3 py-2 rounded-lg flex items-center gap-2"
+                style={{ color: C.text, fontWeight: 500 }}
+              >
+                <FileText size={14} /> Generate report
+              </button>
+            )}
             <button
               onClick={() => { setShowProfile(true); setMenuOpen(false); }}
               className="w-full text-left text-sm px-3 py-2 rounded-lg"
@@ -131,6 +144,13 @@ export function TopBar({
           realCanEdit={realCanEdit}
           properties={properties}
           onClose={() => setShowProfile(false)}
+        />
+      )}
+      {effectiveCanEdit && showReportModal && (
+        <GenerateReportModal
+          properties={properties}
+          managementLabel={workspaceName}
+          onClose={() => setShowReportModal(false)}
         />
       )}
     </div>
