@@ -7,8 +7,8 @@ import { MONTH_NAMES } from "@/lib/calendar";
 import { useBookings } from "@/lib/queries/bookings";
 import { useExpenses } from "@/lib/queries/expenses";
 import { useManualIncome } from "@/lib/queries/manual-income";
-import { buildMonthlyReport, type ReportType } from "@/lib/reports";
-import type { Property } from "@/lib/types";
+import { buildMonthlyReport, type OpeningBalanceOverride, type ReportType } from "@/lib/reports";
+import type { Currency, Property } from "@/lib/types";
 
 /**
  * context/07-mockup.jsx GenerateReportModal, ported for real: month+year
@@ -42,6 +42,9 @@ export function GenerateReportModal({
   const [month, setMonth] = useState(defaultMonth ?? today.getMonth());
   const [includeOwner, setIncludeOwner] = useState(true);
   const [includeOakco, setIncludeOakco] = useState(false);
+  const [useStatedBalance, setUseStatedBalance] = useState(false);
+  const [ownersBalanceInputs, setOwnersBalanceInputs] = useState<Partial<Record<Currency, string>>>({});
+  const [managementBalanceInputs, setManagementBalanceInputs] = useState<Partial<Record<Currency, string>>>({});
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,6 +54,7 @@ export function GenerateReportModal({
 
   const property = properties.find((p) => p.id === propertyId);
   const yearOptions = Array.from({ length: 6 }, (_, i) => today.getFullYear() - 4 + i);
+  const reportCurrencies: Currency[] = property && property.currencies.length > 0 ? property.currencies : ["GHS"];
 
   const handleGenerate = async () => {
     setError(null);
@@ -67,6 +71,20 @@ export function GenerateReportModal({
       return;
     }
 
+    const openingBalanceOverrides: Partial<Record<Currency, OpeningBalanceOverride>> = {};
+    if (useStatedBalance) {
+      for (const currency of reportCurrencies) {
+        const override: OpeningBalanceOverride = {};
+        const ownersRaw = ownersBalanceInputs[currency];
+        const managementRaw = managementBalanceInputs[currency];
+        if (includeOwner && ownersRaw !== undefined && ownersRaw.trim() !== "") override.owners = Number(ownersRaw);
+        if (includeOakco && managementRaw !== undefined && managementRaw.trim() !== "") override.management = Number(managementRaw);
+        if (override.owners !== undefined || override.management !== undefined) {
+          openingBalanceOverrides[currency] = override;
+        }
+      }
+    }
+
     setIsGenerating(true);
     try {
       const data = buildMonthlyReport({
@@ -78,6 +96,7 @@ export function GenerateReportModal({
         month,
         reportTypes,
         managementLabel,
+        openingBalanceOverrides,
       });
 
       const [{ pdf }, { ReportPdfDocument }] = await Promise.all([
@@ -165,6 +184,64 @@ export function GenerateReportModal({
             <input type="checkbox" checked={includeOakco} onChange={(e) => setIncludeOakco(e.target.checked)} />
             {managementLabel} internal report
           </label>
+        </div>
+
+        <div className="mb-5 rounded-xl p-3" style={{ background: C.bg }}>
+          <label className="flex items-start gap-2 text-sm" style={{ color: C.text }}>
+            <input
+              type="checkbox"
+              checked={useStatedBalance}
+              onChange={(e) => setUseStatedBalance(e.target.checked)}
+              className="mt-0.5"
+            />
+            <span>
+              Not all history is in the system yet — state the actual opening balance for this month instead of calculating from scratch
+            </span>
+          </label>
+
+          {useStatedBalance && (
+            <div className="flex flex-col gap-3 mt-3">
+              {reportCurrencies.map((currency) => (
+                <div key={currency} className="grid grid-cols-2 gap-3">
+                  {includeOwner && (
+                    <div>
+                      <label className="text-xs font-semibold" style={{ color: C.muted }}>
+                        Owners balance ({currency})
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        placeholder="e.g. 4500.00"
+                        value={ownersBalanceInputs[currency] ?? ""}
+                        onChange={(e) => setOwnersBalanceInputs((prev) => ({ ...prev, [currency]: e.target.value }))}
+                        className="w-full mt-1 px-3 py-2 rounded-xl text-sm"
+                        style={{ border: `1px solid ${C.border}` }}
+                      />
+                    </div>
+                  )}
+                  {includeOakco && (
+                    <div>
+                      <label className="text-xs font-semibold" style={{ color: C.muted }}>
+                        {managementLabel} balance ({currency})
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        placeholder="e.g. -1200.00"
+                        value={managementBalanceInputs[currency] ?? ""}
+                        onChange={(e) => setManagementBalanceInputs((prev) => ({ ...prev, [currency]: e.target.value }))}
+                        className="w-full mt-1 px-3 py-2 rounded-xl text-sm"
+                        style={{ border: `1px solid ${C.border}` }}
+                      />
+                    </div>
+                  )}
+                </div>
+              ))}
+              <p className="text-xs" style={{ color: C.muted }}>
+                Leave a field blank to calculate that balance from system records as normal. This is a one-time input for this PDF only — nothing is saved.
+              </p>
+            </div>
+          )}
         </div>
 
         {error && <p className="text-sm text-destructive mb-3">{error}</p>}

@@ -33,6 +33,7 @@ const styles = StyleSheet.create({
   balanceCard: { padding: 12, backgroundColor: "#00A699", borderRadius: 6, marginBottom: 10 },
   balanceLabel: { fontSize: 8, color: "rgba(255,255,255,0.8)", textTransform: "uppercase", marginBottom: 3 },
   balanceValue: { fontSize: 18, fontWeight: 700, color: "#fff" },
+  balanceNote: { fontSize: 7, color: "rgba(255,255,255,0.85)", marginTop: 4, fontStyle: "italic" },
   tableHeader: { flexDirection: "row", borderBottom: "1 solid #111111", paddingBottom: 3, marginBottom: 3 },
   tableRow: { flexDirection: "row", borderBottom: "0.5 solid #E5E5E5", paddingVertical: 3 },
   th: { fontSize: 8, fontWeight: 700, textTransform: "uppercase", color: "#6B7280" },
@@ -122,6 +123,9 @@ export function ReportPdfDocument({ data }: { data: MonthlyReportData }) {
                 <View style={styles.balanceCard}>
                   <Text style={styles.balanceLabel}>Owners Running Balance held with management — {section.currency}</Text>
                   <Text style={styles.balanceValue}>{fmtCurrencyPdf(section.current.owner.runningBalance, section.currency)}</Text>
+                  {section.current.ownersBalanceStated && (
+                    <Text style={styles.balanceNote}>Based on an opening balance you stated for this month, not on full system history</Text>
+                  )}
                 </View>
                 <Text style={{ fontSize: 9, fontWeight: 700, marginBottom: 3 }}>Income — {section.currency}</Text>
                 <IncomeTable rows={section.current.incomeRows} currency={section.currency} />
@@ -149,6 +153,9 @@ export function ReportPdfDocument({ data }: { data: MonthlyReportData }) {
                 <View style={styles.balanceCard}>
                   <Text style={styles.balanceLabel}>{data.managementLabel} Running Balance — {section.currency}</Text>
                   <Text style={styles.balanceValue}>{fmtCurrencyPdf(section.current.management.runningBalance, section.currency)}</Text>
+                  {section.current.managementBalanceStated && (
+                    <Text style={styles.balanceNote}>Based on an opening balance you stated for this month, not on full system history</Text>
+                  )}
                 </View>
                 <Text style={{ fontSize: 9, fontWeight: 700, marginBottom: 3 }}>Team payments — {section.currency}</Text>
                 <ExpenseTable rows={section.current.managementExpenseRows} currency={section.currency} />

@@ -33,6 +33,13 @@ export interface ReportExpenseRow {
   category: Expense["category"];
 }
 
+/** Per-currency, optional stated opening balance for a fund — see
+ * buildMonthlyReport's `openingBalanceOverrides` param. */
+export interface OpeningBalanceOverride {
+  owners?: number;
+  management?: number;
+}
+
 interface CurrencyMonthFigures {
   currency: Currency;
   confirmedIncome: number;
@@ -43,6 +50,8 @@ interface CurrencyMonthFigures {
   ownerExpenseRows: ReportExpenseRow[];
   managementExpenseRows: ReportExpenseRow[];
   momoTotal: number;
+  ownersBalanceStated: boolean;
+  managementBalanceStated: boolean;
 }
 
 export interface CurrencyReportSection {
@@ -83,8 +92,9 @@ function computeCurrencyFigures(params: {
   bookings: Booking[];
   expenses: Expense[];
   manualIncome: ManualIncome[];
+  openingBalanceOverride?: OpeningBalanceOverride;
 }): CurrencyMonthFigures {
-  const { currency, year, month, property, bookings, expenses, manualIncome } = params;
+  const { currency, year, month, property, bookings, expenses, manualIncome, openingBalanceOverride } = params;
   const prefix = monthPrefix(year, month);
 
   const monthBookings = bookings.filter((b) => b.propertyId === property.id && b.currency === currency && b.checkIn.startsWith(prefix));
@@ -92,7 +102,13 @@ function computeCurrencyFigures(params: {
   const monthManualIncome = manualIncome.filter((m) => m.propertyId === property.id && m.currency === currency && m.date.startsWith(prefix));
 
   const allocation = property.allocation[currency] ?? DEFAULT_ALLOCATION;
-  const prevBalance: PrevBalance = currency === "GHS" ? property.prevBalanceGhs : property.prevBalanceEur;
+  const storedPrevBalance: PrevBalance = currency === "GHS" ? property.prevBalanceGhs : property.prevBalanceEur;
+  const ownersBalanceStated = openingBalanceOverride?.owners !== undefined;
+  const managementBalanceStated = openingBalanceOverride?.management !== undefined;
+  const prevBalance: PrevBalance = {
+    owners: openingBalanceOverride?.owners ?? storedPrevBalance.owners,
+    management: openingBalanceOverride?.management ?? storedPrevBalance.management,
+  };
   const confirmedIncome = sumConfirmedIncome(monthBookings);
 
   const owner = computeOwnersReport({ confirmedIncome, allocation, monthExpenses, manualIncome: monthManualIncome, prevBalance });
@@ -134,7 +150,19 @@ function computeCurrencyFigures(params: {
 
   const momoTotal = currency === "GHS" ? monthExpenses.reduce((s, e) => s + e.amount * 0.01, 0) : 0;
 
-  return { currency, confirmedIncome, manualIncomeTotal: owner.manualIncomeTotal, owner, management, incomeRows, ownerExpenseRows, managementExpenseRows, momoTotal };
+  return {
+    currency,
+    confirmedIncome,
+    manualIncomeTotal: owner.manualIncomeTotal,
+    owner,
+    management,
+    incomeRows,
+    ownerExpenseRows,
+    managementExpenseRows,
+    momoTotal,
+    ownersBalanceStated,
+    managementBalanceStated,
+  };
 }
 
 function pctChange(curr: number, prev: number): number | null {
@@ -183,13 +211,22 @@ function buildRecommendations(sections: CurrencyReportSection[], reportTypes: Re
         }
       }
 
-      const balanceDelta = current.owner.runningBalance - previous.owner.runningBalance;
-      if (current.owner.runningBalance < 0) {
-        notes.push(`${currency} Owners balance is negative (${fmt(current.owner.runningBalance)}) — expenses have outpaced allocated income.`);
-      } else if (balanceDelta < 0) {
-        notes.push(`${currency} Owners balance held with the management company decreased by ${fmt(Math.abs(balanceDelta))} this month, now ${fmt(current.owner.runningBalance)}.`);
-      } else if (balanceDelta > 0) {
-        notes.push(`${currency} Owners balance held with the management company grew by ${fmt(balanceDelta)} this month, now ${fmt(current.owner.runningBalance)}.`);
+      if (current.ownersBalanceStated) {
+        // A manually stated opening balance means the previous month's own
+        // balance (computed with prev=0, since history may be incomplete)
+        // isn't a like-for-like baseline — comparing against it would
+        // misreport this month's true balance change, so skip the delta
+        // and just state the result plainly.
+        notes.push(`${currency} Owners balance held with the management company: ${fmt(current.owner.runningBalance)}, based on the opening balance you stated for this month rather than system history.`);
+      } else {
+        const balanceDelta = current.owner.runningBalance - previous.owner.runningBalance;
+        if (current.owner.runningBalance < 0) {
+          notes.push(`${currency} Owners balance is negative (${fmt(current.owner.runningBalance)}) — expenses have outpaced allocated income.`);
+        } else if (balanceDelta < 0) {
+          notes.push(`${currency} Owners balance held with the management company decreased by ${fmt(Math.abs(balanceDelta))} this month, now ${fmt(current.owner.runningBalance)}.`);
+        } else if (balanceDelta > 0) {
+          notes.push(`${currency} Owners balance held with the management company grew by ${fmt(balanceDelta)} this month, now ${fmt(current.owner.runningBalance)}.`);
+        }
       }
     }
 
@@ -201,11 +238,15 @@ function buildRecommendations(sections: CurrencyReportSection[], reportTypes: Re
         notes.push(`${currency} Management/team payments are up ${mgmtDelta.toFixed(0)}% versus last month (${fmt(current.management.managementExp)} vs ${fmt(previous.management.managementExp)})${topNote}.`);
       }
 
-      const mgmtBalanceDelta = current.management.runningBalance - previous.management.runningBalance;
-      if (current.management.runningBalance < 0) {
-        notes.push(`${currency} Management balance is negative (${fmt(current.management.runningBalance)}).`);
-      } else if (mgmtBalanceDelta < 0) {
-        notes.push(`${currency} Management balance decreased by ${fmt(Math.abs(mgmtBalanceDelta))} this month, now ${fmt(current.management.runningBalance)}.`);
+      if (current.managementBalanceStated) {
+        notes.push(`${currency} Management balance: ${fmt(current.management.runningBalance)}, based on the opening balance you stated for this month rather than system history.`);
+      } else {
+        const mgmtBalanceDelta = current.management.runningBalance - previous.management.runningBalance;
+        if (current.management.runningBalance < 0) {
+          notes.push(`${currency} Management balance is negative (${fmt(current.management.runningBalance)}).`);
+        } else if (mgmtBalanceDelta < 0) {
+          notes.push(`${currency} Management balance decreased by ${fmt(Math.abs(mgmtBalanceDelta))} this month, now ${fmt(current.management.runningBalance)}.`);
+        }
       }
     }
 
@@ -229,13 +270,20 @@ export function buildMonthlyReport(params: {
   month: number;
   reportTypes: ReportType[];
   managementLabel: string;
+  /** Per-currency stated opening balances — see OpeningBalanceOverride doc
+   * comment. Applied only to this report's selected month, never to the
+   * prior-month comparison used for recommendations. */
+  openingBalanceOverrides?: Partial<Record<Currency, OpeningBalanceOverride>>;
 }): MonthlyReportData {
-  const { property, bookings, expenses, manualIncome, year, month, reportTypes, managementLabel } = params;
+  const { property, bookings, expenses, manualIncome, year, month, reportTypes, managementLabel, openingBalanceOverrides } = params;
   const prevYm = shiftMonth(year, month, -1);
   const currencies: Currency[] = property.currencies.length > 0 ? property.currencies : ["GHS"];
 
   const sections: CurrencyReportSection[] = currencies.map((currency) => {
-    const current = computeCurrencyFigures({ currency, year, month, property, bookings, expenses, manualIncome });
+    const current = computeCurrencyFigures({
+      currency, year, month, property, bookings, expenses, manualIncome,
+      openingBalanceOverride: openingBalanceOverrides?.[currency],
+    });
     const hasPriorActivity =
       bookings.some((b) => b.propertyId === property.id && b.currency === currency && b.checkIn < monthPrefix(year, month)) ||
       expenses.some((e) => e.propertyId === property.id && e.currency === currency && e.date < monthPrefix(year, month));
