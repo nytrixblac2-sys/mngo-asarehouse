@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X, Check } from "lucide-react";
+import { X, Check, Undo2 } from "lucide-react";
 import { Pill } from "@/components/primitives";
 import { C } from "@/lib/colors";
 import { fmtCurrency } from "@/lib/format";
@@ -26,6 +26,7 @@ export function BookingDetailModal({
   onSubmitEdit,
   onDelete,
   onConfirm,
+  onUnconfirm,
   canEdit,
 }: {
   booking: Booking;
@@ -37,6 +38,7 @@ export function BookingDetailModal({
   onSubmitEdit: (id: string, input: BookingInput) => void;
   onDelete: (id: string) => void;
   onConfirm: (id: string) => void;
+  onUnconfirm: (id: string) => void;
   canEdit: boolean;
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -132,6 +134,15 @@ export function BookingDetailModal({
                 style={{ background: C.teal, color: "#fff" }}
               >
                 <Check size={16} /> Confirm payment received
+              </button>
+            )}
+            {canEdit && booking.status === "CONFIRMED" && (
+              <button
+                onClick={() => onUnconfirm(booking.id)}
+                className="w-full flex items-center justify-center gap-2 text-sm font-semibold py-3 rounded-xl"
+                style={{ background: C.bg, color: C.muted, border: `1px solid ${C.border}` }}
+              >
+                <Undo2 size={16} /> Mark as not yet paid
               </button>
             )}
             {relatedShifts.length > 0 && (

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ChevronLeft, ChevronRight, Plus, AlertTriangle, ClipboardList, Upload } from "lucide-react";
 import { useEffectiveUser } from "@/components/effective-user-context";
 import { useAppStore } from "@/store/use-app-store";
-import { useBookings, useConfirmBookingPayout, useCreateBooking, useDeleteBooking, useUpdateBooking } from "@/lib/queries/bookings";
+import { useBookings, useConfirmBookingPayout, useCreateBooking, useDeleteBooking, useUnconfirmBookingPayout, useUpdateBooking } from "@/lib/queries/bookings";
 import { useCreateSchedule, useSchedules, useUpdateSchedule } from "@/lib/queries/schedules";
 import { useCreateIssue, useIssues, useSetIssueStatus } from "@/lib/queries/issues";
 import { useProperties } from "@/lib/queries/properties";
@@ -54,6 +54,7 @@ export default function BookingsPage() {
   const updateBooking = useUpdateBooking();
   const deleteBooking = useDeleteBooking();
   const confirmPayout = useConfirmBookingPayout();
+  const unconfirmPayout = useUnconfirmBookingPayout();
   const createSchedule = useCreateSchedule();
   const updateSchedule = useUpdateSchedule();
   const createIssue = useCreateIssue();
@@ -223,6 +224,7 @@ export default function BookingsPage() {
           onDeleteBooking={(id) => deleteBooking.mutate(id)}
           onSubmitEditSchedule={(id, input) => updateSchedule.mutate({ id, input })}
           onConfirmPayout={(id) => confirmPayout.mutate(id)}
+          onUnconfirmPayout={(id) => unconfirmPayout.mutate(id)}
           onSelectBooking={setSelectedBooking} properties={properties} showPropertyTag={showPropertyTag}
           team={team} canEdit={effectiveCanEdit}
         />
@@ -277,6 +279,7 @@ export default function BookingsPage() {
             onSubmitEdit={(id, input) => updateBooking.mutate({ id, input })}
             onDelete={(id) => deleteBooking.mutate(id)}
             onConfirm={(id) => confirmPayout.mutate(id)}
+            onUnconfirm={(id) => unconfirmPayout.mutate(id)}
             canEdit={effectiveCanEdit}
           />
         );

@@ -7,7 +7,7 @@ import { C } from "@/lib/colors";
 import { fmtCurrency } from "@/lib/format";
 import { parseFlexibleAmount, parseFlexibleDate } from "@/lib/csv-import";
 import { useBulkImportBookings } from "@/lib/queries/bookings";
-import type { BookingSource, Currency, Property } from "@/lib/types";
+import type { BookingSource, BookingStatus, Currency, Property } from "@/lib/types";
 
 type Step = "upload" | "map" | "preview" | "done";
 
@@ -22,6 +22,10 @@ interface Mapping {
   sourceMode: "fixed" | "column";
   sourceColumn: string | null;
   sourceFixed: BookingSource;
+  /** Applies to the whole batch — Architecture Decision 63. Not
+   * "always CONFIRMED" like the original historical-only importer: an
+   * export of upcoming reservations hasn't actually been paid out yet. */
+  status: BookingStatus;
 }
 
 const EMPTY_MAPPING: Mapping = {
@@ -35,6 +39,7 @@ const EMPTY_MAPPING: Mapping = {
   sourceMode: "fixed",
   sourceColumn: null,
   sourceFixed: "AIRBNB",
+  status: "EXPECTED",
 };
 
 interface ParsedRow {
@@ -148,6 +153,7 @@ export function CsvImportModal({
     bulkImport.mutate(
       {
         propertyId,
+        status: mapping.status,
         bookings: validRows.map((r) => ({
           guest: r.guest,
           checkIn: r.checkIn!,
@@ -184,9 +190,8 @@ export function CsvImportModal({
           {step === "upload" && (
             <div className="flex flex-col gap-3">
               <p className="text-sm" style={{ color: C.muted }}>
-                Upload any CSV of past stays — an Airbnb export, or your own records. You&apos;ll map its columns to
-                MNGO&apos;s fields next. Imported bookings are created as <strong>confirmed</strong>, since they already
-                happened.
+                Upload any CSV of stays — an Airbnb export, or your own records. You&apos;ll map its columns to
+                MNGO&apos;s fields next, and say whether payment for these has actually been received yet.
               </p>
               <label
                 className="flex flex-col items-center justify-center gap-2 py-10 rounded-xl cursor-pointer"
@@ -335,6 +340,29 @@ export function CsvImportModal({
                 )}
               </div>
 
+              <div>
+                <label className="text-xs font-semibold" style={{ color: C.muted }}>Payment status</label>
+                <p className="text-xs mt-0.5 mb-1.5" style={{ color: C.muted }}>
+                  Has the money for these stays actually been received yet? Applies to every row in this import.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setMapping({ ...mapping, status: "EXPECTED" })}
+                    className="flex-1 text-xs font-semibold py-2 rounded-xl"
+                    style={{ background: mapping.status === "EXPECTED" ? C.text : C.bg, color: mapping.status === "EXPECTED" ? "#fff" : C.muted }}
+                  >
+                    Not yet — Expected
+                  </button>
+                  <button
+                    onClick={() => setMapping({ ...mapping, status: "CONFIRMED" })}
+                    className="flex-1 text-xs font-semibold py-2 rounded-xl"
+                    style={{ background: mapping.status === "CONFIRMED" ? C.teal : C.bg, color: mapping.status === "CONFIRMED" ? "#fff" : C.muted }}
+                  >
+                    Yes — Confirmed
+                  </button>
+                </div>
+              </div>
+
               <button
                 onClick={() => setStep("preview")}
                 disabled={!mappingComplete || !propertyId}
@@ -353,6 +381,13 @@ export function CsvImportModal({
             <div className="flex flex-col gap-3">
               <p className="text-sm font-semibold" style={{ color: C.text }}>
                 {validRows.length} of {parsedRows.length} row{parsedRows.length !== 1 ? "s" : ""} ready to import
+              </p>
+              <p className="text-xs" style={{ color: C.muted }}>
+                Will be imported as{" "}
+                <strong style={{ color: mapping.status === "CONFIRMED" ? C.teal : "var(--accent, #111111)" }}>
+                  {mapping.status === "CONFIRMED" ? "Confirmed (payment received)" : "Expected (payment not yet received)"}
+                </strong>
+                .
               </p>
               <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${C.border}`, maxHeight: 320, overflowY: "auto" }}>
                 <table className="w-full text-xs">

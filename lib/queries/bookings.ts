@@ -56,10 +56,13 @@ export function useDeleteBooking() {
 export interface BulkImportInput {
   propertyId: string;
   bookings: Omit<BookingInput, "propertyId">[];
+  /** Applies to every row — see Architecture Decision 63. Defaults
+   * server-side to EXPECTED if omitted. */
+  status?: "CONFIRMED" | "EXPECTED";
 }
 
-/** Historical backfill (Architecture Decisions 31, 44) — creates every
- * row CONFIRMED with `paidAt` server-set, not EXPECTED. */
+/** Historical backfill or future-stay import (Architecture Decisions 31,
+ * 44, 63) — `status` is caller-supplied per batch, not always CONFIRMED. */
 export function useBulkImportBookings() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -80,6 +83,26 @@ export function useConfirmBookingPayout() {
   return useMutation({
     mutationFn: (bookingId: string) =>
       fetchJson<Booking>(`/api/bookings/${bookingId}/confirm`, { method: "PATCH" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bookings"] });
+    },
+  });
+}
+
+/** Reverts a booking back to EXPECTED (clears `paidAt`) — for when a
+ * booking was marked CONFIRMED but the money hasn't actually arrived yet.
+ * User clarification, 2026-08-04: "confirmed" means payment was actually
+ * sent, not just that the booking exists — the bulk CSV importer had been
+ * marking every imported row CONFIRMED regardless of real payment status. */
+export function useUnconfirmBookingPayout() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (bookingId: string) =>
+      fetchJson<Booking>(`/api/bookings/${bookingId}/confirm`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "EXPECTED" }),
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
     },

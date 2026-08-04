@@ -7,23 +7,34 @@ import { bookingInputSchema, serializeBooking } from "@/lib/bookings";
 const bulkInputSchema = z.object({
   propertyId: z.string().uuid(),
   bookings: z.array(bookingInputSchema.omit({ propertyId: true })).min(1).max(1000),
+  // Applies to every row in the batch — matches the importer's UI, which
+  // asks once per import ("were these already paid, or not yet?") rather
+  // than per row. Defaults to EXPECTED: user clarification, 2026-08-04,
+  // "confirmed means money was sent" — a batch import should not silently
+  // assert payment happened unless the user actually says so, since not
+  // every CSV import is of genuinely-past, already-paid stays (e.g. a
+  // fresh Airbnb export of upcoming reservations for the rest of the year).
+  status: z.enum(["CONFIRMED", "EXPECTED"]).default("EXPECTED"),
 });
 
 /**
- * Bulk-creates bookings for historical backfill (CSV import or any other
- * batch source) — Architecture Decision 31 ("clean slate, no prev_balance
- * override — real transaction import is the only backfill mechanism") and
- * Decision 44 (generic CSV importer). Every row in a batch shares one
- * property, matching the importer's one-property-per-import UI.
+ * Bulk-creates bookings for historical backfill or future-stay import
+ * (CSV import or any other batch source) — Architecture Decision 31
+ * ("clean slate, no prev_balance override — real transaction import is
+ * the only backfill mechanism") and Decision 44 (generic CSV importer).
+ * Every row in a batch shares one property, matching the importer's
+ * one-property-per-import UI.
  *
- * Unlike POST /api/bookings (which always creates EXPECTED bookings),
- * imported historical bookings are created CONFIRMED with `paidAt` set to
- * their checkout date: the entire point of a historical import is that
- * this income already happened and was already collected, so leaving
- * them EXPECTED would exclude them from `sumConfirmedIncome` and defeat
- * the import's purpose. `paidAt` is still server-computed, never
- * client-supplied — same invariant as the regular /confirm endpoint,
- * applied to every row here instead of one booking at a time.
+ * Status is caller-supplied per batch (Architecture Decision 63), not
+ * always CONFIRMED: a genuinely historical import (the stay and payment
+ * both already happened) should be CONFIRMED so it counts in
+ * `sumConfirmedIncome` immediately, but a batch of upcoming reservations
+ * that haven't been paid out yet should stay EXPECTED until someone
+ * actually confirms each one as money arrives — otherwise the app would
+ * be asserting income that hasn't happened. `paidAt` is still always
+ * server-computed, never client-supplied, and is only set when the
+ * batch's status is CONFIRMED — same invariant as the regular /confirm
+ * endpoint, applied to every row here instead of one booking at a time.
  */
 export async function POST(req: Request) {
   const user = await getCurrentUser();
@@ -38,6 +49,7 @@ export async function POST(req: Request) {
     return apiError("Property not found", 404);
   }
 
+  const { status } = parsed.data;
   const created = await prisma.$transaction(
     parsed.data.bookings.map((b) =>
       prisma.booking.create({
@@ -50,8 +62,8 @@ export async function POST(req: Request) {
           amount: b.amount,
           currency: b.currency,
           source: b.source,
-          status: "CONFIRMED",
-          paidAt: new Date(b.checkOut),
+          status,
+          paidAt: status === "CONFIRMED" ? new Date(b.checkOut) : null,
         },
       })
     )

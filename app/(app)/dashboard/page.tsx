@@ -8,7 +8,7 @@ import { Card, Pill } from "@/components/primitives";
 import { DeltaStat } from "@/components/delta-stat";
 import { useEffectiveUser } from "@/components/effective-user-context";
 import { useAppStore } from "@/store/use-app-store";
-import { useBookings, useConfirmBookingPayout } from "@/lib/queries/bookings";
+import { useBookings, useConfirmBookingPayout, useUnconfirmBookingPayout } from "@/lib/queries/bookings";
 import { useExpenses } from "@/lib/queries/expenses";
 import { useSchedules } from "@/lib/queries/schedules";
 import { useIssues } from "@/lib/queries/issues";
@@ -52,6 +52,7 @@ export default function DashboardPage() {
   const issuesQuery = useIssues();
   const propertiesQuery = useProperties();
   const confirmPayout = useConfirmBookingPayout();
+  const unconfirmPayout = useUnconfirmBookingPayout();
 
   const isLoading =
     bookingsQuery.isLoading || expensesQuery.isLoading || schedulesQuery.isLoading || issuesQuery.isLoading;
@@ -246,6 +247,19 @@ export default function DashboardPage() {
                   ) : (
                     <Pill tone="amber">Expected</Pill>
                   )
+                ) : effectiveCanEdit ? (
+                  <div className="flex items-center gap-2">
+                    <Pill tone="teal">Confirmed</Pill>
+                    <button
+                      onClick={() => unconfirmPayout.mutate(b.id)}
+                      disabled={unconfirmPayout.isPending}
+                      className="text-xs font-semibold"
+                      style={{ color: C.muted, opacity: unconfirmPayout.isPending ? 0.6 : 1 }}
+                      title="Payment hasn't actually been received? Undo the confirmation."
+                    >
+                      Mark unpaid
+                    </button>
+                  </div>
                 ) : (
                   <Pill tone="teal">Confirmed</Pill>
                 )}

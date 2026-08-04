@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronRight, ExternalLink, ClipboardList, AlertTriangle, Check } from "lucide-react";
+import { ChevronRight, ExternalLink, ClipboardList, AlertTriangle, Check, Undo2 } from "lucide-react";
 import { Card, Pill } from "@/components/primitives";
 import { BookingForm } from "@/components/booking-form";
 import { ShiftForm } from "@/components/shift-form";
@@ -24,6 +24,7 @@ export function PerStayView({
   onDeleteBooking,
   onSubmitEditSchedule,
   onConfirmPayout,
+  onUnconfirmPayout,
   onSelectBooking,
   properties,
   showPropertyTag,
@@ -41,6 +42,7 @@ export function PerStayView({
   onDeleteBooking: (id: string) => void;
   onSubmitEditSchedule: (id: string, input: ScheduleInput) => void;
   onConfirmPayout: (id: string) => void;
+  onUnconfirmPayout: (id: string) => void;
   onSelectBooking: (booking: Booking) => void;
   properties: Property[];
   showPropertyTag: boolean;
@@ -124,13 +126,22 @@ export function PerStayView({
                     >
                       Edit stay
                     </button>
-                    {b.status === "EXPECTED" && (
+                    {b.status === "EXPECTED" ? (
                       <button
                         onClick={() => onConfirmPayout(b.id)}
                         className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-full"
                         style={{ background: C.tealSoft, color: C.teal }}
                       >
                         <Check size={12} /> Confirm payment
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => onUnconfirmPayout(b.id)}
+                        className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-full"
+                        style={{ background: C.bg, color: C.muted }}
+                        title="Payment hasn't actually been received? Undo the confirmation."
+                      >
+                        <Undo2 size={12} /> Mark unpaid
                       </button>
                     )}
                     {confirmDeleteId === b.id ? (
