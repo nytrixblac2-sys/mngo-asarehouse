@@ -8,7 +8,6 @@ import { ShiftForm } from "@/components/shift-form";
 import { C } from "@/lib/colors";
 import { fmtCurrency } from "@/lib/format";
 import { nightsBetween } from "@/lib/periods";
-import { dayOfMonth } from "@/lib/calendar";
 import { ISSUE_STATUS_TONE } from "@/lib/labels";
 import type { Booking, Issue, Property, Schedule, TeamMember } from "@/lib/types";
 import type { BookingInput } from "@/lib/queries/bookings";
@@ -34,8 +33,10 @@ export function PerStayView({
   bookings: Booking[];
   schedules: Schedule[];
   issues: Issue[];
-  onSchedule: (day: number) => void;
-  onLogIssue: (day: number, guest?: string) => void;
+  /** Accepts a full ISO date directly, not just a day-in-active-month
+   * number — see the call sites below (Architecture Decision 60). */
+  onSchedule: (dayOrDate: number | string) => void;
+  onLogIssue: (dayOrDate: number | string, guest?: string) => void;
   onSubmitEditBooking: (id: string, input: BookingInput) => void;
   onDeleteBooking: (id: string) => void;
   onSubmitEditSchedule: (id: string, input: ScheduleInput) => void;
@@ -103,14 +104,14 @@ export function PerStayView({
                 {canEdit && (
                   <div className="flex gap-2 flex-wrap">
                     <button
-                      onClick={() => onSchedule(dayOfMonth(b.checkIn))}
+                      onClick={() => onSchedule(b.checkIn)}
                       className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-full"
                       style={{ background: C.teal, color: "#fff" }}
                     >
                       <ClipboardList size={12} /> Add schedule
                     </button>
                     <button
-                      onClick={() => onLogIssue(dayOfMonth(b.checkIn), b.guest)}
+                      onClick={() => onLogIssue(b.checkIn, b.guest)}
                       className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-full"
                       style={{ background: "var(--accent-soft, rgba(0,0,0,0.07))", color: "var(--accent, #111111)" }}
                     >

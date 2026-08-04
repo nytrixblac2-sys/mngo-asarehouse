@@ -1,7 +1,7 @@
 import { Card } from "@/components/primitives";
 import { DaySummaryPanel } from "@/components/day-summary-panel";
 import { C } from "@/lib/colors";
-import { WEEKDAY_NAMES, bookingCoversDay, dayOfMonth, isToday, type ActiveMonth } from "@/lib/calendar";
+import { WEEKDAY_NAMES, bookingCoversDay, isToday, type ActiveMonth } from "@/lib/calendar";
 import type { Booking, Issue, Property, Schedule } from "@/lib/types";
 
 /** context/07-mockup.jsx MonthView. */
@@ -53,7 +53,7 @@ export function MonthView({
             <div key={`blank-${i}`} />
           ))}
           {days.map((day) => {
-            const booking = bookings.find((b) => bookingCoversDay(b, day) || dayOfMonth(b.checkIn) === day);
+            const booking = bookings.find((b) => bookingCoversDay(b, activeMonth, day));
             const isSelected = selectedDay === day;
             const isCurrentDay = isToday(activeMonth, day);
             const dotColor = booking

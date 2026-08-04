@@ -67,7 +67,7 @@ export function WeekView({
       <Card>
         <div className="grid grid-cols-7 gap-2">
           {days.map((day) => {
-            const covering = bookings.filter((b) => bookingCoversDay(b, day) || dayOfMonth(b.checkIn) === day);
+            const covering = bookings.filter((b) => bookingCoversDay(b, activeMonth, day));
             const shiftsToday = schedules.filter((s) => dayOfMonth(s.date) === day);
             const issuesToday = issues.filter((i) => dayOfMonth(i.date) === day);
             const isSelected = selectedDay === day;

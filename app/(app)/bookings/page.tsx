@@ -97,8 +97,13 @@ export default function BookingsPage() {
     setWeekStart(1);
   };
 
-  const openSchedule = (day: number) => setShiftFormDate(`${monthPrefix}-${pad2(day)}`);
-  const openIssue = (day: number, guest?: string) => setIssueForm({ date: `${monthPrefix}-${pad2(day)}`, guest: guest ?? null });
+  // Accepts either a day-in-currently-viewed-month number (grid clicks,
+  // always correct since the grid only ever shows days of activeMonth) or
+  // a full ISO date directly (PerStayView, whose bookings can belong to a
+  // different month than the one currently viewed — Architecture Decision 60).
+  const dateFor = (dayOrDate: number | string) => (typeof dayOrDate === "number" ? `${monthPrefix}-${pad2(dayOrDate)}` : dayOrDate);
+  const openSchedule = (dayOrDate: number | string) => setShiftFormDate(dateFor(dayOrDate));
+  const openIssue = (dayOrDate: number | string, guest?: string) => setIssueForm({ date: dateFor(dayOrDate), guest: guest ?? null });
   const handleToggleIssue = (issue: Issue) => {
     if (!issue.status) return;
     setIssueStatus.mutate({ id: issue.id, status: issue.status === "OPEN" ? "RESOLVED" : "OPEN" });

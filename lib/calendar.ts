@@ -33,15 +33,28 @@ export function isToday(activeMonth: { year: number; month: number }, day: numbe
   return now.getFullYear() === activeMonth.year && now.getMonth() === activeMonth.month && now.getDate() === day;
 }
 
+/** Full ISO "YYYY-MM-DD" for `day` within the given month/year — the
+ * counterpart to dayOfMonth, for building a real date to compare against
+ * a booking/schedule/issue's own ISO date fields. */
+export function isoDateForDay(activeMonth: { year: number; month: number }, day: number): string {
+  return `${activeMonth.year}-${pad2(activeMonth.month + 1)}-${pad2(day)}`;
+}
+
 /**
  * Whether a booking visually touches `day` in the month grid currently
- * being viewed — context/07-mockup.jsx bookingCoversDay. Scoped to a
- * single month by design (the calendar views are one-month grids); a
- * booking spanning a month boundary is handled by the caller only
- * including it in the relevant month's booking list to begin with.
+ * being viewed — context/07-mockup.jsx bookingCoversDay. Compares full
+ * dates, not bare day-of-month numbers: the original mockup-derived
+ * version compared `dayOfMonth(checkIn)`/`dayOfMonth(checkOut)` directly
+ * against `day`, which silently breaks for any booking spanning a month
+ * boundary — e.g. checkIn "2026-06-19" -> checkOut "2026-07-03" produced
+ * `day >= 19 && day < 3`, true for no day at all, so the booking never
+ * rendered on any calendar cell except via callers' separate
+ * `dayOfMonth(checkIn) === day` fallback (which only catches the single
+ * check-in day, and itself risks false positives — see Architecture
+ * Decision 60). Same class of bug as Architecture Decision 22's
+ * `nightsBetween` fix, just never applied here too.
  */
-export function bookingCoversDay(b: { checkIn: string; checkOut: string }, day: number): boolean {
-  const s = dayOfMonth(b.checkIn);
-  const e = dayOfMonth(b.checkOut);
-  return day >= s && day < e;
+export function bookingCoversDay(b: { checkIn: string; checkOut: string }, activeMonth: { year: number; month: number }, day: number): boolean {
+  const iso = isoDateForDay(activeMonth, day);
+  return iso >= b.checkIn && iso < b.checkOut;
 }

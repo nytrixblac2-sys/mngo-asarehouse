@@ -50,7 +50,7 @@ export function DayView({
         </button>
         <div className="flex gap-1.5 overflow-x-auto flex-1" style={{ scrollbarWidth: "none" }}>
           {days.map((day) => {
-            const hasBooking = bookings.some((b) => bookingCoversDay(b, day) || dayOfMonth(b.checkIn) === day);
+            const hasBooking = bookings.some((b) => bookingCoversDay(b, activeMonth, day));
             const hasIssue = issues.some((i) => dayOfMonth(i.date) === day);
             const hasShift = schedules.some((s) => dayOfMonth(s.date) === day);
             const isSelected = currentDay === day;

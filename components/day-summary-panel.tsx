@@ -3,7 +3,7 @@ import { Card, Pill } from "@/components/primitives";
 import { C } from "@/lib/colors";
 import { fmtCurrency } from "@/lib/format";
 import { ISSUE_STATUS_LABEL, ISSUE_STATUS_TONE, ISSUE_TYPE_LABEL, SCHEDULE_TYPE_LABEL } from "@/lib/labels";
-import { bookingCoversDay, dayOfMonth, MONTH_NAMES } from "@/lib/calendar";
+import { bookingCoversDay, dayOfMonth, isoDateForDay, MONTH_NAMES } from "@/lib/calendar";
 import type { Booking, Issue, Property, Schedule } from "@/lib/types";
 
 /** context/07-mockup.jsx DaySummaryPanel — the shared "what's happening
@@ -48,8 +48,9 @@ export function DaySummaryPanel({
   }
 
   const mnLabel = `${MONTH_NAMES[activeMonth.month]} ${day}, ${activeMonth.year}`;
+  const iso = isoDateForDay(activeMonth, day);
   const dayBookings = bookings.filter(
-    (b) => bookingCoversDay(b, day) || dayOfMonth(b.checkIn) === day || dayOfMonth(b.checkOut) === day
+    (b) => bookingCoversDay(b, activeMonth, day) || iso === b.checkOut
   );
   const dayShifts = schedules.filter((s) => dayOfMonth(s.date) === day);
   const dayIssues = issues.filter((i) => dayOfMonth(i.date) === day);
@@ -88,8 +89,8 @@ export function DaySummaryPanel({
                 {fmtCurrency(b.amount, b.currency)}
               </p>
               <div className="flex gap-1 mt-1.5 flex-wrap">
-                {dayOfMonth(b.checkIn) === day && <Pill tone="accent">Check-in</Pill>}
-                {dayOfMonth(b.checkOut) === day && <Pill tone="muted">Check-out</Pill>}
+                {iso === b.checkIn && <Pill tone="accent">Check-in</Pill>}
+                {iso === b.checkOut && <Pill tone="muted">Check-out</Pill>}
               </div>
             </button>
           ))}
