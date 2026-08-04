@@ -79,17 +79,16 @@ export function DayView({
                 onClick={() => setSelectedDay(day)}
                 className="flex-shrink-0 flex flex-col items-center gap-1 px-2 py-2 rounded-xl"
                 style={{
-                  background: isSelected ? C.text : C.bg,
-                  border: isSelected ? "none" : isCurrentDay ? `2px solid ${C.teal}` : `1px solid ${C.border}`,
+                  background: C.bg,
+                  border: isSelected ? `2px solid ${C.text}` : isCurrentDay ? `2px solid ${C.teal}` : `1px solid ${C.border}`,
                   minWidth: 44,
                 }}
               >
-                <span className="text-[10px] font-medium" style={{ color: isSelected ? "rgba(255,255,255,0.6)" : C.muted }}>
+                <span className="text-[10px] font-medium" style={{ color: C.muted }}>
                   {WEEKDAY_NAMES[new Date(year, month, day).getDay()]}
                 </span>
-                <span className="text-sm font-bold" style={{ color: isSelected ? "#fff" : C.text }}>{day}</span>
-                {dotColor && !isSelected && <div className="w-1.5 h-1.5 rounded-full" style={{ background: dotColor }} />}
-                {!dotColor && !isSelected && <div className="w-1.5 h-1.5" />}
+                <span className="text-sm font-bold" style={{ color: C.text }}>{day}</span>
+                {dotColor ? <div className="w-1.5 h-1.5 rounded-full" style={{ background: dotColor }} /> : <div className="w-1.5 h-1.5" />}
               </button>
             );
           })}
