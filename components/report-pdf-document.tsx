@@ -257,7 +257,17 @@ export function ReportPdfDocument({ data }: { data: MonthlyReportData }) {
                       <CalcRow label="Manual income" value={current.owner.manualIncomeTotal} currency={currency} />
                     )}
                     <View style={styles.calcDivider} />
-                    <CalcRow label="Owners Running Balance held with management" value={current.owner.runningBalance} currency={currency} bold plain />
+                    <CalcRow
+                      label={
+                        currency === "EUR"
+                          ? "Owners Running Balance (already received directly by owner)"
+                          : "Owners Running Balance held with management"
+                      }
+                      value={current.owner.runningBalance}
+                      currency={currency}
+                      bold
+                      plain
+                    />
                   </View>
 
                   {currency === "EUR" && (
