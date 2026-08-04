@@ -75,6 +75,9 @@ const styles = StyleSheet.create({
   colPerson: { width: "20%" },
   colAmount: { width: "20%", textAlign: "right" },
   empty: { fontSize: 9, color: "#9B9B9B", marginBottom: 6 },
+  totalRow: { flexDirection: "row", borderTop: "1 solid #111111", paddingTop: 3, marginTop: 2 },
+  totalLabel: { fontSize: 9, fontWeight: 700, width: "80%" },
+  totalValue: { fontSize: 9, fontWeight: 700, width: "20%", textAlign: "right" },
   recBullet: { flexDirection: "row", marginBottom: 5 },
   recDot: { width: 10, fontSize: 9 },
   recText: { flex: 1, fontSize: 9, lineHeight: 1.4 },
@@ -83,6 +86,7 @@ const styles = StyleSheet.create({
 
 function IncomeTable({ rows, currency }: { rows: ReportIncomeRow[]; currency: Currency }) {
   if (rows.length === 0) return <Text style={styles.empty}>No {currency} income recorded this month.</Text>;
+  const total = rows.reduce((s, r) => s + r.amount, 0);
   return (
     <View>
       <View style={styles.tableHeader}>
@@ -99,12 +103,17 @@ function IncomeTable({ rows, currency }: { rows: ReportIncomeRow[]; currency: Cu
           <Text style={[styles.td, styles.colAmount]}>{fmtCurrencyPdf(r.amount, currency)}</Text>
         </View>
       ))}
+      <View style={styles.totalRow}>
+        <Text style={styles.totalLabel}>Total</Text>
+        <Text style={styles.totalValue}>{fmtCurrencyPdf(total, currency)}</Text>
+      </View>
     </View>
   );
 }
 
 function ExpenseTable({ rows, currency }: { rows: ReportExpenseRow[]; currency: Currency }) {
   if (rows.length === 0) return <Text style={styles.empty}>No {currency} expenses recorded this month.</Text>;
+  const total = rows.reduce((s, r) => s + r.amount, 0);
   return (
     <View>
       <View style={styles.tableHeader}>
@@ -121,6 +130,10 @@ function ExpenseTable({ rows, currency }: { rows: ReportExpenseRow[]; currency: 
           <Text style={[styles.td, styles.colAmount]}>{fmtCurrencyPdf(r.amount, currency)}</Text>
         </View>
       ))}
+      <View style={styles.totalRow}>
+        <Text style={styles.totalLabel}>Total</Text>
+        <Text style={styles.totalValue}>{fmtCurrencyPdf(total, currency)}</Text>
+      </View>
     </View>
   );
 }

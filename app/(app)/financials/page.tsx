@@ -278,6 +278,17 @@ export default function FinancialsPage() {
                     </div>
                   </div>
                 ))}
+                {(ownerIncomeRows.length > 0 || monthManualIncome.length > 0) && (
+                  <div
+                    className="flex items-center justify-between py-2 px-3 mt-1"
+                    style={{ borderTop: `1px solid ${C.border}` }}
+                  >
+                    <span className="text-sm font-semibold" style={{ color: C.text }}>Total</span>
+                    <span className="text-sm font-bold" style={{ color: C.text }}>
+                      {fmtCurrency(ownerReport.ownersAlloc + ownerReport.opsAlloc + ownerReport.manualIncomeTotal, ownerCur)}
+                    </span>
+                  </div>
+                )}
               </div>
             </Card>
           )}
@@ -299,6 +310,17 @@ export default function FinancialsPage() {
                     </div>
                   </div>
                 ))}
+                {ownerLineItems.length > 0 && (
+                  <div
+                    className="flex items-center justify-between py-2 px-3 mt-1"
+                    style={{ borderTop: `1px solid ${C.border}` }}
+                  >
+                    <span className="text-sm font-semibold" style={{ color: C.text }}>Total</span>
+                    <span className="text-sm font-bold" style={{ color: C.text }}>
+                      {fmtCurrency(ownerReport.ownersExp + ownerReport.opsExp, ownerCur)}
+                    </span>
+                  </div>
+                )}
               </div>
             </Card>
           )}
@@ -350,6 +372,15 @@ export default function FinancialsPage() {
                     </div>
                   </div>
                 ))}
+                {oakIncomeRows.length > 0 && (
+                  <div
+                    className="flex items-center justify-between py-2 px-3 mt-1"
+                    style={{ borderTop: `1px solid ${C.border}` }}
+                  >
+                    <span className="text-sm font-semibold" style={{ color: C.text }}>Total</span>
+                    <span className="text-sm font-bold" style={{ color: C.text }}>{fmtCurrency(oakReport.managementAlloc, oakCur)}</span>
+                  </div>
+                )}
               </div>
             </Card>
           )}
@@ -371,6 +402,15 @@ export default function FinancialsPage() {
                     </div>
                   </div>
                 ))}
+                {oakExpItems.length > 0 && (
+                  <div
+                    className="flex items-center justify-between py-2 px-3 mt-1"
+                    style={{ borderTop: `1px solid ${C.border}` }}
+                  >
+                    <span className="text-sm font-semibold" style={{ color: C.text }}>Total</span>
+                    <span className="text-sm font-bold" style={{ color: C.text }}>{fmtCurrency(oakReport.managementExp, oakCur)}</span>
+                  </div>
+                )}
               </div>
             </Card>
           )}
