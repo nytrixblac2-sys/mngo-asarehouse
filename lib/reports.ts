@@ -44,6 +44,7 @@ interface CurrencyMonthFigures {
   currency: Currency;
   confirmedIncome: number;
   manualIncomeTotal: number;
+  allocationPct: Allocation;
   owner: ReturnType<typeof computeOwnersReport>;
   management: ReturnType<typeof computeManagementReport>;
   incomeRows: ReportIncomeRow[];
@@ -154,6 +155,7 @@ function computeCurrencyFigures(params: {
     currency,
     confirmedIncome,
     manualIncomeTotal: owner.manualIncomeTotal,
+    allocationPct: allocation,
     owner,
     management,
     incomeRows,
@@ -251,7 +253,7 @@ function buildRecommendations(sections: CurrencyReportSection[], reportTypes: Re
     }
 
     if (currency === "GHS" && current.momoTotal > 50) {
-      notes.push(`GH₵${current.momoTotal.toFixed(2)} was paid in MoMo transaction charges this month (1% on GHS expenses) — consider batching payments to reduce fees.`);
+      notes.push(`GHS ${current.momoTotal.toFixed(2)} was paid in MoMo transaction charges this month (1% on GHS expenses) — consider batching payments to reduce fees.`);
     }
   }
 
