@@ -38,6 +38,7 @@ If a change cannot be verified end to end in one session, the scope is too large
 - The Oak & Co. Internal tab content is never sent to `property_owner` sessions. This is enforced server-side.
 - Owner preview mode is a client-side rendering state only. It does not modify the Supabase session.
 - The `canEdit` prop is the single source of truth for whether edit controls render. Never check `currentUser.role` directly in a screen component.
+- The PDF report's structure (v1.0.2.9 — income overview, balance carried forward, income allocation, itemized income/expenses, EUR-only Oak & Co transfer callout, final balance calculation) and visual design (`components/report-pdf-document.tsx`'s grey/teal bento-card styling) are both user-confirmed final as of 2026-08-04. Do not restructure the content or change the color/card styling without explicit instruction — see Architecture Decision 62.
 
 ## Mockup Fidelity Rules
 
