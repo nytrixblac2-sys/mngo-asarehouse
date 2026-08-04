@@ -47,9 +47,12 @@ const styles = StyleSheet.create({
   cardLabel: { fontSize: 8, color: "#6B7280", textTransform: "uppercase", marginBottom: 3 },
   cardValue: { fontSize: 14, fontWeight: 700 },
   cardSub: { fontSize: 8, color: "#6B7280", marginTop: 2 },
-  openingCard: { padding: 10, backgroundColor: "#F5F5F5", borderRadius: 6, marginBottom: 8, borderLeft: "3 solid #111111" },
-  openingLabel: { fontSize: 8, color: "#6B7280", textTransform: "uppercase", marginBottom: 2 },
-  openingValue: { fontSize: 13, fontWeight: 700 },
+  // Teal, matching the Running Balance cards below — user request 2026-08-05:
+  // tie the opening (carried-forward) balance visually to the other
+  // balance figures in the report, for both GHS and EUR.
+  openingCard: { padding: 10, backgroundColor: "rgba(0, 166, 153, 0.10)", borderRadius: 6, marginBottom: 8, borderLeft: "3 solid #00A699" },
+  openingLabel: { fontSize: 8, color: "#00A699", textTransform: "uppercase", marginBottom: 2 },
+  openingValue: { fontSize: 13, fontWeight: 700, color: "#00A699" },
   transferCard: { padding: 12, backgroundColor: "#FEF3C7", borderRadius: 6, marginTop: 4, marginBottom: 10, border: "1 solid #F59E0B" },
   transferLabel: { fontSize: 9, fontWeight: 700, color: "#92400E", marginBottom: 3 },
   transferValue: { fontSize: 16, fontWeight: 700, color: "#92400E" },
