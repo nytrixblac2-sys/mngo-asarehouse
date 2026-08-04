@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check, ChevronRight } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Card, Pill } from "@/components/primitives";
+import { CurrencyToggle } from "@/components/currency-toggle";
 import { DeltaStat } from "@/components/delta-stat";
 import { useEffectiveUser } from "@/components/effective-user-context";
 import { useAppStore } from "@/store/use-app-store";
@@ -45,6 +46,7 @@ export default function DashboardPage() {
   const { effectiveUser, effectiveCanEdit } = useEffectiveUser();
   const activePropertyId = useAppStore((s) => s.activePropertyId);
   const [periodKey, setPeriodKey] = useState<PeriodKey>("Month");
+  const [chartCurrency, setChartCurrency] = useState<Currency>("GHS");
 
   const bookingsQuery = useBookings();
   const expensesQuery = useExpenses();
@@ -77,13 +79,14 @@ export default function DashboardPage() {
 
   const period = useMemo(() => getPeriodPair(periodKey), [periodKey]);
 
-  // Chart is GHS-only (matches its "(GH₵)" label) — never mix currencies
-  // into one total, per context/02-architecture-context.md invariant #2.
+  // Chart is single-currency at a time, switchable via chartCurrency —
+  // never mixed into one total, per context/02-architecture-context.md
+  // invariant #2. User request 2026-08-04: was hardcoded to GHS only.
   const currentExpenses = expenses
-    .filter((e) => e.currency === "GHS" && inRange(e.date, period.current))
+    .filter((e) => e.currency === chartCurrency && inRange(e.date, period.current))
     .reduce((s, e) => s + applyMomo(e.amount, e.currency), 0);
   const previousExpenses = expenses
-    .filter((e) => e.currency === "GHS" && inRange(e.date, period.previous))
+    .filter((e) => e.currency === chartCurrency && inRange(e.date, period.previous))
     .reduce((s, e) => s + applyMomo(e.amount, e.currency), 0);
   const chartData = [
     { label: period.previous.label, expenses: Math.round(previousExpenses) },
@@ -287,9 +290,12 @@ export default function DashboardPage() {
             ))}
           </div>
         </div>
-        <p className="text-xs mb-3" style={{ color: C.muted }}>
-          Expenses (GH₵)
-        </p>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-xs" style={{ color: C.muted }}>
+            Expenses ({chartCurrency === "EUR" ? "€" : "GH₵"})
+          </p>
+          <CurrencyToggle value={chartCurrency} onChange={setChartCurrency} currencies={["GHS", "EUR"]} />
+        </div>
         <div style={{ height: 160 }}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} margin={{ top: 4, right: 8, left: 8, bottom: 0 }}>
@@ -297,7 +303,7 @@ export default function DashboardPage() {
               <XAxis dataKey="label" tick={{ fontSize: 12, fill: C.muted }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 11, fill: C.muted }} axisLine={false} tickLine={false} width={40} />
               <Tooltip
-                formatter={(v) => fmtGHS(Number(v))}
+                formatter={(v) => fmtCurrency(Number(v), chartCurrency)}
                 contentStyle={{ borderRadius: 12, border: `1px solid ${C.border}`, fontSize: 12 }}
               />
               <Bar dataKey="expenses" fill="var(--accent, #111111)" radius={[6, 6, 0, 0]} barSize={48} />
