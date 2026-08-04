@@ -30,19 +30,19 @@ const VIEWS: ViewKey[] = ["Day", "Week", "Month", "Per stay"];
 export default function BookingsPage() {
   const { effectiveCanEdit } = useEffectiveUser();
   const activePropertyId = useAppStore((s) => s.activePropertyId);
+  // Persisted across refresh — user feedback, 2026-08-05: refreshing while
+  // viewing a past/future month bounced back to the real current month.
+  const { view, year: bYear, month: bMonth, selectedDay, weekStart } = useAppStore((s) => s.bookingsView);
+  const setBookingsView = useAppStore((s) => s.setBookingsView);
+  const setView = (v: ViewKey) => setBookingsView({ view: v });
+  const setSelectedDay = (day: number | null) => setBookingsView({ selectedDay: day });
+  const setWeekStart = (start: number) => setBookingsView({ weekStart: start });
 
-  const [view, setView] = useState<ViewKey>("Month");
-  const [selectedDay, setSelectedDay] = useState<number | null>(null);
-  const [weekStart, setWeekStart] = useState(1);
   const [showBookingForm, setShowBookingForm] = useState(false);
   const [showCsvImport, setShowCsvImport] = useState(false);
   const [shiftFormDate, setShiftFormDate] = useState<string | null>(null);
   const [issueForm, setIssueForm] = useState<{ date: string; guest: string | null } | null>(null);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
-
-  const today = new Date();
-  const [bYear, setBYear] = useState(today.getFullYear());
-  const [bMonth, setBMonth] = useState(today.getMonth());
 
   const bookingsQuery = useBookings();
   const schedulesQuery = useSchedules();
@@ -86,16 +86,12 @@ export default function BookingsPage() {
   const monthIssues = withActiveProperty(issuesQuery.data).filter((i) => i.date.startsWith(monthPrefix));
 
   const goToPrevMonth = () => {
-    if (bMonth === 0) { setBYear((y) => y - 1); setBMonth(11); }
-    else setBMonth((m) => m - 1);
-    setSelectedDay(null);
-    setWeekStart(1);
+    const next = bMonth === 0 ? { year: bYear - 1, month: 11 } : { year: bYear, month: bMonth - 1 };
+    setBookingsView({ ...next, selectedDay: null, weekStart: 1 });
   };
   const goToNextMonth = () => {
-    if (bMonth === 11) { setBYear((y) => y + 1); setBMonth(0); }
-    else setBMonth((m) => m + 1);
-    setSelectedDay(null);
-    setWeekStart(1);
+    const next = bMonth === 11 ? { year: bYear + 1, month: 0 } : { year: bYear, month: bMonth + 1 };
+    setBookingsView({ ...next, selectedDay: null, weekStart: 1 });
   };
 
   // Accepts either a day-in-currently-viewed-month number (grid clicks,
@@ -192,7 +188,7 @@ export default function BookingsPage() {
       {view === "Day" && (
         <DayView
           bookings={monthBookings} schedules={monthShifts} issues={monthIssues}
-          selectedDay={selectedDay || 1} setSelectedDay={setSelectedDay}
+          selectedDay={selectedDay} setSelectedDay={setSelectedDay}
           onSchedule={openSchedule} onLogIssue={openIssue} onToggleIssue={handleToggleIssue}
           onSelectBooking={setSelectedBooking} properties={properties} showPropertyTag={showPropertyTag}
           canEdit={effectiveCanEdit} activeMonth={activeMonth}

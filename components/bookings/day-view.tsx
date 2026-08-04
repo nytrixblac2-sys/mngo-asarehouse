@@ -23,8 +23,8 @@ export function DayView({
   bookings: Booking[];
   schedules: Schedule[];
   issues: Issue[];
-  selectedDay: number;
-  setSelectedDay: (day: number) => void;
+  selectedDay: number | null;
+  setSelectedDay: (day: number | null) => void;
   onSchedule: (day: number) => void;
   onLogIssue: (day: number) => void;
   onToggleIssue: (issue: Issue) => void;
@@ -36,13 +36,19 @@ export function DayView({
 }) {
   const { year, month, daysInMonth } = activeMonth;
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
-  const currentDay = selectedDay || 1;
+  // No day is selected by default when the view loads — user feedback,
+  // 2026-08-05: Day view was defaulting to day 1 (a solid selection +
+  // populated summary panel) on first load, unlike Month/Week, which show
+  // nothing until the user actually clicks a date. `anchorDay` is only for
+  // the prev/next arrows to step from when nothing is selected yet — it
+  // does not itself mark a day as selected.
+  const anchorDay = selectedDay ?? 1;
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-2">
         <button
-          onClick={() => setSelectedDay(Math.max(1, currentDay - 1))}
+          onClick={() => setSelectedDay(Math.max(1, anchorDay - 1))}
           className="p-2 rounded-full flex-shrink-0"
           style={{ background: C.card, border: `1px solid ${C.border}` }}
         >
@@ -60,7 +66,7 @@ export function DayView({
             const hasBooking = bookings.some((b) => bookingCoversDay(b, activeMonth, day));
             const hasIssue = issues.some((i) => dayOfMonth(i.date) === day);
             const hasShift = schedules.some((s) => dayOfMonth(s.date) === day);
-            const isSelected = currentDay === day;
+            const isSelected = selectedDay === day;
             const isCurrentDay = isToday(activeMonth, day);
             const dotColor = isCheckIn
               ? C.tealLight
@@ -94,7 +100,7 @@ export function DayView({
           })}
         </div>
         <button
-          onClick={() => setSelectedDay(Math.min(daysInMonth, currentDay + 1))}
+          onClick={() => setSelectedDay(Math.min(daysInMonth, anchorDay + 1))}
           className="p-2 rounded-full flex-shrink-0"
           style={{ background: C.card, border: `1px solid ${C.border}` }}
         >
@@ -103,7 +109,7 @@ export function DayView({
       </div>
 
       <DaySummaryPanel
-        day={currentDay}
+        day={selectedDay}
         bookings={bookings}
         schedules={schedules}
         issues={issues}

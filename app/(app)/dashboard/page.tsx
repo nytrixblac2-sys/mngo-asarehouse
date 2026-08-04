@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ChevronRight } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
@@ -45,8 +45,12 @@ export default function DashboardPage() {
   const router = useRouter();
   const { effectiveUser, effectiveCanEdit } = useEffectiveUser();
   const activePropertyId = useAppStore((s) => s.activePropertyId);
-  const [periodKey, setPeriodKey] = useState<PeriodKey>("Month");
-  const [chartCurrency, setChartCurrency] = useState<Currency>("GHS");
+  // Persisted across refresh — same reasoning as Bookings/Financials
+  // (Architecture Decision 69).
+  const { periodKey, chartCurrency } = useAppStore((s) => s.dashboardView);
+  const setDashboardView = useAppStore((s) => s.setDashboardView);
+  const setPeriodKey = (k: PeriodKey) => setDashboardView({ periodKey: k });
+  const setChartCurrency = (c: Currency) => setDashboardView({ chartCurrency: c });
 
   const bookingsQuery = useBookings();
   const expensesQuery = useExpenses();

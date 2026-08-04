@@ -33,18 +33,23 @@ export default function FinancialsPage() {
   const { effectiveCanEdit } = useEffectiveUser();
   const activePropertyId = useAppStore((s) => s.activePropertyId);
 
-  const [tab, setTab] = useState<"owner" | "oakco">("owner");
-  const [ownerCurrency, setOwnerCurrency] = useState<Currency>("GHS");
-  const [oakCurrency, setOakCurrency] = useState<Currency>("GHS");
-  const [ownerSub, setOwnerSub] = useState<"income" | "expenses">("income");
-  const [oakcoSub, setOakcoSub] = useState<"income" | "expenses">("income");
+  // Persisted across refresh — same reasoning as Bookings (Architecture
+  // Decision 69): refreshing while viewing a past/future month, a
+  // non-default tab, or a non-default currency all used to bounce back to
+  // this page's hardcoded defaults.
+  const {
+    year: fYear, month: fMonth, tab, ownerCurrency, oakCurrency, ownerSub, oakcoSub,
+  } = useAppStore((s) => s.financialsView);
+  const setFinancialsView = useAppStore((s) => s.setFinancialsView);
+  const setTab = (t: "owner" | "oakco") => setFinancialsView({ tab: t });
+  const setOwnerCurrency = (c: Currency) => setFinancialsView({ ownerCurrency: c });
+  const setOakCurrency = (c: Currency) => setFinancialsView({ oakCurrency: c });
+  const setOwnerSub = (s: "income" | "expenses") => setFinancialsView({ ownerSub: s });
+  const setOakcoSub = (s: "income" | "expenses") => setFinancialsView({ oakcoSub: s });
+
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [showIncomeForm, setShowIncomeForm] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
-
-  const today = new Date();
-  const [fYear, setFYear] = useState(today.getFullYear());
-  const [fMonth, setFMonth] = useState(today.getMonth());
 
   const bookingsQuery = useBookings();
   const expensesQuery = useExpenses();
@@ -136,10 +141,10 @@ export default function FinancialsPage() {
   const oakIncomeRows = monthBookingsOak.map((b) => ({ booking: b, amt: b.amount * (allocOak.management / 100) }));
 
   const goToPrevMonth = () => {
-    if (fMonth === 0) { setFYear((y) => y - 1); setFMonth(11); } else setFMonth((m) => m - 1);
+    setFinancialsView(fMonth === 0 ? { year: fYear - 1, month: 11 } : { year: fYear, month: fMonth - 1 });
   };
   const goToNextMonth = () => {
-    if (fMonth === 11) { setFYear((y) => y + 1); setFMonth(0); } else setFMonth((m) => m + 1);
+    setFinancialsView(fMonth === 11 ? { year: fYear + 1, month: 0 } : { year: fYear, month: fMonth + 1 });
   };
 
   const defaultPropertyId = activeProperty.id;
