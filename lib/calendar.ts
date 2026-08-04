@@ -58,3 +58,17 @@ export function bookingCoversDay(b: { checkIn: string; checkOut: string }, activ
   const iso = isoDateForDay(activeMonth, day);
   return iso >= b.checkIn && iso < b.checkOut;
 }
+
+/** Whether `day` is exactly this booking's check-in date — user request
+ * 2026-08-04: check-in/check-out days get distinct dot colors across the
+ * Day/Week/Month views, since checkout days previously had no calendar
+ * indicator at all (`bookingCoversDay` deliberately excludes the checkout
+ * day itself — the guest isn't occupying that night). */
+export function bookingChecksInOn(b: { checkIn: string }, activeMonth: { year: number; month: number }, day: number): boolean {
+  return isoDateForDay(activeMonth, day) === b.checkIn;
+}
+
+/** Whether `day` is exactly this booking's check-out date. */
+export function bookingChecksOutOn(b: { checkOut: string }, activeMonth: { year: number; month: number }, day: number): boolean {
+  return isoDateForDay(activeMonth, day) === b.checkOut;
+}

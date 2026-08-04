@@ -3,7 +3,7 @@ import { Card } from "@/components/primitives";
 import { DaySummaryPanel } from "@/components/day-summary-panel";
 import { C } from "@/lib/colors";
 import { ISSUE_TYPE_LABEL, SCHEDULE_TYPE_LABEL } from "@/lib/labels";
-import { WEEKDAY_NAMES, bookingCoversDay, dayOfMonth, isToday, type ActiveMonth } from "@/lib/calendar";
+import { WEEKDAY_NAMES, bookingChecksInOn, bookingChecksOutOn, bookingCoversDay, dayOfMonth, isToday, type ActiveMonth } from "@/lib/calendar";
 import type { Booking, Issue, Property, Schedule } from "@/lib/types";
 
 /** context/07-mockup.jsx WeekView. */
@@ -67,7 +67,17 @@ export function WeekView({
       <Card>
         <div className="grid grid-cols-7 gap-2">
           {days.map((day) => {
-            const covering = bookings.filter((b) => bookingCoversDay(b, activeMonth, day));
+            // Split into check-in / mid-stay / check-out so each gets its
+            // own dot color — user request 2026-08-04: check-out days
+            // previously showed nothing at all here, since
+            // bookingCoversDay deliberately excludes the checkout day
+            // itself. A booking falls into exactly one of these three for
+            // any given day (checkIn < checkOut is enforced at creation).
+            const checkInBookings = bookings.filter((b) => bookingChecksInOn(b, activeMonth, day));
+            const checkOutBookings = bookings.filter((b) => bookingChecksOutOn(b, activeMonth, day));
+            const midStayBookings = bookings.filter(
+              (b) => bookingCoversDay(b, activeMonth, day) && !bookingChecksInOn(b, activeMonth, day)
+            );
             const shiftsToday = schedules.filter((s) => dayOfMonth(s.date) === day);
             const issuesToday = issues.filter((i) => dayOfMonth(i.date) === day);
             const isSelected = selectedDay === day;
@@ -106,7 +116,17 @@ export function WeekView({
                   )}
                 </div>
                 <div className="flex flex-col gap-1">
-                  {covering.map((b) => (
+                  {checkInBookings.map((b) => (
+                    <div
+                      key={`in-${b.id}`}
+                      className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-1 rounded-md truncate"
+                      style={{ background: `${C.tealLight}33`, color: C.text }}
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: C.tealLight }} />
+                      {b.guest.split(" ")[0]}
+                    </div>
+                  ))}
+                  {midStayBookings.map((b) => (
                     <div
                       key={b.id}
                       className="text-[10px] font-semibold px-1.5 py-1 rounded-md truncate"
@@ -119,6 +139,16 @@ export function WeekView({
                           : "var(--accent, #111111)",
                       }}
                     >
+                      {b.guest.split(" ")[0]}
+                    </div>
+                  ))}
+                  {checkOutBookings.map((b) => (
+                    <div
+                      key={`out-${b.id}`}
+                      className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-1 rounded-md truncate"
+                      style={{ background: `${C.redLight}33`, color: C.text }}
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: C.redLight }} />
                       {b.guest.split(" ")[0]}
                     </div>
                   ))}

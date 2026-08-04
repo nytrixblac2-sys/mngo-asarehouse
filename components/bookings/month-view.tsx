@@ -1,7 +1,7 @@
 import { Card } from "@/components/primitives";
 import { DaySummaryPanel } from "@/components/day-summary-panel";
 import { C } from "@/lib/colors";
-import { WEEKDAY_NAMES, bookingCoversDay, isToday, type ActiveMonth } from "@/lib/calendar";
+import { WEEKDAY_NAMES, bookingChecksInOn, bookingChecksOutOn, bookingCoversDay, isToday, type ActiveMonth } from "@/lib/calendar";
 import type { Booking, Issue, Property, Schedule } from "@/lib/types";
 
 /** context/07-mockup.jsx MonthView. */
@@ -53,26 +53,45 @@ export function MonthView({
             <div key={`blank-${i}`} />
           ))}
           {days.map((day) => {
-            const booking = bookings.find((b) => bookingCoversDay(b, activeMonth, day));
+            // Check-in and check-out get their own fixed dot colors
+            // (not property-dependent) so a stay's start/end day is
+            // visually obvious — user request 2026-08-04: checkout days
+            // previously had no indicator at all. The mid-stay dot (a
+            // continuing night, not the check-in day itself) keeps the
+            // original property/accent color.
+            const checkInBooking = bookings.find((b) => bookingChecksInOn(b, activeMonth, day));
+            const checkOutBooking = bookings.find((b) => bookingChecksOutOn(b, activeMonth, day));
+            const midStayBooking = bookings.find(
+              (b) => bookingCoversDay(b, activeMonth, day) && !bookingChecksInOn(b, activeMonth, day)
+            );
+            const hasAny = Boolean(checkInBooking || checkOutBooking || midStayBooking);
             const isSelected = selectedDay === day;
             const isCurrentDay = isToday(activeMonth, day);
-            const dotColor = booking
+            const midStayColor = midStayBooking
               ? showPropertyTag
-                ? properties.find((p) => p.id === booking.propertyId)?.color ?? "var(--accent, #111111)"
+                ? properties.find((p) => p.id === midStayBooking.propertyId)?.color ?? "var(--accent, #111111)"
                 : "var(--accent, #111111)"
               : null;
+            // Background tint prioritizes check-in, then an ongoing stay,
+            // then check-out — arbitrary priority, just needs one color
+            // for the cell wash while the dots below carry the full detail.
+            const tintColor = checkInBooking ? C.tealLight : midStayColor ?? (checkOutBooking ? C.redLight : null);
             return (
               <button
                 key={day}
                 onClick={() => setSelectedDay(day)}
                 className="aspect-square rounded-lg flex flex-col items-center justify-center text-xs relative p-1"
                 style={{
-                  background: booking ? `${dotColor}18` : C.bg,
+                  background: hasAny ? `${tintColor}18` : C.bg,
                   border: isSelected ? `2px solid ${C.text}` : isCurrentDay ? `2px solid ${C.teal}` : "1px solid transparent",
                 }}
               >
-                <span style={{ color: booking ? dotColor ?? undefined : C.text, fontWeight: booking ? 700 : 500 }}>{day}</span>
-                {booking && <div className="w-1.5 h-1.5 rounded-full mt-0.5" style={{ background: dotColor ?? undefined }} />}
+                <span style={{ color: hasAny ? tintColor ?? undefined : C.text, fontWeight: hasAny ? 700 : 500 }}>{day}</span>
+                <div className="flex items-center gap-0.5 mt-0.5">
+                  {checkInBooking && <div className="w-1.5 h-1.5 rounded-full" style={{ background: C.tealLight }} />}
+                  {midStayBooking && <div className="w-1.5 h-1.5 rounded-full" style={{ background: midStayColor ?? undefined }} />}
+                  {checkOutBooking && <div className="w-1.5 h-1.5 rounded-full" style={{ background: C.redLight }} />}
+                </div>
               </button>
             );
           })}

@@ -1,7 +1,7 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { DaySummaryPanel } from "@/components/day-summary-panel";
 import { C } from "@/lib/colors";
-import { WEEKDAY_NAMES, bookingCoversDay, dayOfMonth, isToday, type ActiveMonth } from "@/lib/calendar";
+import { WEEKDAY_NAMES, bookingChecksInOn, bookingChecksOutOn, bookingCoversDay, dayOfMonth, isToday, type ActiveMonth } from "@/lib/calendar";
 import type { Booking, Issue, Property, Schedule } from "@/lib/types";
 
 /** context/07-mockup.jsx DayView — horizontal day strip. */
@@ -50,12 +50,29 @@ export function DayView({
         </button>
         <div className="flex gap-1.5 overflow-x-auto flex-1" style={{ scrollbarWidth: "none" }}>
           {days.map((day) => {
+            // Check-in/check-out get their own fixed colors, prioritized
+            // over a plain mid-stay indicator — user request 2026-08-04:
+            // checkout days previously showed no dot at all, since
+            // bookingCoversDay deliberately excludes the checkout day
+            // itself (see lib/calendar.ts).
+            const isCheckIn = bookings.some((b) => bookingChecksInOn(b, activeMonth, day));
+            const isCheckOut = bookings.some((b) => bookingChecksOutOn(b, activeMonth, day));
             const hasBooking = bookings.some((b) => bookingCoversDay(b, activeMonth, day));
             const hasIssue = issues.some((i) => dayOfMonth(i.date) === day);
             const hasShift = schedules.some((s) => dayOfMonth(s.date) === day);
             const isSelected = currentDay === day;
             const isCurrentDay = isToday(activeMonth, day);
-            const dotColor = hasBooking ? "var(--accent, #111111)" : hasShift ? C.teal : hasIssue ? "var(--accent, #111111)" : null;
+            const dotColor = isCheckIn
+              ? C.tealLight
+              : isCheckOut
+                ? C.redLight
+                : hasBooking
+                  ? "var(--accent, #111111)"
+                  : hasShift
+                    ? C.teal
+                    : hasIssue
+                      ? "var(--accent, #111111)"
+                      : null;
             return (
               <button
                 key={day}
