@@ -1,4 +1,4 @@
-import type { Allocation, Booking, Currency, Expense, ExpenseCategory, ManualIncome, PrevBalance } from "./types";
+import type { Allocation, Booking, Currency, Expense, ExpenseCategory, ManualIncome, Order, PrevBalance } from "./types";
 
 /**
  * Financial calculations — context/03-code-standards.md: "Financial logic
@@ -17,6 +17,33 @@ export function applyMomo(amount: number, currency: Currency): number {
  * "Financial Calculation Model" ("confirmed income"). */
 export function sumConfirmedIncome(bookings: Booking[]): number {
   return bookings.filter((b) => b.status === "CONFIRMED").reduce((s, b) => s + b.amount, 0);
+}
+
+/** A booking's own non-deleted food/drink spend, in one currency —
+ * guest orders tied to their stay (Architecture Decision 84). Orders are
+ * already deletedAt-filtered by the API by default, but this checks too
+ * defensively rather than trusting every caller passed an already-filtered
+ * list. */
+export function bookingOrderTotal(bookingId: string, orders: Order[], currency: Currency): number {
+  return orders
+    .filter((o) => o.bookingId === bookingId && o.deletedAt === null)
+    .flatMap((o) => o.items)
+    .filter((i) => i.currency === currency)
+    .reduce((sum, i) => sum + i.unitPrice * i.quantity, 0);
+}
+
+/**
+ * HOSTEL-aware confirmed income: each CONFIRMED booking's room amount
+ * plus that same booking's own order total — the guest's food/drink
+ * spend belongs to their stay's income, not a separate untracked bucket.
+ * Fixes the real bug reported directly by the user: "when a guest orders
+ * and checks out it should show in financials, right now it doesn't add
+ * — it should be tied to the guest" (Architecture Decision 84).
+ */
+export function sumConfirmedIncomeHostel(bookings: Booking[], orders: Order[], currency: Currency): number {
+  return bookings
+    .filter((b) => b.status === "CONFIRMED")
+    .reduce((sum, b) => sum + b.amount + bookingOrderTotal(b.id, orders, currency), 0);
 }
 
 export function sumExpensesByCategory(expenses: Expense[], category: ExpenseCategory): number {

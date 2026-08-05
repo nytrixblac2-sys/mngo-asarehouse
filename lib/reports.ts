@@ -1,5 +1,5 @@
-import { applyMomo, computeManagementReport, computeOwnersReport, sumConfirmedIncome } from "./financials";
-import type { Allocation, Booking, Currency, Expense, ManualIncome, PrevBalance, Property } from "./types";
+import { applyMomo, bookingOrderTotal, computeManagementReport, computeOwnersReport, sumConfirmedIncome, sumConfirmedIncomeHostel } from "./financials";
+import type { Allocation, Booking, Currency, Expense, ManualIncome, Order, PrevBalance, Property } from "./types";
 
 /** context/07-mockup.jsx GenerateReportModal's two checkboxes ("Owner Report",
  * "Oak & Co. internal report") — a report can include either or both. */
@@ -81,9 +81,11 @@ function computeCurrencyFigures(params: {
   bookings: Booking[];
   expenses: Expense[];
   manualIncome: ManualIncome[];
+  orders: Order[];
+  isHostel?: boolean;
   openingBalanceOverride?: OpeningBalanceOverride;
 }): CurrencyMonthFigures {
-  const { currency, year, month, property, bookings, expenses, manualIncome, openingBalanceOverride } = params;
+  const { currency, year, month, property, bookings, expenses, manualIncome, orders, isHostel, openingBalanceOverride } = params;
   const prefix = monthPrefix(year, month);
 
   const monthBookings = bookings.filter((b) => b.propertyId === property.id && b.currency === currency && b.checkIn.startsWith(prefix));
@@ -98,19 +100,26 @@ function computeCurrencyFigures(params: {
     owners: openingBalanceOverride?.owners ?? storedPrevBalance.owners,
     management: openingBalanceOverride?.management ?? storedPrevBalance.management,
   };
-  const confirmedIncome = sumConfirmedIncome(monthBookings);
+  const confirmedIncome = isHostel
+    ? sumConfirmedIncomeHostel(monthBookings, orders, currency)
+    : sumConfirmedIncome(monthBookings);
 
   const owner = computeOwnersReport({ confirmedIncome, allocation, monthExpenses, manualIncome: monthManualIncome, prevBalance });
   const management = computeManagementReport({ confirmedIncome, allocation, monthExpenses, prevBalance });
 
   const incomeRows: ReportIncomeRow[] = [
-    ...monthBookings.map((b) => ({
-      kind: "booking" as const,
-      label: b.guest,
-      sublabel: `${b.source === "AIRBNB" ? "Airbnb" : "Local"} · ${b.checkIn} to ${b.checkOut}`,
-      date: b.checkIn,
-      amount: b.amount,
-    })),
+    ...monthBookings.map((b) => {
+      const foodTotal = isHostel ? bookingOrderTotal(b.id, orders, currency) : 0;
+      return {
+        kind: "booking" as const,
+        label: b.guest,
+        sublabel:
+          `${b.source === "AIRBNB" ? "Airbnb" : "Local"} · ${b.checkIn} to ${b.checkOut}` +
+          (foodTotal > 0 ? ` · room + food` : ""),
+        date: b.checkIn,
+        amount: b.amount + foodTotal,
+      };
+    }),
     ...monthManualIncome.map((m) => ({
       kind: "manual" as const,
       label: m.description,
@@ -157,6 +166,8 @@ export function buildMonthlyReport(params: {
   bookings: Booking[];
   expenses: Expense[];
   manualIncome: ManualIncome[];
+  /** HOSTEL only — RENTAL workspaces have no orders and can pass []. */
+  orders?: Order[];
   year: number;
   month: number;
   reportTypes: ReportType[];
@@ -166,12 +177,12 @@ export function buildMonthlyReport(params: {
   openingBalanceOverrides?: Partial<Record<Currency, OpeningBalanceOverride>>;
   isHostel?: boolean;
 }): MonthlyReportData {
-  const { property, bookings, expenses, manualIncome, year, month, reportTypes, managementLabel, openingBalanceOverrides, isHostel } = params;
+  const { property, bookings, expenses, manualIncome, orders, year, month, reportTypes, managementLabel, openingBalanceOverrides, isHostel } = params;
   const currencies: Currency[] = property.currencies.length > 0 ? property.currencies : ["GHS"];
 
   const sections: CurrencyReportSection[] = currencies.map((currency) => {
     const current = computeCurrencyFigures({
-      currency, year, month, property, bookings, expenses, manualIncome,
+      currency, year, month, property, bookings, expenses, manualIncome, orders: orders ?? [], isHostel,
       openingBalanceOverride: openingBalanceOverrides?.[currency],
     });
     return { currency, current };

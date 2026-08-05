@@ -15,12 +15,13 @@ import { useAppStore } from "@/store/use-app-store";
 import { useBookings } from "@/lib/queries/bookings";
 import { useCreateExpense, useExpenses } from "@/lib/queries/expenses";
 import { useCreateManualIncome, useManualIncome } from "@/lib/queries/manual-income";
+import { useOrders } from "@/lib/queries/orders";
 import { useProperties } from "@/lib/queries/properties";
 import { useTeam } from "@/lib/queries/team";
 import { useWorkspace } from "@/lib/queries/workspace";
 import { C } from "@/lib/colors";
 import { fmtCurrency } from "@/lib/format";
-import { applyMomo, computeManagementReport, computeOwnersReport, sumConfirmedIncome } from "@/lib/financials";
+import { applyMomo, bookingOrderTotal, computeManagementReport, computeOwnersReport, sumConfirmedIncome, sumConfirmedIncomeHostel } from "@/lib/financials";
 import { EXPENSE_CATEGORY_LABEL, EXPENSE_CATEGORY_TONE } from "@/lib/labels";
 import { MONTH_NAMES, pad2 } from "@/lib/calendar";
 import type { Allocation, Currency, PrevBalance } from "@/lib/types";
@@ -55,6 +56,7 @@ export default function FinancialsPage() {
   const bookingsQuery = useBookings();
   const expensesQuery = useExpenses();
   const manualIncomeQuery = useManualIncome();
+  const ordersQuery = useOrders();
   const propertiesQuery = useProperties();
   const teamQuery = useTeam();
   const workspaceQuery = useWorkspace();
@@ -63,9 +65,9 @@ export default function FinancialsPage() {
   const createManualIncome = useCreateManualIncome();
 
   const isLoading =
-    bookingsQuery.isLoading || expensesQuery.isLoading || manualIncomeQuery.isLoading || propertiesQuery.isLoading;
+    bookingsQuery.isLoading || expensesQuery.isLoading || manualIncomeQuery.isLoading || ordersQuery.isLoading || propertiesQuery.isLoading;
   const isError =
-    bookingsQuery.isError || expensesQuery.isError || manualIncomeQuery.isError || propertiesQuery.isError;
+    bookingsQuery.isError || expensesQuery.isError || manualIncomeQuery.isError || ordersQuery.isError || propertiesQuery.isError;
 
   if (isLoading) {
     return <p className="text-sm" style={{ color: C.muted }}>Loading…</p>;
@@ -124,8 +126,11 @@ export default function FinancialsPage() {
   const prevBalanceOwner: PrevBalance = ownerCur === "GHS" ? activeProperty.prevBalanceGhs : activeProperty.prevBalanceEur;
   const prevBalanceOak: PrevBalance = oakCur === "GHS" ? activeProperty.prevBalanceGhs : activeProperty.prevBalanceEur;
 
+  const orders = ordersQuery.data ?? [];
   const ownerReport = computeOwnersReport({
-    confirmedIncome: sumConfirmedIncome(monthBookingsOwner),
+    confirmedIncome: isHostel
+      ? sumConfirmedIncomeHostel(monthBookingsOwner, orders, ownerCur)
+      : sumConfirmedIncome(monthBookingsOwner),
     allocation: allocOwner,
     monthExpenses: monthExpensesOwner,
     manualIncome: monthManualIncome,
@@ -138,6 +143,7 @@ export default function FinancialsPage() {
     booking: b,
     ownersAmt: b.amount * (allocOwner.owners / 100),
     opsAmt: b.amount * (allocOwner.operations / 100),
+    foodTotal: isHostel ? bookingOrderTotal(b.id, orders, ownerCur) : 0,
   }));
 
   const oakReport = computeManagementReport({
@@ -281,7 +287,7 @@ export default function FinancialsPage() {
                         <Pill tone={r.booking.status === "CONFIRMED" ? "teal" : "amber"}>
                           {r.booking.status === "CONFIRMED" ? "Confirmed" : "Expected"}
                         </Pill>
-                        {isHostel && <span className="text-sm font-semibold" style={{ color: C.text }}>{fmtCurrency(r.ownersAmt + r.opsAmt, ownerCur)}</span>}
+                        {isHostel && <span className="text-sm font-semibold" style={{ color: C.text }}>{fmtCurrency(r.ownersAmt + r.opsAmt + r.foodTotal, ownerCur)}</span>}
                       </div>
                     </div>
                     {!isHostel && (
@@ -291,6 +297,16 @@ export default function FinancialsPage() {
                         </span>
                         <span className="text-xs" style={{ color: C.muted }}>
                           Operations {allocOwner.operations}%: <span className="font-semibold" style={{ color: C.text }}>{fmtCurrency(r.opsAmt, ownerCur)}</span>
+                        </span>
+                      </div>
+                    )}
+                    {isHostel && r.foodTotal > 0 && (
+                      <div className="flex gap-4 mt-1">
+                        <span className="text-xs" style={{ color: C.muted }}>
+                          Room: <span className="font-semibold" style={{ color: C.text }}>{fmtCurrency(r.ownersAmt + r.opsAmt, ownerCur)}</span>
+                        </span>
+                        <span className="text-xs" style={{ color: C.muted }}>
+                          Food: <span className="font-semibold" style={{ color: C.text }}>{fmtCurrency(r.foodTotal, ownerCur)}</span>
                         </span>
                       </div>
                     )}

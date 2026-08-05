@@ -7,6 +7,7 @@ import { MONTH_NAMES } from "@/lib/calendar";
 import { useBookings } from "@/lib/queries/bookings";
 import { useExpenses } from "@/lib/queries/expenses";
 import { useManualIncome } from "@/lib/queries/manual-income";
+import { useOrders } from "@/lib/queries/orders";
 import { buildMonthlyReport, type OpeningBalanceOverride, type ReportType } from "@/lib/reports";
 import type { Currency, Property } from "@/lib/types";
 
@@ -57,6 +58,7 @@ export function GenerateReportModal({
   const bookingsQuery = useBookings();
   const expensesQuery = useExpenses();
   const manualIncomeQuery = useManualIncome();
+  const ordersQuery = useOrders(undefined, { enabled: !!isHostel });
 
   const property = properties.find((p) => p.id === propertyId);
   const yearOptions = Array.from({ length: 6 }, (_, i) => today.getFullYear() - 4 + i);
@@ -98,6 +100,7 @@ export function GenerateReportModal({
         bookings: bookingsQuery.data ?? [],
         expenses: expensesQuery.data ?? [],
         manualIncome: manualIncomeQuery.data ?? [],
+        orders: ordersQuery.data ?? [],
         year,
         month,
         reportTypes,
