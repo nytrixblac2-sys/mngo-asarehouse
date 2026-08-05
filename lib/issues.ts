@@ -9,6 +9,7 @@ type IssueRow = {
   type: Issue["type"];
   description: string;
   guest: string | null;
+  roomId: string | null;
   status: IssueStatus | null;
   statusHistory: { status: IssueStatus; note: string | null; at: Date }[];
 };
@@ -22,6 +23,7 @@ export function serializeIssue(i: IssueRow): Issue {
     type: i.type,
     description: i.description,
     guest: i.guest,
+    roomId: i.roomId,
     status: i.status,
     statusHistory: i.statusHistory.map((h) => ({ status: h.status, note: h.note, at: h.at.toISOString() })),
   };

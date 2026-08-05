@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchJson } from "@/lib/api-client";
-import type { Order } from "@/lib/types";
+import type { IssueStatus, Order } from "@/lib/types";
 
 export interface OrderInput {
   bookingId: string;
@@ -26,6 +26,21 @@ export function useCreateOrder() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(input),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["orders"] }),
+  });
+}
+
+/** Advances one station's fulfillment status on an order — the Kitchen
+ * and Bar screens' status buttons. */
+export function useUpdateOrderStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ orderId, station, status }: { orderId: string; station: "KITCHEN" | "BAR"; status: IssueStatus }) =>
+      fetchJson<Order>(`/api/orders/${orderId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ station, status }),
       }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["orders"] }),
   });

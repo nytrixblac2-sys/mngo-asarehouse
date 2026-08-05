@@ -1,4 +1,4 @@
-import type { BookingSource, ExpenseCategory, IssueStatus, IssueType, ScheduleType } from "./types";
+import type { BookingSource, ExpenseCategory, IssueStatus, IssueType, MenuStation, PaymentMethod, ScheduleType } from "./types";
 
 export const BOOKING_SOURCE_LABEL: Record<BookingSource, string> = {
   AIRBNB: "Airbnb",
@@ -49,4 +49,31 @@ export const EXPENSE_CATEGORY_TONE: Record<ExpenseCategory, "accent" | "teal" | 
   OWNERS: "accent",
   OPERATIONS: "teal",
   MANAGEMENT: "amber",
+};
+
+export const MENU_STATION_LABEL: Record<MenuStation, string> = {
+  KITCHEN: "Kitchen",
+  BAR: "Bar",
+};
+
+/** Order.kitchenStatus/barStatus reuse IssueStatus (Architecture Decision
+ * 79) but read as a fulfillment stage here, not an issue lifecycle —
+ * separate labels/tones from ISSUE_STATUS_LABEL, same enum values. */
+export const ORDER_STATUS_LABEL: Record<IssueStatus, string> = {
+  OPEN: "Received",
+  IN_PROGRESS: "Preparing",
+  RESOLVED: "Delivered",
+};
+
+export const ORDER_STATUS_TONE: Record<IssueStatus, "accent" | "amber" | "teal"> = {
+  OPEN: "accent",
+  IN_PROGRESS: "amber",
+  RESOLVED: "teal",
+};
+
+export const PAYMENT_METHOD_LABEL: Record<PaymentMethod, string> = {
+  CASH: "Cash",
+  BANK_TRANSFER: "Bank Transfer",
+  MOMO: "MoMo",
+  CARD: "Card",
 };

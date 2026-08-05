@@ -172,3 +172,28 @@
     transition: filter 0.1s ease;
   }
 }
+
+/* Kitchen/Bar ticket printing (Architecture Decision 79) — prints just the
+   one ticket the user clicked "Print" on, not the whole screen. The ticket
+   markup is always in the DOM (so window.print() has something to render)
+   but hidden outside of print via display:none; @media print then hides
+   everything else and promotes the ticket to visible/full-page. */
+.print-ticket {
+  display: none;
+}
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .print-ticket {
+    display: block !important;
+    visibility: visible;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+  }
+  .print-ticket * {
+    visibility: visible;
+  }
+}

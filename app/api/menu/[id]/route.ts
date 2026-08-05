@@ -25,6 +25,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       price: parsed.data.price,
       currency: parsed.data.currency,
       alwaysAvailable: parsed.data.alwaysAvailable ?? existing.alwaysAvailable,
+      station: parsed.data.station ?? existing.station,
     },
   });
 

@@ -7,7 +7,7 @@ import { useCreateMenuItem, useDeleteMenuItem, useMenuItems, useToggleMenuItemAv
 import { useWorkspace } from "@/lib/queries/workspace";
 import { C } from "@/lib/colors";
 import { fmtCurrency } from "@/lib/format";
-import type { Currency, MenuItem } from "@/lib/types";
+import type { Currency, MenuItem, MenuStation } from "@/lib/types";
 
 function AddItemForm({
   categories,
@@ -17,13 +17,14 @@ function AddItemForm({
 }: {
   categories: string[];
   alwaysAvailable: boolean;
-  onAdd: (input: { name: string; category: string; price: number; currency: Currency }) => void;
+  onAdd: (input: { name: string; category: string; price: number; currency: Currency; station: MenuStation }) => void;
   isPending: boolean;
 }) {
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
   const [price, setPrice] = useState("");
   const [currency, setCurrency] = useState<Currency>("GHS");
+  const [station, setStation] = useState<MenuStation>("KITCHEN");
   const datalistId = `menu-categories-${alwaysAvailable ? "constant" : "daily"}`;
 
   const parsedPrice = parseFloat(price);
@@ -33,7 +34,7 @@ function AddItemForm({
     if (!canAdd) return;
     const submittedName = name.trim();
     const submittedPrice = parsedPrice;
-    onAdd({ name: submittedName, category: category.trim(), price: submittedPrice, currency });
+    onAdd({ name: submittedName, category: category.trim(), price: submittedPrice, currency, station });
     setName((cur) => (cur.trim() === submittedName ? "" : cur));
     setPrice((cur) => (parseFloat(cur) === submittedPrice ? "" : cur));
   };
@@ -78,6 +79,16 @@ function AddItemForm({
       >
         <option value="GHS">GHS</option>
         <option value="EUR">EUR</option>
+      </select>
+      <select
+        value={station}
+        onChange={(e) => setStation(e.target.value as MenuStation)}
+        className="px-2 py-2.5 rounded-xl text-sm"
+        style={{ border: `1px solid ${C.border}` }}
+        title="Which screen this item's orders show up on"
+      >
+        <option value="KITCHEN">Kitchen</option>
+        <option value="BAR">Bar</option>
       </select>
       <button
         onClick={handleAdd}

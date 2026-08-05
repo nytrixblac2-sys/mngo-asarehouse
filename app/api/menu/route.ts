@@ -37,6 +37,7 @@ export async function POST(req: Request) {
       currency: parsed.data.currency,
       alwaysAvailable: parsed.data.alwaysAvailable ?? false,
       isAvailableToday: false,
+      station: parsed.data.station ?? "KITCHEN",
     },
   });
 

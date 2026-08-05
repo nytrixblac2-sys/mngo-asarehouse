@@ -26,6 +26,9 @@ export type WorkspaceType = "RENTAL" | "HOSTEL";
 export type ExpenseCategory = "OWNERS" | "OPERATIONS" | "MANAGEMENT";
 
 export type ScheduleType = "CLEANING" | "REPAIR" | "SUPERVISION" | "TRAINING";
+/** Which of the Kitchen/Bar screens a menu item's orders show up on. */
+export type MenuStation = "KITCHEN" | "BAR";
+export type PaymentMethod = "CASH" | "BANK_TRANSFER" | "MOMO" | "CARD";
 /** "ROOM_DIRTY" is auto-created server-side on HOSTEL checkout
  * (app/api/bookings/[id]/checkout) — never user-selectable when manually
  * creating an issue (lib/issues.ts issueInputSchema still only accepts the
@@ -115,11 +118,15 @@ export interface MenuItem {
   /** The daily toggle staff use for genuinely rotating items (e.g. lunch
    * and dinner mains). Ignored when `alwaysAvailable` is true. */
   isAvailableToday: boolean;
+  /** Which of the Kitchen/Bar screens this item's orders show up on. */
+  station: MenuStation;
 }
 
 /** A snapshot of one menu item within an Order — `name`/`unitPrice`/
- * `currency` are captured at order time so a later menu price change
- * never rewrites a guest's past bill. */
+ * `currency`/`station` are captured at order time so a later menu edit
+ * (price change or reclassifying which station prepares it) never
+ * rewrites a guest's past bill or which screen a historical order
+ * appeared on. */
 export interface OrderItem {
   id: string;
   menuItemId: string;
@@ -127,15 +134,26 @@ export interface OrderItem {
   quantity: number;
   unitPrice: number;
   currency: Currency;
+  station: MenuStation;
 }
 
 /** A guest's food/drink order against their stay — one Booking can have
- * many Orders (e.g. one per sitting). */
+ * many Orders (e.g. one per sitting). `kitchenStatus`/`barStatus` are
+ * independent (reusing IssueStatus — OPEN/IN_PROGRESS/RESOLVED, shown as
+ * Received/Preparing/Delivered): set at creation to OPEN if the order has
+ * any item for that station, else null, so a mixed order becomes two
+ * independently-tracked tickets. `deletedAt`/`deletedBy`/`deleteReason`
+ * are a soft delete (sub-phase 3) — null on every order until then. */
 export interface Order {
   id: string;
   workspaceId: string;
   bookingId: string;
   createdAt: string;
+  kitchenStatus: IssueStatus | null;
+  barStatus: IssueStatus | null;
+  deletedAt: string | null;
+  deletedBy: string | null;
+  deleteReason: string | null;
   items: OrderItem[];
 }
 
@@ -161,6 +179,8 @@ export interface Booking {
   bookingCode: string | null;
   /** Set server-side only, when staff check the guest out. Never client-supplied. */
   checkedOutAt: string | null;
+  /** How the guest paid, selected at checkout. Null until checkout. */
+  paymentMethod: PaymentMethod | null;
 }
 
 export interface Expense {
@@ -218,6 +238,9 @@ export interface Issue {
   type: IssueType;
   description: string;
   guest: string | null;
+  /** Set only for a server-created ROOM_DIRTY issue (booking checkout) —
+   * ties the issue to the specific room, same pattern as Booking.roomId. */
+  roomId: string | null;
   /** null for NOTE-type issues — they never enter the Open/In
    * Progress/Resolved lifecycle. */
   status: IssueStatus | null;

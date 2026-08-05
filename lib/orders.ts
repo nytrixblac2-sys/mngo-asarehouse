@@ -15,6 +15,11 @@ export const orderInputSchema = z.object({
     .min(1),
 });
 
+export const orderStatusInputSchema = z.object({
+  station: z.enum(["KITCHEN", "BAR"]),
+  status: z.enum(["OPEN", "IN_PROGRESS", "RESOLVED"]),
+});
+
 export class OrderError extends Error {}
 
 type OrderRow = {
@@ -22,6 +27,11 @@ type OrderRow = {
   workspaceId: string;
   bookingId: string;
   createdAt: Date;
+  kitchenStatus: Order["kitchenStatus"];
+  barStatus: Order["barStatus"];
+  deletedAt: Date | null;
+  deletedBy: string | null;
+  deleteReason: string | null;
   items: {
     id: string;
     menuItemId: string;
@@ -29,6 +39,7 @@ type OrderRow = {
     quantity: number;
     unitPrice: unknown;
     currency: Order["items"][number]["currency"];
+    station: Order["items"][number]["station"];
   }[];
 };
 
@@ -38,6 +49,11 @@ export function serializeOrder(o: OrderRow): Order {
     workspaceId: o.workspaceId,
     bookingId: o.bookingId,
     createdAt: o.createdAt.toISOString(),
+    kitchenStatus: o.kitchenStatus,
+    barStatus: o.barStatus,
+    deletedAt: o.deletedAt ? o.deletedAt.toISOString() : null,
+    deletedBy: o.deletedBy,
+    deleteReason: o.deleteReason,
     items: o.items.map((i) => ({
       id: i.id,
       menuItemId: i.menuItemId,
@@ -45,6 +61,7 @@ export function serializeOrder(o: OrderRow): Order {
       quantity: i.quantity,
       unitPrice: Number(i.unitPrice),
       currency: i.currency,
+      station: i.station,
     })),
   };
 }
@@ -89,14 +106,24 @@ export async function createGuestOrder(params: {
   }
 
   const byId = new Map(menuItems.map((m) => [m.id, m]));
+  const orderedStations = new Set(params.items.map(({ menuItemId }) => byId.get(menuItemId)!.station));
   const order = await prisma.order.create({
     data: {
       workspaceId: params.workspaceId,
       bookingId: params.bookingId,
+      kitchenStatus: orderedStations.has("KITCHEN") ? "OPEN" : null,
+      barStatus: orderedStations.has("BAR") ? "OPEN" : null,
       items: {
         create: params.items.map(({ menuItemId, quantity }) => {
           const item = byId.get(menuItemId)!;
-          return { menuItemId, name: item.name, quantity, unitPrice: item.price, currency: item.currency };
+          return {
+            menuItemId,
+            name: item.name,
+            quantity,
+            unitPrice: item.price,
+            currency: item.currency,
+            station: item.station,
+          };
         }),
       },
     },
@@ -104,4 +131,32 @@ export async function createGuestOrder(params: {
   });
 
   return order;
+}
+
+/**
+ * Advances one station's fulfillment status on an order — used by the
+ * Kitchen and Bar screens. The two stations are tracked independently
+ * (see Order model doc comment): marking food "Delivered" never touches
+ * the drinks side of the same order.
+ */
+export async function setOrderStationStatus(params: {
+  workspaceId: string;
+  orderId: string;
+  station: "KITCHEN" | "BAR";
+  status: "OPEN" | "IN_PROGRESS" | "RESOLVED";
+}) {
+  const order = await prisma.order.findUnique({ where: { id: params.orderId } });
+  if (!order || order.workspaceId !== params.workspaceId) {
+    throw new OrderError("Order not found");
+  }
+  const currentStatus = params.station === "KITCHEN" ? order.kitchenStatus : order.barStatus;
+  if (currentStatus === null) {
+    throw new OrderError(`This order has no ${params.station.toLowerCase()} items`);
+  }
+
+  return prisma.order.update({
+    where: { id: params.orderId },
+    data: params.station === "KITCHEN" ? { kitchenStatus: params.status } : { barStatus: params.status },
+    include: { items: true },
+  });
 }

@@ -19,6 +19,7 @@ type BookingRow = {
   guestPhone: string | null;
   bookingCode: string | null;
   checkedOutAt: Date | null;
+  paymentMethod: Booking["paymentMethod"];
 };
 
 export function serializeBooking(b: BookingRow): Booking {
@@ -40,6 +41,7 @@ export function serializeBooking(b: BookingRow): Booking {
     guestPhone: b.guestPhone,
     bookingCode: b.bookingCode,
     checkedOutAt: b.checkedOutAt ? b.checkedOutAt.toISOString() : null,
+    paymentMethod: b.paymentMethod,
   };
 }
 

@@ -10,6 +10,7 @@ type MenuItemRow = {
   currency: MenuItem["currency"];
   alwaysAvailable: boolean;
   isAvailableToday: boolean;
+  station: MenuItem["station"];
 };
 
 export function serializeMenuItem(m: MenuItemRow): MenuItem {
@@ -22,6 +23,7 @@ export function serializeMenuItem(m: MenuItemRow): MenuItem {
     currency: m.currency,
     alwaysAvailable: m.alwaysAvailable,
     isAvailableToday: m.isAvailableToday,
+    station: m.station,
   };
 }
 
@@ -37,6 +39,7 @@ export const menuItemInputSchema = z.object({
   price: z.number().positive(),
   currency: z.enum(["GHS", "EUR"]),
   alwaysAvailable: z.boolean().optional(),
+  station: z.enum(["KITCHEN", "BAR"]).optional(),
 });
 
 export const availabilityInputSchema = z.object({

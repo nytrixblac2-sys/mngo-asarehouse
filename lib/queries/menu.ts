@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchJson } from "@/lib/api-client";
-import type { Currency, MenuItem } from "@/lib/types";
+import type { Currency, MenuItem, MenuStation } from "@/lib/types";
 
 export interface MenuItemInput {
   name: string;
@@ -8,6 +8,7 @@ export interface MenuItemInput {
   price: number;
   currency: Currency;
   alwaysAvailable?: boolean;
+  station?: MenuStation;
 }
 
 export function useMenuItems() {
