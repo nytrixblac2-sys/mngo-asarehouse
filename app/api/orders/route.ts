@@ -4,15 +4,26 @@ import { apiSuccess, apiError } from "@/lib/api-response";
 import { orderInputSchema, createGuestOrder, OrderError, serializeOrder } from "@/lib/orders";
 
 /** Orders in the workspace, optionally scoped to one booking via
- * ?bookingId= — used both for a single guest's running food bill and,
- * later, workspace-wide reporting. */
+ * ?bookingId= — used both for a single guest's running food bill and
+ * workspace-wide reporting (Kitchen/Bar screens). Excludes soft-deleted
+ * orders by default; ?deletedOnly=true returns only deleted ones, for the
+ * owner-only "deleted orders" log (Architecture Decision 79) — owner only,
+ * since it's the audit trail for a sensitive action. */
 export async function GET(req: Request) {
   const user = await getCurrentUser();
   if (!user) return apiError("Unauthorized", 401);
 
-  const bookingId = new URL(req.url).searchParams.get("bookingId");
+  const url = new URL(req.url);
+  const bookingId = url.searchParams.get("bookingId");
+  const deletedOnly = url.searchParams.get("deletedOnly") === "true";
+  if (deletedOnly && user.role !== "ACCOUNT_OWNER") return apiError("Forbidden", 403);
+
   const rows = await prisma.order.findMany({
-    where: { workspaceId: user.workspaceId, ...(bookingId ? { bookingId } : {}) },
+    where: {
+      workspaceId: user.workspaceId,
+      ...(bookingId ? { bookingId } : {}),
+      deletedAt: deletedOnly ? { not: null } : null,
+    },
     include: { items: true },
     orderBy: { createdAt: "asc" },
   });

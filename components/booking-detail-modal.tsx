@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { X, Check, Undo2, UtensilsCrossed, LogOut, Download, Loader2, Copy, KeyRound } from "lucide-react";
+import { X, Check, Undo2, UtensilsCrossed, LogOut, Download, Loader2, Copy, KeyRound, Trash2 } from "lucide-react";
 import { Pill } from "@/components/primitives";
+import { useEffectiveUser } from "@/components/effective-user-context";
 import { C } from "@/lib/colors";
 import { fmtCurrency } from "@/lib/format";
 import { nightsBetween } from "@/lib/periods";
 import { BOOKING_SOURCE_LABEL, ISSUE_STATUS_TONE } from "@/lib/labels";
-import { useOrders } from "@/lib/queries/orders";
+import { useDeleteOrder, useOrders } from "@/lib/queries/orders";
 import { buildGuestReceipt } from "@/lib/guest-receipt";
 import type { Booking, Issue, Property, Room, Schedule } from "@/lib/types";
 import { BookingFormRouter } from "./booking-form-router";
@@ -65,6 +66,12 @@ export function BookingDetailModal({
   const [codeCopied, setCodeCopied] = useState(false);
   const [confirmCheckout, setConfirmCheckout] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
+  const [deleteReason, setDeleteReason] = useState("");
+  const [deletePin, setDeletePin] = useState("");
+
+  const { effectiveUser } = useEffectiveUser();
+  const deleteOrder = useDeleteOrder();
 
   const nights = nightsBetween(booking.checkIn, booking.checkOut);
   const relatedShifts = schedules.filter((s) => s.date >= booking.checkIn && s.date <= booking.checkOut);
@@ -97,6 +104,21 @@ export function BookingDetailModal({
     } finally {
       setIsDownloading(false);
     }
+  };
+
+  const isOwner = effectiveUser.role === "ACCOUNT_OWNER";
+  const handleDeleteOrder = (orderId: string) => {
+    if (!deleteReason.trim() || (!isOwner && deletePin.trim().length === 0)) return;
+    deleteOrder.mutate(
+      { orderId, reason: deleteReason.trim(), pin: isOwner ? undefined : deletePin.trim() },
+      {
+        onSuccess: () => {
+          setDeletingOrderId(null);
+          setDeleteReason("");
+          setDeletePin("");
+        },
+      }
+    );
   };
 
   return (
@@ -247,13 +269,79 @@ export function BookingDetailModal({
                 {orders.length === 0 ? (
                   <p className="text-sm" style={{ color: C.muted }}>No orders yet.</p>
                 ) : (
-                  <div className="flex flex-col gap-2">
-                    {orders.flatMap((o) => o.items).map((item) => (
-                      <div key={item.id} className="flex items-center justify-between py-2 px-3 rounded-xl" style={{ background: C.bg }}>
-                        <span className="text-sm" style={{ color: C.text }}>{item.quantity}× {item.name}</span>
-                        <span className="text-sm font-semibold" style={{ color: C.text }}>{fmtCurrency(item.unitPrice * item.quantity, item.currency)}</span>
-                      </div>
-                    ))}
+                  <div className="flex flex-col gap-3">
+                    {orders.map((order) => {
+                      const orderTotal = order.items.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
+                      const isDeletingThis = deletingOrderId === order.id;
+                      return (
+                        <div key={order.id} className="p-3 rounded-xl" style={{ background: C.bg }}>
+                          <div className="flex flex-col gap-1.5 mb-2">
+                            {order.items.map((item) => (
+                              <div key={item.id} className="flex items-center justify-between">
+                                <span className="text-sm" style={{ color: C.text }}>{item.quantity}× {item.name}</span>
+                                <span className="text-sm font-semibold" style={{ color: C.text }}>{fmtCurrency(item.unitPrice * item.quantity, item.currency)}</span>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="flex items-center justify-between pt-2" style={{ borderTop: `1px solid ${C.border}` }}>
+                            <span className="text-xs" style={{ color: C.muted }}>{new Date(order.createdAt).toLocaleString(undefined, { hour: "numeric", minute: "2-digit", month: "short", day: "numeric" })}</span>
+                            {canEdit && (
+                              <button
+                                onClick={() => setDeletingOrderId(isDeletingThis ? null : order.id)}
+                                className="text-xs font-semibold flex items-center gap-1"
+                                style={{ color: C.muted }}
+                              >
+                                <Trash2 size={11} /> Delete order
+                              </button>
+                            )}
+                          </div>
+                          {isDeletingThis && (
+                            <div className="mt-2 pt-2 flex flex-col gap-2" style={{ borderTop: `1px solid ${C.border}` }}>
+                              <p className="text-xs" style={{ color: C.muted }}>
+                                {isOwner ? "Type a reason to delete this order." : "Ask the owner for the PIN, and type why you're deleting this order."}
+                              </p>
+                              {!isOwner && (
+                                <input
+                                  value={deletePin}
+                                  onChange={(e) => setDeletePin(e.target.value.replace(/\D/g, ""))}
+                                  type="password"
+                                  inputMode="numeric"
+                                  placeholder="Owner PIN"
+                                  className="w-full px-3 py-2 rounded-lg text-sm"
+                                  style={{ border: `1px solid ${C.border}` }}
+                                />
+                              )}
+                              <input
+                                value={deleteReason}
+                                onChange={(e) => setDeleteReason(e.target.value)}
+                                placeholder="Reason (e.g. ordered by mistake)"
+                                className="w-full px-3 py-2 rounded-lg text-sm"
+                                style={{ border: `1px solid ${C.border}` }}
+                              />
+                              {deleteOrder.isError && <p className="text-xs text-destructive">{(deleteOrder.error as Error).message}</p>}
+                              <div className="flex items-center gap-3">
+                                <button
+                                  onClick={() => handleDeleteOrder(order.id)}
+                                  disabled={deleteOrder.isPending || !deleteReason.trim() || (!isOwner && deletePin.trim().length === 0)}
+                                  className="text-xs font-semibold"
+                                  style={{ color: "var(--accent, #111111)" }}
+                                >
+                                  {deleteOrder.isPending ? "Deleting…" : "Confirm delete"}
+                                </button>
+                                <button
+                                  onClick={() => { setDeletingOrderId(null); setDeleteReason(""); setDeletePin(""); }}
+                                  className="text-xs font-semibold"
+                                  style={{ color: C.muted }}
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                          <p className="text-xs font-semibold text-right mt-2" style={{ color: C.muted }}>{fmtCurrency(orderTotal, order.items[0]?.currency ?? booking.currency)}</p>
+                        </div>
+                      );
+                    })}
                     <div className="flex items-center justify-between py-2 px-3 rounded-xl" style={{ background: C.tealSoft }}>
                       <span className="text-sm font-semibold" style={{ color: C.teal }}>Food total</span>
                       <span className="text-sm font-bold" style={{ color: C.teal }}>{fmtCurrency(foodTotal, booking.currency)}</span>

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { prisma } from "./prisma";
 import { isMenuItemOrderable } from "./menu";
+import { verifyWorkspacePin } from "./workspace-pin";
 import type { Order } from "./types";
 
 export const orderInputSchema = z.object({
@@ -18,6 +19,13 @@ export const orderInputSchema = z.object({
 export const orderStatusInputSchema = z.object({
   station: z.enum(["KITCHEN", "BAR"]),
   status: z.enum(["OPEN", "IN_PROGRESS", "RESOLVED"]),
+});
+
+export const orderDeleteInputSchema = z.object({
+  reason: z.string().min(1),
+  /** Required for a CO_MANAGER-initiated delete, ignored for
+   * ACCOUNT_OWNER — see deleteOrder. */
+  pin: z.string().optional(),
 });
 
 export class OrderError extends Error {}
@@ -157,6 +165,43 @@ export async function setOrderStationStatus(params: {
   return prisma.order.update({
     where: { id: params.orderId },
     data: params.station === "KITCHEN" ? { kitchenStatus: params.status } : { barStatus: params.status },
+    include: { items: true },
+  });
+}
+
+/**
+ * Soft-deletes an order — it disappears from the guest's bill/receipt and
+ * from the Kitchen/Bar screens, but stays queryable forever for the owner
+ * (Architecture Decision 79's "deleted orders" log). A manager-initiated
+ * delete (actorRole !== ACCOUNT_OWNER) requires the workspace PIN; the
+ * owner (who sets the PIN) can delete without it. A reason is always
+ * required either way, for the audit trail.
+ */
+export async function deleteOrder(params: {
+  workspaceId: string;
+  orderId: string;
+  actorRole: "ACCOUNT_OWNER" | "CO_MANAGER" | "PROPERTY_OWNER";
+  actorName: string;
+  reason: string;
+  pin?: string;
+}) {
+  const order = await prisma.order.findUnique({ where: { id: params.orderId } });
+  if (!order || order.workspaceId !== params.workspaceId) {
+    throw new OrderError("Order not found");
+  }
+  if (order.deletedAt) {
+    throw new OrderError("This order was already deleted");
+  }
+
+  if (params.actorRole !== "ACCOUNT_OWNER") {
+    if (!params.pin || !(await verifyWorkspacePin(params.workspaceId, params.pin))) {
+      throw new OrderError("Incorrect PIN");
+    }
+  }
+
+  return prisma.order.update({
+    where: { id: params.orderId },
+    data: { deletedAt: new Date(), deletedBy: params.actorName, deleteReason: params.reason.trim() },
     include: { items: true },
   });
 }

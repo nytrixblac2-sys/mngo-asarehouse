@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { X } from "lucide-react";
+import { X, KeyRound } from "lucide-react";
 import { C } from "@/lib/colors";
 import { Pill } from "@/components/primitives";
 import { useAppStore } from "@/store/use-app-store";
 import { useWorkspaceUsers, useRemoveUserAccess } from "@/lib/queries/users";
+import { useSetWorkspacePin, useWorkspace } from "@/lib/queries/workspace";
 import { signOut } from "@/app/(app)/actions";
 import type { Property, User } from "@/lib/types";
 import type { WorkspaceUser } from "@/lib/users";
@@ -37,11 +38,31 @@ export function ProfileModal({
 }) {
   const [showInvite, setShowInvite] = useState(false);
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
+  const [currentPin, setCurrentPin] = useState("");
+  const [newPin, setNewPin] = useState("");
+  const [pinSaved, setPinSaved] = useState(false);
 
   const usersQuery = useWorkspaceUsers(realCanEdit);
   const removeAccess = useRemoveUserAccess();
+  const workspace = useWorkspace().data;
+  const setPin = useSetWorkspacePin();
   const setPreviewUser = useAppStore((s) => s.setPreviewUser);
   const exitPreview = useAppStore((s) => s.exitPreview);
+  const showSecurity = realUser.role === "ACCOUNT_OWNER" && workspace?.type === "HOSTEL";
+
+  const handleSavePin = () => {
+    setPin.mutate(
+      { newPin, currentPin: workspace?.hasPin ? currentPin : undefined },
+      {
+        onSuccess: () => {
+          setCurrentPin("");
+          setNewPin("");
+          setPinSaved(true);
+          setTimeout(() => setPinSaved(false), 2000);
+        },
+      }
+    );
+  };
 
   const startPreview = (u: WorkspaceUser) => {
     setPreviewUser(u);
@@ -133,6 +154,54 @@ export function ProfileModal({
                 {usersQuery.data?.length === 0 && (
                   <p className="text-xs" style={{ color: C.muted }}>No one else has access yet.</p>
                 )}
+              </div>
+            </div>
+          )}
+
+          {showSecurity && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: C.muted }}>
+                <span className="inline-flex items-center gap-1"><KeyRound size={11} /> Action PIN</span>
+              </p>
+              <p className="text-xs mb-2" style={{ color: C.muted }}>
+                {workspace?.hasPin
+                  ? "Required from managers to delete an order or change a menu price."
+                  : "Not set yet — managers can't delete orders or change menu prices until you set one."}
+              </p>
+              <div className="flex flex-col gap-2">
+                {workspace?.hasPin && (
+                  <input
+                    value={currentPin}
+                    onChange={(e) => setCurrentPin(e.target.value.replace(/\D/g, ""))}
+                    type="password"
+                    inputMode="numeric"
+                    placeholder="Current PIN"
+                    className="w-full px-3 py-2.5 rounded-xl text-sm"
+                    style={{ border: `1px solid ${C.border}` }}
+                  />
+                )}
+                <input
+                  value={newPin}
+                  onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))}
+                  type="password"
+                  inputMode="numeric"
+                  placeholder="New 4-8 digit PIN"
+                  className="w-full px-3 py-2.5 rounded-xl text-sm"
+                  style={{ border: `1px solid ${C.border}` }}
+                />
+                {setPin.isError && <p className="text-xs text-destructive">{(setPin.error as Error).message}</p>}
+                {pinSaved && <p className="text-xs" style={{ color: C.teal }}>PIN saved.</p>}
+                <button
+                  onClick={handleSavePin}
+                  disabled={newPin.length < 4 || (workspace?.hasPin && currentPin.length === 0) || setPin.isPending}
+                  className="text-xs font-semibold py-2.5 rounded-xl"
+                  style={{
+                    background: newPin.length >= 4 ? "var(--accent, #111111)" : C.border,
+                    color: newPin.length >= 4 ? "#fff" : C.muted,
+                  }}
+                >
+                  {setPin.isPending ? "Saving…" : workspace?.hasPin ? "Change PIN" : "Set PIN"}
+                </button>
               </div>
             </div>
           )}

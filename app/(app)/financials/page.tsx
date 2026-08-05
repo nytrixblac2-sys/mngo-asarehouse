@@ -9,6 +9,7 @@ import { AddIncomeForm } from "@/components/add-income-form";
 import { ExpenseForm } from "@/components/expense-form";
 import { GenerateReportModal } from "@/components/generate-report-modal";
 import { EmptyPropertyState } from "@/components/empty-property-state";
+import { DeletedOrdersLog } from "@/components/deleted-orders-log";
 import { useEffectiveUser } from "@/components/effective-user-context";
 import { useAppStore } from "@/store/use-app-store";
 import { useBookings } from "@/lib/queries/bookings";
@@ -30,7 +31,7 @@ const DEFAULT_ALLOCATION: Allocation = { owners: 60, operations: 15, management:
  * (real current month, any year/month reachable) replacing the mockup's
  * fixed 3-month MONTH_PREFIXES array. */
 export default function FinancialsPage() {
-  const { effectiveCanEdit } = useEffectiveUser();
+  const { effectiveCanEdit, effectiveUser } = useEffectiveUser();
   const activePropertyId = useAppStore((s) => s.activePropertyId);
 
   // Persisted across refresh — same reasoning as Bookings (Architecture
@@ -445,6 +446,8 @@ export default function FinancialsPage() {
           )}
         </>
       )}
+
+      {isHostel && effectiveUser.role === "ACCOUNT_OWNER" && <DeletedOrdersLog />}
 
       {effectiveCanEdit && showIncomeForm && (
         <AddIncomeForm

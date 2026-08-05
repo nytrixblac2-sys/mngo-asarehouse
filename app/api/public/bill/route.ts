@@ -18,7 +18,7 @@ export async function GET() {
   const [property, room, orders] = await Promise.all([
     prisma.property.findUnique({ where: { id: booking.propertyId }, select: { name: true } }),
     booking.roomId ? prisma.room.findUnique({ where: { id: booking.roomId } }) : null,
-    prisma.order.findMany({ where: { bookingId: booking.id }, include: { items: true }, orderBy: { createdAt: "asc" } }),
+    prisma.order.findMany({ where: { bookingId: booking.id, deletedAt: null }, include: { items: true }, orderBy: { createdAt: "asc" } }),
   ]);
 
   const foodTotal = orders.reduce(

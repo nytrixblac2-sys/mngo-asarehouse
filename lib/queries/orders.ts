@@ -9,11 +9,22 @@ export interface OrderInput {
 
 /** Pass a bookingId to scope to one guest's stay (booking detail view);
  * omit for every order in the workspace. `enabled` lets a RENTAL-workspace
- * caller skip the request entirely rather than fetching data it'll never use. */
+ * caller skip the request entirely rather than fetching data it'll never use.
+ * Always excludes soft-deleted orders — see useDeletedOrders() for those. */
 export function useOrders(bookingId?: string, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["orders", bookingId ?? "all"],
     queryFn: () => fetchJson<Order[]>(`/api/orders${bookingId ? `?bookingId=${bookingId}` : ""}`),
+    enabled: options?.enabled ?? true,
+  });
+}
+
+/** Owner-only "deleted orders" log (Architecture Decision 79) — the server
+ * rejects this for anyone but ACCOUNT_OWNER. */
+export function useDeletedOrders(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: ["orders", "deleted"],
+    queryFn: () => fetchJson<Order[]>("/api/orders?deletedOnly=true"),
     enabled: options?.enabled ?? true,
   });
 }
@@ -26,6 +37,22 @@ export function useCreateOrder() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(input),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["orders"] }),
+  });
+}
+
+/** Soft-deletes an order — a CO_MANAGER must supply `pin`; ACCOUNT_OWNER
+ * doesn't need one (the server enforces this either way). `reason` is
+ * always required. */
+export function useDeleteOrder() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ orderId, reason, pin }: { orderId: string; reason: string; pin?: string }) =>
+      fetchJson<Order>(`/api/orders/${orderId}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason, pin }),
       }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["orders"] }),
   });
