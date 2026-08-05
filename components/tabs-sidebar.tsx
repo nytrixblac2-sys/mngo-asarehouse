@@ -17,11 +17,13 @@ import { GenerateReportModal } from "./generate-report-modal";
 /** context/07-mockup.jsx TabsSidebar. "Generate report" restored per user
  * decision 2026-08-03 (was previously left out — PDF export was V2). */
 export function TabsSidebar({
+  effectiveUser,
   effectiveCanEdit,
   realUser,
   realCanEdit,
   properties: initialProperties,
 }: {
+  effectiveUser: User;
   effectiveCanEdit: boolean;
   realUser: User;
   realCanEdit: boolean;
@@ -33,7 +35,17 @@ export function TabsSidebar({
   const pathname = usePathname();
   const workspace = useWorkspace().data;
   const allNavItems = getNavItems(workspace?.type);
-  const navItems = effectiveCanEdit ? allNavItems : allNavItems.filter((i) => i.key !== "team");
+  // Team is hidden from the Property Owner nav (RENTAL). Team and
+  // Financials are hidden from anyone but the ACCOUNT_OWNER on a HOSTEL
+  // workspace — the manager (Janet) shouldn't see the owner's financial
+  // internals or staff pay, a HOSTEL-specific inversion of the usual
+  // effectiveCanEdit gate (Architecture Decision 85). RENTAL is untouched.
+  const isHostelNonOwner = workspace?.type === "HOSTEL" && effectiveUser.role !== "ACCOUNT_OWNER";
+  const navItems = allNavItems.filter((i) => {
+    if (i.key === "team" && (!effectiveCanEdit || isHostelNonOwner)) return false;
+    if (i.key === "financials" && isHostelNonOwner) return false;
+    return true;
+  });
   const properties = useProperties(initialProperties).data ?? initialProperties;
   const workspaceName = workspace?.name ?? "Management";
 
@@ -56,7 +68,7 @@ export function TabsSidebar({
         ))}
       </div>
       <div className="mt-auto flex flex-col gap-1 pt-3" style={{ borderTop: `1px solid ${C.border}` }}>
-        {effectiveCanEdit && (
+        {effectiveCanEdit && !isHostelNonOwner && (
           <button
             onClick={() => setShowReportModal(true)}
             className="w-full text-left text-sm px-3 py-2.5 rounded-xl flex items-center gap-2"
@@ -92,7 +104,7 @@ export function TabsSidebar({
           onClose={() => setShowProfile(false)}
         />
       )}
-      {effectiveCanEdit && showReportModal && (
+      {effectiveCanEdit && !isHostelNonOwner && showReportModal && (
         <GenerateReportModal
           properties={properties}
           managementLabel={workspaceName}

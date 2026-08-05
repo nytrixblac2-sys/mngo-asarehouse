@@ -104,6 +104,7 @@ export function AppShell({
       <div className="flex flex-1 overflow-hidden">
         {sidebarOpen && (
           <TabsSidebar
+            effectiveUser={effectiveUser}
             effectiveCanEdit={effectiveCanEdit}
             realUser={realUser}
             realCanEdit={realCanEdit}

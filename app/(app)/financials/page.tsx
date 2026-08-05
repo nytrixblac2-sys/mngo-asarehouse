@@ -76,6 +76,18 @@ export default function FinancialsPage() {
     return <p className="text-sm text-destructive">Something went wrong loading financials.</p>;
   }
 
+  // HOSTEL-only: Financials is restricted to the ACCOUNT_OWNER — a
+  // HOSTEL-specific inversion of the usual effectiveCanEdit gate, matching
+  // tabs-sidebar.tsx/top-bar.tsx's nav hiding (Architecture Decision 85).
+  // RENTAL is untouched.
+  if (workspaceQuery.data?.type === "HOSTEL" && effectiveUser.role !== "ACCOUNT_OWNER") {
+    return (
+      <p className="text-sm" style={{ color: C.muted }}>
+        You don&apos;t have access to this page.
+      </p>
+    );
+  }
+
   const properties = propertiesQuery.data ?? [];
   // Financials is always scoped to one property (different allocation/currencies/prevBalance
   // per property) — falls back to the first when "All properties" is selected, matching

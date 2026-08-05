@@ -8,6 +8,7 @@ import { TeamMemberDetail } from "@/components/team-member-detail";
 import { useEffectiveUser } from "@/components/effective-user-context";
 import { useCreateTeamMember, useDeleteTeamMember, useTeam } from "@/lib/queries/team";
 import { useExpenses } from "@/lib/queries/expenses";
+import { useWorkspace } from "@/lib/queries/workspace";
 import { C } from "@/lib/colors";
 import { fmtCurrency } from "@/lib/format";
 import { applyMomo } from "@/lib/financials";
@@ -20,9 +21,17 @@ import type { TeamMember } from "@/lib/types";
  * actual sensitive data (payment amounts) is already excluded server-side
  * in GET /api/expenses (MANAGEMENT category) and GET /api/team itself
  * (manager-only) — this is UX, not the security gate.
+ *
+ * On a HOSTEL workspace this page — including staff pay — is further
+ * restricted to the ACCOUNT_OWNER only (Architecture Decision 85): a
+ * HOSTEL-specific inversion of the usual effectiveCanEdit gate, matching
+ * the nav-level hiding in tabs-sidebar.tsx/top-bar.tsx. RENTAL is
+ * untouched — Cecilia's CO_MANAGER access at Oak & Co. still sees this
+ * page exactly as before.
  */
 export default function TeamPage() {
-  const { effectiveCanEdit } = useEffectiveUser();
+  const { effectiveCanEdit, effectiveUser } = useEffectiveUser();
+  const workspace = useWorkspace().data;
 
   const [selected, setSelected] = useState<TeamMember | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -33,7 +42,8 @@ export default function TeamPage() {
   const createTeamMember = useCreateTeamMember();
   const deleteTeamMember = useDeleteTeamMember();
 
-  if (!effectiveCanEdit) {
+  const isHostelNonOwner = workspace?.type === "HOSTEL" && effectiveUser.role !== "ACCOUNT_OWNER";
+  if (!effectiveCanEdit || isHostelNonOwner) {
     return (
       <p className="text-sm" style={{ color: C.muted }}>
         You don&apos;t have access to this page.
