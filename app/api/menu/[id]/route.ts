@@ -2,8 +2,15 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { menuItemInputSchema, serializeMenuItem } from "@/lib/menu";
+import { verifyWorkspacePin } from "@/lib/workspace-pin";
 
-/** Edits a menu item's name/category/price/currency/alwaysAvailable. Managers only. */
+/**
+ * Edits a menu item's name/category/price/currency/alwaysAvailable/station.
+ * Managers only. A real price change (Architecture Decision 82, "same as
+ * when deleting an order") requires the workspace PIN unless the actor is
+ * the ACCOUNT_OWNER — renaming, recategorizing, or reclassifying station
+ * with no price change needs no PIN.
+ */
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   const user = await getCurrentUser();
   if (!user) return apiError("Unauthorized", 401);
@@ -16,6 +23,13 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
   const parsed = menuItemInputSchema.safeParse(await req.json());
   if (!parsed.success) return apiError(parsed.error.message, 400);
+
+  const priceChanged = parsed.data.price !== Number(existing.price);
+  if (priceChanged && user.role !== "ACCOUNT_OWNER") {
+    if (!parsed.data.pin || !(await verifyWorkspacePin(user.workspaceId, parsed.data.pin))) {
+      return apiError("Incorrect PIN", 403);
+    }
+  }
 
   const updated = await prisma.menuItem.update({
     where: { id: params.id },

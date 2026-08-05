@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Trash2, Pencil } from "lucide-react";
 import { useEffectiveUser } from "@/components/effective-user-context";
-import { useCreateMenuItem, useDeleteMenuItem, useMenuItems, useToggleMenuItemAvailability } from "@/lib/queries/menu";
+import { useCreateMenuItem, useDeleteMenuItem, useMenuItems, useToggleMenuItemAvailability, useUpdateMenuItem } from "@/lib/queries/menu";
+import type { MenuItemInput } from "@/lib/queries/menu";
 import { useWorkspace } from "@/lib/queries/workspace";
 import { C } from "@/lib/colors";
 import { fmtCurrency } from "@/lib/format";
@@ -106,15 +107,137 @@ function ItemRow({
   item,
   showToggle,
   canEdit,
+  isOwner,
   onToggle,
   onDelete,
+  onUpdate,
+  updateIsPending,
+  updateError,
 }: {
   item: MenuItem;
   showToggle: boolean;
   canEdit: boolean;
+  /** ACCOUNT_OWNER skips the PIN prompt for a price change; CO_MANAGER
+   * needs it — see Architecture Decision 82. */
+  isOwner: boolean;
   onToggle: () => void;
   onDelete: () => void;
+  onUpdate: (input: MenuItemInput, onSuccess: () => void) => void;
+  updateIsPending: boolean;
+  updateError: string | null;
 }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftName, setDraftName] = useState(item.name);
+  const [draftCategory, setDraftCategory] = useState(item.category);
+  const [draftPrice, setDraftPrice] = useState(String(item.price));
+  const [draftCurrency, setDraftCurrency] = useState<Currency>(item.currency);
+  const [draftStation, setDraftStation] = useState<MenuStation>(item.station);
+  const [pin, setPin] = useState("");
+
+  const parsedPrice = parseFloat(draftPrice);
+  const priceChanged = parsedPrice !== item.price;
+  const needsPin = priceChanged && !isOwner;
+  const canSave = draftName.trim().length > 0 && draftCategory.trim().length > 0 && parsedPrice > 0 && (!needsPin || pin.trim().length > 0);
+
+  const startEdit = () => {
+    setDraftName(item.name);
+    setDraftCategory(item.category);
+    setDraftPrice(String(item.price));
+    setDraftCurrency(item.currency);
+    setDraftStation(item.station);
+    setPin("");
+    setIsEditing(true);
+  };
+
+  const handleSave = () => {
+    if (!canSave) return;
+    onUpdate(
+      {
+        name: draftName.trim(),
+        category: draftCategory.trim(),
+        price: parsedPrice,
+        currency: draftCurrency,
+        station: draftStation,
+        alwaysAvailable: item.alwaysAvailable,
+        pin: needsPin ? pin.trim() : undefined,
+      },
+      () => setIsEditing(false)
+    );
+  };
+
+  if (isEditing) {
+    return (
+      <div className="p-3 rounded-xl flex flex-col gap-2" style={{ background: C.bg }}>
+        <div className="flex gap-2 flex-wrap">
+          <input
+            value={draftName}
+            onChange={(e) => setDraftName(e.target.value)}
+            className="flex-1 min-w-[140px] px-3 py-2 rounded-lg text-sm"
+            style={{ border: `1px solid ${C.border}` }}
+          />
+          <input
+            value={draftCategory}
+            onChange={(e) => setDraftCategory(e.target.value)}
+            className="w-28 px-3 py-2 rounded-lg text-sm"
+            style={{ border: `1px solid ${C.border}` }}
+          />
+          <input
+            value={draftPrice}
+            onChange={(e) => setDraftPrice(e.target.value)}
+            className="w-20 px-3 py-2 rounded-lg text-sm"
+            style={{ border: `1px solid ${C.border}` }}
+          />
+          <select
+            value={draftCurrency}
+            onChange={(e) => setDraftCurrency(e.target.value as Currency)}
+            className="px-2 py-2 rounded-lg text-sm"
+            style={{ border: `1px solid ${C.border}` }}
+          >
+            <option value="GHS">GHS</option>
+            <option value="EUR">EUR</option>
+          </select>
+          <select
+            value={draftStation}
+            onChange={(e) => setDraftStation(e.target.value as MenuStation)}
+            className="px-2 py-2 rounded-lg text-sm"
+            style={{ border: `1px solid ${C.border}` }}
+          >
+            <option value="KITCHEN">Kitchen</option>
+            <option value="BAR">Bar</option>
+          </select>
+        </div>
+        {needsPin && (
+          <div>
+            <p className="text-xs mb-1" style={{ color: C.muted }}>Changing the price needs the owner PIN.</p>
+            <input
+              value={pin}
+              onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
+              type="password"
+              inputMode="numeric"
+              placeholder="Owner PIN"
+              className="w-full px-3 py-2 rounded-lg text-sm"
+              style={{ border: `1px solid ${C.border}` }}
+            />
+          </div>
+        )}
+        {updateError && <p className="text-xs text-destructive">{updateError}</p>}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleSave}
+            disabled={!canSave || updateIsPending}
+            className="text-xs font-semibold px-3 py-1.5 rounded-full"
+            style={{ background: canSave ? C.text : C.border, color: canSave ? "#fff" : C.muted }}
+          >
+            {updateIsPending ? "Saving…" : "Save"}
+          </button>
+          <button onClick={() => setIsEditing(false)} className="text-xs font-semibold" style={{ color: C.muted }}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex items-center justify-between py-2.5 px-3 rounded-xl" style={{ background: C.bg }}>
       <div>
@@ -135,6 +258,9 @@ function ItemRow({
               {item.isAvailableToday ? "Available today" : "Not available"}
             </button>
           )}
+          <button onClick={startEdit} title="Edit">
+            <Pencil size={14} style={{ color: C.muted }} />
+          </button>
           <button onClick={onDelete} title="Remove">
             <Trash2 size={14} style={{ color: C.muted }} />
           </button>
@@ -153,12 +279,14 @@ function ItemRow({
  * task: the rotating items she toggles on/off each day.
  */
 export default function MenuPage() {
-  const { effectiveCanEdit } = useEffectiveUser();
+  const { effectiveCanEdit, effectiveUser } = useEffectiveUser();
   const workspace = useWorkspace().data;
   const menuQuery = useMenuItems();
   const createItem = useCreateMenuItem();
   const toggleAvailability = useToggleMenuItemAvailability();
   const deleteItem = useDeleteMenuItem();
+  const updateItem = useUpdateMenuItem();
+  const isOwner = effectiveUser.role === "ACCOUNT_OWNER";
 
   if (workspace && workspace.type !== "HOSTEL") {
     return <p className="text-sm" style={{ color: C.muted }}>The Menu screen is only available for hostel-style workspaces.</p>;
@@ -186,8 +314,12 @@ export default function MenuPage() {
             item={item}
             showToggle={showToggle}
             canEdit={effectiveCanEdit}
+            isOwner={isOwner}
             onToggle={() => toggleAvailability.mutate({ id: item.id, isAvailableToday: !item.isAvailableToday })}
             onDelete={() => deleteItem.mutate(item.id)}
+            onUpdate={(input, onSuccess) => updateItem.mutate({ id: item.id, input }, { onSuccess })}
+            updateIsPending={updateItem.isPending}
+            updateError={updateItem.isError ? (updateItem.error as Error).message : null}
           />
         ))}
       </div>

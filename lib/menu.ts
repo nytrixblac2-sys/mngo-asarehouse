@@ -40,6 +40,10 @@ export const menuItemInputSchema = z.object({
   currency: z.enum(["GHS", "EUR"]),
   alwaysAvailable: z.boolean().optional(),
   station: z.enum(["KITCHEN", "BAR"]).optional(),
+  /** Only checked by PATCH /api/menu/[id] when `price` actually changes
+   * and the actor isn't the ACCOUNT_OWNER — see Architecture Decision 82.
+   * Ignored on create (POST) and on edits that don't touch price. */
+  pin: z.string().optional(),
 });
 
 export const availabilityInputSchema = z.object({
