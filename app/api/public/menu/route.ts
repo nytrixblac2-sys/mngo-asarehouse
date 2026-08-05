@@ -11,7 +11,7 @@ export async function GET() {
   if (!booking) return apiError("Not signed in", 401);
 
   const items = await prisma.menuItem.findMany({
-    where: { workspaceId: booking.workspaceId, isAvailableToday: true },
+    where: { workspaceId: booking.workspaceId, OR: [{ alwaysAvailable: true }, { isAvailableToday: true }] },
     orderBy: { createdAt: "asc" },
   });
 

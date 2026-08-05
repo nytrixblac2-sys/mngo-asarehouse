@@ -4,16 +4,18 @@ import { useState } from "react";
 import { X, ShoppingCart, Minus, Plus } from "lucide-react";
 import { C } from "@/lib/colors";
 import { fmtCurrency } from "@/lib/format";
+import { isMenuItemOrderable } from "@/lib/menu";
 import { useMenuItems } from "@/lib/queries/menu";
 import { useCreateOrder } from "@/lib/queries/orders";
 import type { Currency } from "@/lib/types";
 
 /**
- * Staff-side "order for guest" — Janet picks from today's available menu
- * items on a guest's behalf (e.g. a walk-in guest who isn't using the
- * public self-ordering page). Only shows items currently toggled
- * available on the Kitchen screen, same rule the server enforces
- * (lib/orders.ts createGuestOrder) so nothing shown here can be rejected.
+ * Staff-side "order for guest" — Janet picks from orderable menu items on
+ * a guest's behalf (e.g. a walk-in guest who isn't using the public
+ * self-ordering page): always-available items (breakfast, drinks, the
+ * all-day menu) plus whatever's toggled available today. Same rule the
+ * server enforces (lib/orders.ts createGuestOrder) so nothing shown here
+ * can be rejected.
  */
 export function GuestOrderForm({
   bookingId,
@@ -28,7 +30,7 @@ export function GuestOrderForm({
   const createOrder = useCreateOrder();
   const [quantities, setQuantities] = useState<Record<string, number>>({});
 
-  const items = (menuQuery.data ?? []).filter((i) => i.isAvailableToday);
+  const items = (menuQuery.data ?? []).filter(isMenuItemOrderable);
   const categories = Array.from(new Set(items.map((i) => i.category)));
 
   const setQty = (id: string, qty: number) => {

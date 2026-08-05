@@ -8,6 +8,7 @@ type MenuItemRow = {
   category: string;
   price: unknown;
   currency: MenuItem["currency"];
+  alwaysAvailable: boolean;
   isAvailableToday: boolean;
 };
 
@@ -19,8 +20,15 @@ export function serializeMenuItem(m: MenuItemRow): MenuItem {
     category: m.category,
     price: Number(m.price),
     currency: m.currency,
+    alwaysAvailable: m.alwaysAvailable,
     isAvailableToday: m.isAvailableToday,
   };
+}
+
+/** An item is orderable when either flag is true — always-available items
+ * don't need the daily toggle switched on. */
+export function isMenuItemOrderable(m: Pick<MenuItem, "alwaysAvailable" | "isAvailableToday">): boolean {
+  return m.alwaysAvailable || m.isAvailableToday;
 }
 
 export const menuItemInputSchema = z.object({
@@ -28,6 +36,7 @@ export const menuItemInputSchema = z.object({
   category: z.string().min(1),
   price: z.number().positive(),
   currency: z.enum(["GHS", "EUR"]),
+  alwaysAvailable: z.boolean().optional(),
 });
 
 export const availabilityInputSchema = z.object({

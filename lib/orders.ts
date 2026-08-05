@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { prisma } from "./prisma";
+import { isMenuItemOrderable } from "./menu";
 import type { Order } from "./types";
 
 export const orderInputSchema = z.object({
@@ -50,13 +51,15 @@ export function serializeOrder(o: OrderRow): Order {
 
 /**
  * Places a food/drink order against a guest's stay — used both by staff
- * ordering on a guest's behalf (POST /api/orders) and, in a later phase,
- * by the guest's own public ordering screen. Only today's available items
- * can be ordered (same `isAvailableToday` gate Janet curates on the
- * Kitchen screen) — if it's not on today's list, neither staff nor guests
- * should be able to order it, one consistent rule rather than two. Each
- * `OrderItem` snapshots the menu item's current name/price/currency so a
- * later menu edit never rewrites this order's historical total.
+ * ordering on a guest's behalf (POST /api/orders) and by the guest's own
+ * public ordering screen (POST /api/public/orders). Only orderable items
+ * can be ordered — either genuinely always-available (breakfast, drinks,
+ * the all-day menu) or toggled available today (rotating lunch/dinner
+ * items), same `isMenuItemOrderable` rule Janet curates on the Kitchen
+ * screen — if it's not orderable, neither staff nor guests should be able
+ * to order it, one consistent rule rather than two. Each `OrderItem`
+ * snapshots the menu item's current name/price/currency so a later menu
+ * edit never rewrites this order's historical total.
  */
 export async function createGuestOrder(params: {
   workspaceId: string;
@@ -78,7 +81,7 @@ export async function createGuestOrder(params: {
   if (menuItems.length !== new Set(menuItemIds).size) {
     throw new OrderError("One or more menu items were not found");
   }
-  const unavailable = menuItems.filter((m) => !m.isAvailableToday);
+  const unavailable = menuItems.filter((m) => !isMenuItemOrderable(m));
   if (unavailable.length > 0) {
     throw new OrderError(
       `${unavailable.map((m) => m.name).join(", ")} ${unavailable.length === 1 ? "is" : "are"} not available today`

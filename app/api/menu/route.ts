@@ -17,8 +17,9 @@ export async function GET() {
   return apiSuccess(rows.map(serializeMenuItem));
 }
 
-/** Adds a dish/drink to the master menu. Starts unavailable — Janet turns
- * it on for a given day from the Kitchen screen. Managers only. */
+/** Adds a dish/drink to the master menu. `alwaysAvailable` items need no
+ * daily toggle; anything else starts unavailable until Janet turns it on
+ * for a given day from the Kitchen screen. Managers only. */
 export async function POST(req: Request) {
   const user = await getCurrentUser();
   if (!user) return apiError("Unauthorized", 401);
@@ -34,6 +35,7 @@ export async function POST(req: Request) {
       category: parsed.data.category,
       price: parsed.data.price,
       currency: parsed.data.currency,
+      alwaysAvailable: parsed.data.alwaysAvailable ?? false,
       isAvailableToday: false,
     },
   });

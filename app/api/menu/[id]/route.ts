@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { menuItemInputSchema, serializeMenuItem } from "@/lib/menu";
 
-/** Edits a menu item's name/category/price/currency. Managers only. */
+/** Edits a menu item's name/category/price/currency/alwaysAvailable. Managers only. */
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   const user = await getCurrentUser();
   if (!user) return apiError("Unauthorized", 401);
@@ -24,6 +24,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       category: parsed.data.category,
       price: parsed.data.price,
       currency: parsed.data.currency,
+      alwaysAvailable: parsed.data.alwaysAvailable ?? existing.alwaysAvailable,
     },
   });
 

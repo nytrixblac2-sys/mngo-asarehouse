@@ -105,6 +105,11 @@ export interface MenuItem {
   category: string;
   price: number;
   currency: Currency;
+  /** Doesn't change day to day (breakfast, drinks, the all-day menu) —
+   * orderable at all times, no daily toggle needed. */
+  alwaysAvailable: boolean;
+  /** The daily toggle staff use for genuinely rotating items (e.g. lunch
+   * and dinner mains). Ignored when `alwaysAvailable` is true. */
   isAvailableToday: boolean;
 }
 

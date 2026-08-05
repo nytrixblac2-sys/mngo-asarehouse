@@ -273,11 +273,15 @@ model Room {
 }
 
 /// One row per dish/drink on the master menu. `category` is free text
-/// (e.g. "Food", "Desserts", "Breakfast" for Escape3Points) rather than an
-/// enum — menu structure is workspace-specific, not a fixed MNGO concept.
-/// `isAvailableToday` is the single live toggle staff use on the Kitchen
-/// screen to curate what guests can currently order — no historical
-/// per-date availability tracking in V1.
+/// (e.g. "Breakfast", "Drinks", "Lunch & Dinner" for Escape3Points) rather
+/// than an enum — menu structure is workspace-specific, not a fixed MNGO
+/// concept. Most of a menu doesn't change day to day (breakfast, drinks,
+/// the all-day menu) — `alwaysAvailable` marks those so staff don't have
+/// to re-toggle them daily; only the genuinely rotating items (e.g. lunch
+/// and dinner mains) rely on `isAvailableToday`, the live toggle staff use
+/// on the Kitchen screen. An item is orderable when EITHER is true — see
+/// lib/orders.ts createGuestOrder. No historical per-date availability
+/// tracking in V1.
 model MenuItem {
   id               String   @id @default(uuid()) @db.Uuid
   workspaceId      String   @db.Uuid
@@ -285,6 +289,7 @@ model MenuItem {
   category         String
   price            Decimal  @db.Decimal(10, 2)
   currency         Currency @default(GHS)
+  alwaysAvailable  Boolean  @default(false)
   isAvailableToday Boolean  @default(false)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt

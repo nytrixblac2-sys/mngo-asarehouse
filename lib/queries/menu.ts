@@ -7,6 +7,7 @@ export interface MenuItemInput {
   category: string;
   price: number;
   currency: Currency;
+  alwaysAvailable?: boolean;
 }
 
 export function useMenuItems() {
