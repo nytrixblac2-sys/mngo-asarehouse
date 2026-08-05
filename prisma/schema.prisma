@@ -84,12 +84,33 @@ enum IssueType {
   GUEST_COMPLAINT
   MAINTENANCE
   NOTE
+  /// Auto-created when a HOSTEL guest checks out (app/api/bookings/[id]/checkout)
+  /// — "{Room} needs cleaning after checkout." Tied to the room via Issue.roomId.
+  ROOM_DIRTY
 }
 
 enum IssueStatus {
   OPEN
   IN_PROGRESS
   RESOLVED
+}
+
+/// Which physical station prepares a MenuItem — explicit rather than
+/// inferred from the free-text `category` (too fragile once staff add
+/// arbitrary categories). Drives which of the Kitchen/Bar screens an
+/// order's items show up on.
+enum MenuStation {
+  KITCHEN
+  BAR
+}
+
+/// How a guest paid at checkout (app/api/bookings/[id]/checkout) — HOSTEL
+/// workspaces only, no online payment processor integration.
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  MOMO
+  CARD
 }
 
 // ── Core tenancy ─────────────────────────────────────────────────────────
@@ -118,6 +139,11 @@ model Workspace {
   /// Manual paid/unpaid flag, admin-toggled from /admin — no payment
   /// processor integration for V1 (billing handled outside MNGO).
   paid           Boolean         @default(false)
+  /// bcrypt hash of the owner-set PIN gating sensitive HOSTEL actions
+  /// (deleting an order, changing a menu item's price) — never the
+  /// plaintext, never sent to the client. Null until the owner sets one
+  /// via ProfileModal's Security section. See lib/workspace-pin.ts.
+  actionPinHash  String?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
@@ -234,6 +260,8 @@ model Booking {
   /// Server-set only when staff mark the guest checked out — same pattern
   /// as paidAt. Gates receipt availability and guest ordering.
   checkedOutAt   DateTime?
+  /// How the guest paid, selected at checkout. Null until checkout.
+  paymentMethod  PaymentMethod?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
@@ -267,6 +295,7 @@ model Room {
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   property  Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   bookings  Booking[]
+  issues    Issue[]
 
   @@index([workspaceId])
   @@index([propertyId])
@@ -283,16 +312,18 @@ model Room {
 /// lib/orders.ts createGuestOrder. No historical per-date availability
 /// tracking in V1.
 model MenuItem {
-  id               String   @id @default(uuid()) @db.Uuid
-  workspaceId      String   @db.Uuid
+  id               String      @id @default(uuid()) @db.Uuid
+  workspaceId      String      @db.Uuid
   name             String
   category         String
-  price            Decimal  @db.Decimal(10, 2)
-  currency         Currency @default(GHS)
-  alwaysAvailable  Boolean  @default(false)
-  isAvailableToday Boolean  @default(false)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  price            Decimal     @db.Decimal(10, 2)
+  currency         Currency    @default(GHS)
+  alwaysAvailable  Boolean     @default(false)
+  isAvailableToday Boolean     @default(false)
+  /// Which of the Kitchen/Bar screens this item's orders show up on.
+  station          MenuStation @default(KITCHEN)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
 
   workspace  Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   orderItems OrderItem[]
@@ -301,12 +332,25 @@ model MenuItem {
 }
 
 /// A guest's food/drink order against their stay — one Booking can have
-/// many Orders (e.g. one per day or per sitting).
+/// many Orders (e.g. one per day or per sitting). `kitchenStatus`/
+/// `barStatus` are independent (reusing IssueStatus — OPEN/IN_PROGRESS/
+/// RESOLVED, shown as Received/Preparing/Delivered): set at creation to
+/// OPEN if the order has any item for that station, else left null, so an
+/// order spanning both stations gets two independently-tracked tickets
+/// without one station's progress affecting the other. Soft-deletable
+/// (deletedAt/deletedBy/deleteReason) — a deleted order drops out of the
+/// guest's bill and the Kitchen/Bar screens but stays queryable for the
+/// owner (app/api/orders/[id]/route.ts DELETE, PIN-gated).
 model Order {
-  id          String   @id @default(uuid()) @db.Uuid
-  workspaceId String   @db.Uuid
-  bookingId   String   @db.Uuid
-  createdAt   DateTime @default(now())
+  id            String       @id @default(uuid()) @db.Uuid
+  workspaceId   String       @db.Uuid
+  bookingId     String       @db.Uuid
+  kitchenStatus IssueStatus?
+  barStatus     IssueStatus?
+  deletedAt     DateTime?
+  deletedBy     String?
+  deleteReason  String?
+  createdAt     DateTime     @default(now())
 
   workspace Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   booking   Booking     @relation(fields: [bookingId], references: [id], onDelete: Cascade)
@@ -316,17 +360,20 @@ model Order {
   @@index([bookingId])
 }
 
-/// `name`/`unitPrice`/`currency` are snapshotted from MenuItem at order
-/// time so a later menu price change never rewrites a guest's past bill.
+/// `name`/`unitPrice`/`currency`/`station` are snapshotted from MenuItem
+/// at order time so a later menu edit (price change or reclassifying
+/// which station prepares it) never rewrites a guest's past bill or which
+/// screen a historical order appeared on.
 model OrderItem {
-  id         String   @id @default(uuid()) @db.Uuid
-  orderId    String   @db.Uuid
-  menuItemId String   @db.Uuid
+  id         String      @id @default(uuid()) @db.Uuid
+  orderId    String      @db.Uuid
+  menuItemId String      @db.Uuid
   name       String
   quantity   Int
-  unitPrice  Decimal  @db.Decimal(10, 2)
+  unitPrice  Decimal     @db.Decimal(10, 2)
   currency   Currency
-  createdAt  DateTime @default(now())
+  station    MenuStation @default(KITCHEN)
+  createdAt  DateTime    @default(now())
 
   order    Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   menuItem MenuItem @relation(fields: [menuItemId], references: [id])
@@ -432,16 +479,21 @@ model Issue {
   type        IssueType
   description String
   guest       String?
+  /// HOSTEL only — set when auto-created by checkout (ROOM_DIRTY), so the
+  /// issue is tied to a specific room, not just described in free text.
+  roomId      String?      @db.Uuid
   status      IssueStatus?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
   workspace     Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   property      Property           @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  room          Room?              @relation(fields: [roomId], references: [id])
   statusHistory IssueStatusEvent[]
 
   @@index([workspaceId])
   @@index([propertyId])
+  @@index([roomId])
 }
 
 model IssueStatusEvent {

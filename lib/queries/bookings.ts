@@ -21,8 +21,8 @@ export interface HostelBookingInput {
   checkOut: string;
   roomId: string;
   passportNumber: string;
-  guestEmail?: string;
-  guestPhone?: string;
+  guestEmail: string;
+  guestPhone: string;
 }
 
 export type BookingInput = RentalBookingInput | HostelBookingInput;

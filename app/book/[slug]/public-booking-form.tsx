@@ -25,7 +25,9 @@ export function PublicBookingForm({ workspaceSlug, rooms }: { workspaceSlug: str
   const selectedRoom = rooms.find((r) => r.id === roomId);
   const nights = checkIn && checkOut ? nightsBetween(checkIn, checkOut) : 0;
   const previewTotal = selectedRoom && nights > 0 ? selectedRoom.pricePerNight * nights : null;
-  const canSubmit = roomId && checkIn && checkOut && nights > 0 && guest.trim() && passportNumber.trim();
+  const canSubmit =
+    roomId && checkIn && checkOut && nights > 0 && guest.trim() && passportNumber.trim() &&
+    guestEmail.trim() && guestPhone.trim();
 
   const handleSubmit = async () => {
     if (!canSubmit || isPending) return;
@@ -42,8 +44,8 @@ export function PublicBookingForm({ workspaceSlug, rooms }: { workspaceSlug: str
           checkIn,
           checkOut,
           passportNumber: passportNumber.trim(),
-          guestEmail: guestEmail.trim() || undefined,
-          guestPhone: guestPhone.trim() || undefined,
+          guestEmail: guestEmail.trim(),
+          guestPhone: guestPhone.trim(),
         }),
       });
       setConfirmed(booking);
@@ -156,7 +158,7 @@ export function PublicBookingForm({ workspaceSlug, rooms }: { workspaceSlug: str
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="text-xs font-semibold" style={{ color: C.muted }}>Email (optional)</label>
+            <label className="text-xs font-semibold" style={{ color: C.muted }}>Email</label>
             <input
               value={guestEmail}
               onChange={(e) => setGuestEmail(e.target.value)}
@@ -166,7 +168,7 @@ export function PublicBookingForm({ workspaceSlug, rooms }: { workspaceSlug: str
             />
           </div>
           <div>
-            <label className="text-xs font-semibold" style={{ color: C.muted }}>Phone (optional)</label>
+            <label className="text-xs font-semibold" style={{ color: C.muted }}>Phone</label>
             <input
               value={guestPhone}
               onChange={(e) => setGuestPhone(e.target.value)}

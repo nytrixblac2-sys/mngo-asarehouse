@@ -11,6 +11,7 @@ export const ISSUE_TYPE_LABEL: Record<IssueType, string> = {
   GUEST_COMPLAINT: "Guest Complaint",
   MAINTENANCE: "Maintenance",
   NOTE: "Note",
+  ROOM_DIRTY: "Room Needs Cleaning",
 };
 
 export const SCHEDULE_TYPE_LABEL: Record<ScheduleType, string> = {

@@ -24,7 +24,7 @@ function AddItemForm({
   const [category, setCategory] = useState("");
   const [price, setPrice] = useState("");
   const [currency, setCurrency] = useState<Currency>("GHS");
-  const datalistId = `kitchen-categories-${alwaysAvailable ? "constant" : "daily"}`;
+  const datalistId = `menu-categories-${alwaysAvailable ? "constant" : "daily"}`;
 
   const parsedPrice = parseFloat(price);
   const canAdd = name.trim().length > 0 && category.trim().length > 0 && parsedPrice > 0;
@@ -134,15 +134,14 @@ function ItemRow({
 }
 
 /**
- * HOSTEL-only menu curation. Most of a menu doesn't change day to day
- * (breakfast, drinks, the all-day menu) — those live under "Always on the
- * menu" with no daily toggle, so Janet only has to touch them when the
- * menu itself changes. "Today's Lunch & Dinner" is the actual daily task:
- * the rotating items she toggles on/off each day. Curation only, no
- * order-fulfillment queue (guest/staff orders are placed from the
- * booking detail view instead).
+ * HOSTEL-only menu curation (route /menu — order fulfillment now lives
+ * separately at /kitchen and /bar). Most of a menu doesn't change day to
+ * day (breakfast, drinks, the all-day menu) — those live under "Always on
+ * the menu" with no daily toggle, so Janet only has to touch them when
+ * the menu itself changes. "Today's Lunch & Dinner" is the actual daily
+ * task: the rotating items she toggles on/off each day.
  */
-export default function KitchenPage() {
+export default function MenuPage() {
   const { effectiveCanEdit } = useEffectiveUser();
   const workspace = useWorkspace().data;
   const menuQuery = useMenuItems();
@@ -151,7 +150,7 @@ export default function KitchenPage() {
   const deleteItem = useDeleteMenuItem();
 
   if (workspace && workspace.type !== "HOSTEL") {
-    return <p className="text-sm" style={{ color: C.muted }}>The Kitchen screen is only available for hostel-style workspaces.</p>;
+    return <p className="text-sm" style={{ color: C.muted }}>The Menu screen is only available for hostel-style workspaces.</p>;
   }
   if (menuQuery.isLoading) {
     return <p className="text-sm" style={{ color: C.muted }}>Loading…</p>;
@@ -187,7 +186,7 @@ export default function KitchenPage() {
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-2xl font-bold" style={{ color: C.text }}>Kitchen</h1>
+        <h1 className="text-2xl font-bold" style={{ color: C.text }}>Menu</h1>
         <p className="text-sm mt-1" style={{ color: C.muted }}>Toggle what&apos;s on today&apos;s rotating menu, and manage the rest of the menu when it changes.</p>
       </div>
 

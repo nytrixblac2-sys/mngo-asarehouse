@@ -56,7 +56,8 @@ export function HostelBookingForm({
   const previewTotal = selectedRoom && nights > 0 ? selectedRoom.pricePerNight * nights : null;
 
   const canSubmit =
-    guest.trim() && checkIn && checkOut && nights > 0 && roomId && passportNumber.trim() && propertyId;
+    guest.trim() && checkIn && checkOut && nights > 0 && roomId && passportNumber.trim() &&
+    guestEmail.trim() && guestPhone.trim() && propertyId;
 
   const handleSubmit = () => {
     if (!canSubmit) return;
@@ -67,8 +68,8 @@ export function HostelBookingForm({
       checkOut,
       roomId,
       passportNumber: passportNumber.trim(),
-      guestEmail: guestEmail.trim() || undefined,
-      guestPhone: guestPhone.trim() || undefined,
+      guestEmail: guestEmail.trim(),
+      guestPhone: guestPhone.trim(),
     });
   };
 
@@ -161,7 +162,7 @@ export function HostelBookingForm({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-semibold" style={{ color: C.muted }}>Email (optional)</label>
+              <label className="text-xs font-semibold" style={{ color: C.muted }}>Email</label>
               <input
                 value={guestEmail}
                 onChange={(e) => setGuestEmail(e.target.value)}
@@ -171,7 +172,7 @@ export function HostelBookingForm({
               />
             </div>
             <div>
-              <label className="text-xs font-semibold" style={{ color: C.muted }}>Phone (optional)</label>
+              <label className="text-xs font-semibold" style={{ color: C.muted }}>Phone</label>
               <input
                 value={guestPhone}
                 onChange={(e) => setGuestPhone(e.target.value)}

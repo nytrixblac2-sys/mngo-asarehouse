@@ -68,8 +68,8 @@ export const hostelBookingInputSchema = z.object({
   checkOut: dateStringSchema,
   roomId: z.string().uuid(),
   passportNumber: z.string().min(1),
-  guestEmail: z.string().email().optional(),
-  guestPhone: z.string().min(1).optional(),
+  guestEmail: z.string().email(),
+  guestPhone: z.string().min(1),
 });
 
 /** Discriminated by shape, not an explicit tag: a hostel-shaped payload is
@@ -88,6 +88,6 @@ export const publicBookingInputSchema = z.object({
   checkIn: dateStringSchema,
   checkOut: dateStringSchema,
   passportNumber: z.string().min(1),
-  guestEmail: z.string().email().optional(),
-  guestPhone: z.string().min(1).optional(),
+  guestEmail: z.string().email(),
+  guestPhone: z.string().min(1),
 });

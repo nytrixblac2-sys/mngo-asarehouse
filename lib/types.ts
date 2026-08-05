@@ -26,7 +26,11 @@ export type WorkspaceType = "RENTAL" | "HOSTEL";
 export type ExpenseCategory = "OWNERS" | "OPERATIONS" | "MANAGEMENT";
 
 export type ScheduleType = "CLEANING" | "REPAIR" | "SUPERVISION" | "TRAINING";
-export type IssueType = "GUEST_COMPLAINT" | "MAINTENANCE" | "NOTE";
+/** "ROOM_DIRTY" is auto-created server-side on HOSTEL checkout
+ * (app/api/bookings/[id]/checkout) — never user-selectable when manually
+ * creating an issue (lib/issues.ts issueInputSchema still only accepts the
+ * other three). */
+export type IssueType = "GUEST_COMPLAINT" | "MAINTENANCE" | "NOTE" | "ROOM_DIRTY";
 export type IssueStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED";
 
 /** Income split for one currency; values are percentages that must sum to 100. */
