@@ -24,6 +24,7 @@ export function ExpenseForm({
   defaultPropertyId,
   team,
   managementLabel,
+  hideCategory,
 }: {
   onClose: () => void;
   onSubmit: (input: ExpenseInput) => void;
@@ -35,13 +36,18 @@ export function ExpenseForm({
   defaultPropertyId: string;
   team: TeamMember[];
   managementLabel?: string;
+  /** HOSTEL workspaces have no owner/operations/management split (no
+   * "Internal" tab to view MANAGEMENT-category expenses at all, and
+   * OWNERS vs OPERATIONS never renders differently) — the category picker
+   * is just noise there, so every expense defaults to OWNERS silently. */
+  hideCategory?: boolean;
 }) {
   const isEdit = !!expense;
   const [date, setDate] = useState(expense?.date ?? defaultDate);
   const [description, setDescription] = useState(expense?.description ?? "");
   const [amount, setAmount] = useState(expense?.amount?.toString() ?? "");
   const [currency, setCurrency] = useState<Currency>(expense?.currency ?? defaultCurrency ?? "GHS");
-  const [category, setCategory] = useState<ExpenseCategory>(expense?.category ?? defaultCategory ?? "OPERATIONS");
+  const [category, setCategory] = useState<ExpenseCategory>(expense?.category ?? defaultCategory ?? (hideCategory ? "OWNERS" : "OPERATIONS"));
   const [person, setPerson] = useState(expense?.person ?? team[0]?.name ?? "");
   const [propertyId, setPropertyId] = useState(
     expense?.propertyId ?? (defaultPropertyId !== "all" ? defaultPropertyId : properties[0]?.id ?? "")
@@ -103,24 +109,26 @@ export function ExpenseForm({
               ))}
             </div>
           </div>
-          <div>
-            <label className="text-xs font-semibold" style={{ color: C.muted }}>Category</label>
-            <div className="flex gap-2 mt-1">
-              {CATEGORIES.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setCategory(cat)}
-                  className="flex-1 text-xs font-semibold py-2.5 rounded-xl"
-                  style={{
-                    background: category === cat ? "var(--accent-soft, rgba(0,0,0,0.07))" : C.bg,
-                    color: category === cat ? "var(--accent, #111111)" : C.muted,
-                  }}
-                >
-                  {categoryLabel(cat)}
-                </button>
-              ))}
+          {!hideCategory && (
+            <div>
+              <label className="text-xs font-semibold" style={{ color: C.muted }}>Category</label>
+              <div className="flex gap-2 mt-1">
+                {CATEGORIES.map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setCategory(cat)}
+                    className="flex-1 text-xs font-semibold py-2.5 rounded-xl"
+                    style={{
+                      background: category === cat ? "var(--accent-soft, rgba(0,0,0,0.07))" : C.bg,
+                      color: category === cat ? "var(--accent, #111111)" : C.muted,
+                    }}
+                  >
+                    {categoryLabel(cat)}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
           {category === "MANAGEMENT" && (
             <div>
               <label className="text-xs font-semibold" style={{ color: C.muted }}>Team member</label>

@@ -93,6 +93,14 @@ export default function FinancialsPage() {
   const team = teamQuery.data ?? [];
   const workspaceName = workspaceQuery.data?.name;
   const managementLabel = workspaceName ?? "Management";
+  // HOSTEL workspaces (e.g. Escape3Points) have no owner/operations/
+  // management income split — Property.allocation is fixed at 100% owners
+  // / 0% ops / 0% management (Architecture Decision 71). The "Internal"
+  // tab and the Owners/Operations fund breakdown would just show a
+  // permanently-zero split, so they're hidden rather than left to render
+  // meaningless 0% cards.
+  const isHostel = workspaceQuery.data?.type === "HOSTEL";
+  const effectiveTab = isHostel ? "owner" : tab;
 
   const ownerCur: Currency = propCurrencies.includes(ownerCurrency) ? ownerCurrency : propCurrencies[0];
   const oakCur: Currency = propCurrencies.includes(oakCurrency) ? oakCurrency : propCurrencies[0];
@@ -194,29 +202,39 @@ export default function FinancialsPage() {
         )}
       </div>
 
-      <div className="flex items-center gap-1 rounded-full p-1 w-fit" style={{ background: "#F2F2F2" }}>
-        <button
-          onClick={() => setTab("owner")}
-          className="text-xs font-semibold px-4 py-2 rounded-full"
-          style={{ background: tab === "owner" ? "#fff" : "transparent", color: tab === "owner" ? C.text : C.muted }}
-        >
-          Owner Report
-        </button>
-        {effectiveCanEdit && (
+      {!isHostel && (
+        <div className="flex items-center gap-1 rounded-full p-1 w-fit" style={{ background: "#F2F2F2" }}>
           <button
-            onClick={() => setTab("oakco")}
+            onClick={() => setTab("owner")}
             className="text-xs font-semibold px-4 py-2 rounded-full"
-            style={{ background: tab === "oakco" ? "#fff" : "transparent", color: tab === "oakco" ? C.text : C.muted }}
+            style={{ background: effectiveTab === "owner" ? "#fff" : "transparent", color: effectiveTab === "owner" ? C.text : C.muted }}
           >
-            {managementLabel} · Internal
+            Owner Report
           </button>
-        )}
-      </div>
+          {effectiveCanEdit && (
+            <button
+              onClick={() => setTab("oakco")}
+              className="text-xs font-semibold px-4 py-2 rounded-full"
+              style={{ background: effectiveTab === "oakco" ? "#fff" : "transparent", color: effectiveTab === "oakco" ? C.text : C.muted }}
+            >
+              {managementLabel} · Internal
+            </button>
+          )}
+        </div>
+      )}
 
-      {tab === "owner" && (
+      {effectiveTab === "owner" && (
         <>
           <CurrencyToggle value={ownerCur} onChange={setOwnerCurrency} currencies={propCurrencies} />
 
+          {isHostel ? (
+            <Card>
+              <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: C.muted }}>Income</p>
+              <p className="text-2xl font-bold mt-2" style={{ color: C.text }}>{fmtCurrency(ownerReport.ownersAlloc + ownerReport.opsAlloc, ownerCur)}</p>
+              <div className="flex items-center justify-between text-sm mt-3" style={{ color: C.muted }}><span>Expenses</span><span>-{fmtCurrency(ownerReport.ownersExp + ownerReport.opsExp, ownerCur)}</span></div>
+              <div className="flex items-center justify-between text-sm font-semibold mt-1" style={{ color: "var(--accent, #111111)" }}><span>Balance</span><span>{fmtCurrency(ownerReport.ownersBalance + ownerReport.opsBalance, ownerCur)}</span></div>
+            </Card>
+          ) : (
           <div className="grid grid-cols-2 gap-4">
             <Card>
               <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: C.muted }}>Owners Fund — {allocOwner.owners}%</p>
@@ -231,9 +249,10 @@ export default function FinancialsPage() {
               <div className="flex items-center justify-between text-sm font-semibold mt-1" style={{ color: "var(--accent, #111111)" }}><span>Balance</span><span>{fmtCurrency(ownerReport.opsBalance, ownerCur)}</span></div>
             </Card>
           </div>
+          )}
 
           <Card style={{ background: C.teal }}>
-            <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.7)" }}>Owners Running Balance — {ownerCur}</p>
+            <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.7)" }}>{isHostel ? "Running Balance" : "Owners Running Balance"} — {ownerCur}</p>
             <div className="flex items-end justify-between mt-2">
               <p className="text-3xl font-bold" style={{ color: "#fff" }}>{fmtCurrency(ownerReport.runningBalance, ownerCur)}</p>
               <p className="text-xs" style={{ color: "rgba(255,255,255,0.7)" }}>prev {fmtCurrency(ownerReport.prevOwners, ownerCur)} + this month</p>
@@ -257,18 +276,23 @@ export default function FinancialsPage() {
                         <p className="text-xs" style={{ color: C.muted }}>{r.booking.checkIn} → {r.booking.checkOut}</p>
                         {r.booking.paidAt && <p className="text-xs" style={{ color: C.teal }}>Confirmed {r.booking.paidAt}</p>}
                       </div>
-                      <Pill tone={r.booking.status === "CONFIRMED" ? "teal" : "amber"}>
-                        {r.booking.status === "CONFIRMED" ? "Confirmed" : "Expected"}
-                      </Pill>
+                      <div className="flex items-center gap-2">
+                        <Pill tone={r.booking.status === "CONFIRMED" ? "teal" : "amber"}>
+                          {r.booking.status === "CONFIRMED" ? "Confirmed" : "Expected"}
+                        </Pill>
+                        {isHostel && <span className="text-sm font-semibold" style={{ color: C.text }}>{fmtCurrency(r.ownersAmt + r.opsAmt, ownerCur)}</span>}
+                      </div>
                     </div>
-                    <div className="flex gap-4 mt-1">
-                      <span className="text-xs" style={{ color: C.muted }}>
-                        Owners {allocOwner.owners}%: <span className="font-semibold" style={{ color: C.text }}>{fmtCurrency(r.ownersAmt, ownerCur)}</span>
-                      </span>
-                      <span className="text-xs" style={{ color: C.muted }}>
-                        Operations {allocOwner.operations}%: <span className="font-semibold" style={{ color: C.text }}>{fmtCurrency(r.opsAmt, ownerCur)}</span>
-                      </span>
-                    </div>
+                    {!isHostel && (
+                      <div className="flex gap-4 mt-1">
+                        <span className="text-xs" style={{ color: C.muted }}>
+                          Owners {allocOwner.owners}%: <span className="font-semibold" style={{ color: C.text }}>{fmtCurrency(r.ownersAmt, ownerCur)}</span>
+                        </span>
+                        <span className="text-xs" style={{ color: C.muted }}>
+                          Operations {allocOwner.operations}%: <span className="font-semibold" style={{ color: C.text }}>{fmtCurrency(r.opsAmt, ownerCur)}</span>
+                        </span>
+                      </div>
+                    )}
                   </div>
                 ))}
                 {monthManualIncome.map((m) => (
@@ -332,7 +356,7 @@ export default function FinancialsPage() {
         </>
       )}
 
-      {tab === "oakco" && effectiveCanEdit && (
+      {effectiveTab === "oakco" && effectiveCanEdit && (
         <>
           <Card style={{ background: "var(--accent-soft, rgba(0,0,0,0.07))", border: "1px solid rgba(255,90,95,0.2)" }}>
             <p className="text-xs font-semibold" style={{ color: "var(--accent, #111111)" }}>Internal only — never visible to owners</p>
@@ -437,8 +461,9 @@ export default function FinancialsPage() {
           onClose={() => setShowExpenseForm(false)}
           onSubmit={(input) => { createExpense.mutate(input); setShowExpenseForm(false); }}
           defaultDate={new Date().toISOString().slice(0, 10)}
-          defaultCurrency={tab === "oakco" ? oakCur : ownerCur}
-          defaultCategory={tab === "oakco" ? "MANAGEMENT" : "OPERATIONS"}
+          defaultCurrency={effectiveTab === "oakco" ? oakCur : ownerCur}
+          defaultCategory={isHostel ? "OWNERS" : effectiveTab === "oakco" ? "MANAGEMENT" : "OPERATIONS"}
+          hideCategory={isHostel}
           properties={properties}
           defaultPropertyId={defaultPropertyId}
           team={team}
@@ -452,6 +477,7 @@ export default function FinancialsPage() {
           defaultYear={fYear}
           defaultMonth={fMonth}
           managementLabel={managementLabel}
+          isHostel={isHostel}
           onClose={() => setShowReportModal(false)}
         />
       )}

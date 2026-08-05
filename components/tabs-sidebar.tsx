@@ -96,6 +96,7 @@ export function TabsSidebar({
         <GenerateReportModal
           properties={properties}
           managementLabel={workspaceName}
+          isHostel={workspace?.type === "HOSTEL"}
           onClose={() => setShowReportModal(false)}
         />
       )}

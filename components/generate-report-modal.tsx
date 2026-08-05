@@ -28,6 +28,7 @@ export function GenerateReportModal({
   defaultYear,
   defaultMonth,
   managementLabel,
+  isHostel,
 }: {
   onClose: () => void;
   properties: Property[];
@@ -35,6 +36,11 @@ export function GenerateReportModal({
   defaultYear?: number;
   defaultMonth?: number;
   managementLabel: string;
+  /** HOSTEL workspaces have no owner/operations/management split — there's
+   * only ever one report to generate, so the internal-report checkbox
+   * (and the choice itself) is hidden rather than shown permanently
+   * unchecked and disabled. */
+  isHostel?: boolean;
 }) {
   const today = new Date();
   const [propertyId, setPropertyId] = useState(defaultPropertyId ?? properties[0]?.id ?? "");
@@ -97,6 +103,7 @@ export function GenerateReportModal({
         reportTypes,
         managementLabel,
         openingBalanceOverrides,
+        isHostel,
       });
 
       const [{ pdf }, { ReportPdfDocument }] = await Promise.all([
@@ -175,16 +182,18 @@ export function GenerateReportModal({
           </div>
         </div>
 
-        <div className="flex flex-col gap-2 mb-5">
-          <label className="flex items-center gap-2 text-sm" style={{ color: C.text }}>
-            <input type="checkbox" checked={includeOwner} onChange={(e) => setIncludeOwner(e.target.checked)} />
-            Owner Report (Owners + Operations)
-          </label>
-          <label className="flex items-center gap-2 text-sm" style={{ color: C.text }}>
-            <input type="checkbox" checked={includeOakco} onChange={(e) => setIncludeOakco(e.target.checked)} />
-            {managementLabel} internal report
-          </label>
-        </div>
+        {!isHostel && (
+          <div className="flex flex-col gap-2 mb-5">
+            <label className="flex items-center gap-2 text-sm" style={{ color: C.text }}>
+              <input type="checkbox" checked={includeOwner} onChange={(e) => setIncludeOwner(e.target.checked)} />
+              Owner Report (Owners + Operations)
+            </label>
+            <label className="flex items-center gap-2 text-sm" style={{ color: C.text }}>
+              <input type="checkbox" checked={includeOakco} onChange={(e) => setIncludeOakco(e.target.checked)} />
+              {managementLabel} internal report
+            </label>
+          </div>
+        )}
 
         <div className="mb-5 rounded-xl p-3" style={{ background: C.bg }}>
           <label className="flex items-start gap-2 text-sm" style={{ color: C.text }}>

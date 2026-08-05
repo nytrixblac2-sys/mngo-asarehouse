@@ -161,7 +161,7 @@ export function PropertyProfileModal({
             </div>
           </div>
 
-          {currencies.map((cur) => {
+          {workspaceType !== "HOSTEL" && currencies.map((cur) => {
             const total = allocTotal(cur);
             const isValid = total === 100;
             const a = allocation[cur] ?? DEFAULT_ALLOCATION;

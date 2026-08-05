@@ -57,6 +57,11 @@ export interface MonthlyReportData {
   managementLabel: string;
   sections: CurrencyReportSection[];
   generatedAt: string;
+  /** HOSTEL workspaces have no owner/operations/management income split
+   * (Architecture Decision 71) — the PDF collapses the Owners/Operations
+   * allocation cards into one plain Income figure instead of showing a
+   * permanently-0% Operations card. */
+  isHostel?: boolean;
 }
 
 function monthPrefix(year: number, month: number): string {
@@ -159,8 +164,9 @@ export function buildMonthlyReport(params: {
   /** Per-currency stated opening balances — see OpeningBalanceOverride doc
    * comment. Applied only to this report's selected month. */
   openingBalanceOverrides?: Partial<Record<Currency, OpeningBalanceOverride>>;
+  isHostel?: boolean;
 }): MonthlyReportData {
-  const { property, bookings, expenses, manualIncome, year, month, reportTypes, managementLabel, openingBalanceOverrides } = params;
+  const { property, bookings, expenses, manualIncome, year, month, reportTypes, managementLabel, openingBalanceOverrides, isHostel } = params;
   const currencies: Currency[] = property.currencies.length > 0 ? property.currencies : ["GHS"];
 
   const sections: CurrencyReportSection[] = currencies.map((currency) => {
@@ -178,5 +184,6 @@ export function buildMonthlyReport(params: {
     managementLabel,
     sections,
     generatedAt: new Date().toISOString().slice(0, 10),
+    isHostel,
   };
 }

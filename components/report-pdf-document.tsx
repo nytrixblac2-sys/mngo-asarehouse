@@ -200,24 +200,37 @@ export function ReportPdfDocument({ data }: { data: MonthlyReportData }) {
 
                   {/* 3. Income allocation. Management % only shown for EUR — see the
                       Oak & Co. transfer section below for why (GHS Oak & Co already
-                      holds its own cut; EUR does not). */}
-                  <Text style={styles.subheading}>Income Allocation</Text>
-                  <View style={styles.cardRow} wrap={false}>
-                    <View style={styles.card}>
-                      <Text style={styles.cardLabel}>Owners — {alloc.owners}%</Text>
-                      <Text style={styles.cardValue}>{fmtCurrencyPdf(current.owner.ownersAlloc, currency)}</Text>
-                    </View>
-                    <View style={styles.card}>
-                      <Text style={styles.cardLabel}>Operations — {alloc.operations}%</Text>
-                      <Text style={styles.cardValue}>{fmtCurrencyPdf(current.owner.opsAlloc, currency)}</Text>
-                    </View>
-                    {currency === "EUR" && (
+                      holds its own cut; EUR does not). HOSTEL workspaces have no
+                      real split (Architecture Decision 71) — one plain Income card
+                      instead of an Owners/Operations breakdown that's always 100/0. */}
+                  {data.isHostel ? (
+                    <View style={styles.cardRow} wrap={false}>
                       <View style={styles.card}>
-                        <Text style={styles.cardLabel}>{data.managementLabel} — {alloc.management}%</Text>
-                        <Text style={styles.cardValue}>{fmtCurrencyPdf(current.management.managementAlloc, currency)}</Text>
+                        <Text style={styles.cardLabel}>Income</Text>
+                        <Text style={styles.cardValue}>{fmtCurrencyPdf(current.owner.ownersAlloc + current.owner.opsAlloc, currency)}</Text>
                       </View>
-                    )}
-                  </View>
+                    </View>
+                  ) : (
+                    <>
+                      <Text style={styles.subheading}>Income Allocation</Text>
+                      <View style={styles.cardRow} wrap={false}>
+                        <View style={styles.card}>
+                          <Text style={styles.cardLabel}>Owners — {alloc.owners}%</Text>
+                          <Text style={styles.cardValue}>{fmtCurrencyPdf(current.owner.ownersAlloc, currency)}</Text>
+                        </View>
+                        <View style={styles.card}>
+                          <Text style={styles.cardLabel}>Operations — {alloc.operations}%</Text>
+                          <Text style={styles.cardValue}>{fmtCurrencyPdf(current.owner.opsAlloc, currency)}</Text>
+                        </View>
+                        {currency === "EUR" && (
+                          <View style={styles.card}>
+                            <Text style={styles.cardLabel}>{data.managementLabel} — {alloc.management}%</Text>
+                            <Text style={styles.cardValue}>{fmtCurrencyPdf(current.management.managementAlloc, currency)}</Text>
+                          </View>
+                        )}
+                      </View>
+                    </>
+                  )}
 
                   {/* Itemized income backing the overview/allocation figures above. */}
                   <Text style={styles.subheading}>Income — {currency}</Text>
@@ -244,24 +257,43 @@ export function ReportPdfDocument({ data }: { data: MonthlyReportData }) {
                     </View>
                   )}
 
-                  {/* 6. Final balance calculation, shown as worked arithmetic. */}
+                  {/* 6. Final balance calculation, shown as worked arithmetic.
+                      HOSTEL workspaces skip the owners/operations split lines
+                      (always 100%/0%) and the "held with management" framing,
+                      which specifically describes the Oak & Co. custody-direction
+                      distinction (Architecture Decision 61) that doesn't apply
+                      when there's only one party and no separate management fund. */}
                   <Text style={styles.subheading}>Final Balance Calculation</Text>
                   <View style={styles.calcBox} wrap={false}>
-                    <Text style={styles.calcTitle}>Owners Running Balance — {currency}</Text>
+                    <Text style={styles.calcTitle}>Running Balance — {currency}</Text>
                     <CalcRow label="Opening balance" value={current.owner.prevOwners} currency={currency} plain />
-                    <CalcRow label={`Owners allocation (${alloc.owners}%)`} value={current.owner.ownersAlloc} currency={currency} />
-                    <CalcRow label={`Operations allocation (${alloc.operations}%)`} value={current.owner.opsAlloc} currency={currency} />
-                    <CalcRow label="Owners expenses" value={-current.owner.ownersExp} currency={currency} />
-                    <CalcRow label="Operations expenses" value={-current.owner.opsExp} currency={currency} />
+                    {data.isHostel ? (
+                      <CalcRow label="Income" value={current.owner.ownersAlloc + current.owner.opsAlloc} currency={currency} />
+                    ) : (
+                      <>
+                        <CalcRow label={`Owners allocation (${alloc.owners}%)`} value={current.owner.ownersAlloc} currency={currency} />
+                        <CalcRow label={`Operations allocation (${alloc.operations}%)`} value={current.owner.opsAlloc} currency={currency} />
+                      </>
+                    )}
+                    {data.isHostel ? (
+                      <CalcRow label="Expenses" value={-(current.owner.ownersExp + current.owner.opsExp)} currency={currency} />
+                    ) : (
+                      <>
+                        <CalcRow label="Owners expenses" value={-current.owner.ownersExp} currency={currency} />
+                        <CalcRow label="Operations expenses" value={-current.owner.opsExp} currency={currency} />
+                      </>
+                    )}
                     {current.owner.manualIncomeTotal !== 0 && (
                       <CalcRow label="Manual income" value={current.owner.manualIncomeTotal} currency={currency} />
                     )}
                     <View style={styles.calcDivider} />
                     <CalcRow
                       label={
-                        currency === "EUR"
-                          ? "Owners Running Balance (already received directly by owner)"
-                          : "Owners Running Balance held with management"
+                        data.isHostel
+                          ? "Running Balance"
+                          : currency === "EUR"
+                            ? "Owners Running Balance (already received directly by owner)"
+                            : "Owners Running Balance held with management"
                       }
                       value={current.owner.runningBalance}
                       currency={currency}
