@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { prisma } from "./prisma";
 import { createAdminClient } from "./supabase/admin";
+import { uniqueWorkspaceSlug } from "./slugify";
 
 export const workspaceSignupSchema = z
   .object({
@@ -48,8 +49,9 @@ export async function signUpWorkspace(input: WorkspaceSignupInput) {
   }
 
   try {
+    const slug = await uniqueWorkspaceSlug(input.companyName);
     const workspace = await prisma.workspace.create({
-      data: { name: input.companyName, status: "PENDING", paid: false },
+      data: { name: input.companyName, slug, status: "PENDING", paid: false },
     });
 
     const user = await prisma.user.create({

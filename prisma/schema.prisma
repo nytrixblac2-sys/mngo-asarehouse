@@ -41,9 +41,22 @@ enum Currency {
   EUR
 }
 
+/// RENTAL is the original Oak & Co.-style short-term rental product (owner/
+/// operations/management income splits, free-typed booking amounts). HOSTEL
+/// is Escape3Points-style: fixed-price rooms, food & beverage ordering, no
+/// income splits, guest self-service booking/tracking. Drives which nav
+/// items and screens render — see lib/nav.ts.
+enum WorkspaceType {
+  RENTAL
+  HOSTEL
+}
+
 enum BookingSource {
   AIRBNB
   LOCAL
+  /// Guest self-service booking via the public /book/[slug] page — as
+  /// opposed to LOCAL, which stays a staff-entered walk-in.
+  WEBSITE
 }
 
 enum BookingStatus {
@@ -91,7 +104,14 @@ enum IssueStatus {
 model Workspace {
   id             String          @id @default(uuid()) @db.Uuid
   name           String
+  /// URL-safe unique handle, e.g. "escape3points" — used for the public
+  /// booking page (/book/[slug]). Generated from name at creation time.
+  slug           String          @unique
   accountOwnerId String?         @unique @db.Uuid
+  /// See WorkspaceType doc comment — RENTAL (default) vs HOSTEL changes
+  /// which nav items/screens render (lib/nav.ts) and whether income-split
+  /// financials apply.
+  type           WorkspaceType   @default(RENTAL)
   /// See WorkspaceStatus doc comment — gates all (app) access until a
   /// platform admin approves the signup.
   status         WorkspaceStatus @default(PENDING)
@@ -110,6 +130,9 @@ model Workspace {
   schedules    Schedule[]
   issues       Issue[]
   teamMembers  TeamMember[]
+  rooms        Room[]
+  menuItems    MenuItem[]
+  orders       Order[]
 }
 
 /// App-level user profile. `authId` links to the Supabase Auth user
@@ -174,6 +197,7 @@ model Property {
   manualIncome ManualIncome[]
   schedules    Schedule[]
   issues       Issue[]
+  hostelRooms  Room[]
 
   @@index([workspaceId])
 }
@@ -182,26 +206,128 @@ model Property {
 
 /// context/01-project-overview.md "Bookings". `paidAt` is set server-side
 /// only at confirmation time — context/02-architecture-context.md invariant #4.
+/// HOSTEL-only fields (roomId, passportNumber, guestEmail, guestPhone,
+/// bookingCode, checkedOutAt) are nullable and unused by RENTAL workspaces —
+/// reusing this model (rather than a parallel one) keeps the existing
+/// calendar/confirm/paidAt machinery working for room bookings for free.
 model Booking {
-  id          String        @id @default(uuid()) @db.Uuid
-  workspaceId String        @db.Uuid
-  propertyId  String        @db.Uuid
-  guest       String
-  checkIn     DateTime      @db.Date
-  checkOut    DateTime      @db.Date
-  amount      Decimal       @db.Decimal(10, 2)
-  currency    Currency
-  source      BookingSource
-  status      BookingStatus @default(EXPECTED)
-  paidAt      DateTime?     @db.Date
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id             String        @id @default(uuid()) @db.Uuid
+  workspaceId    String        @db.Uuid
+  propertyId     String        @db.Uuid
+  guest          String
+  checkIn        DateTime      @db.Date
+  checkOut       DateTime      @db.Date
+  amount         Decimal       @db.Decimal(10, 2)
+  currency       Currency
+  source         BookingSource
+  status         BookingStatus @default(EXPECTED)
+  paidAt         DateTime?     @db.Date
+  /// HOSTEL only, below this line.
+  roomId         String?       @db.Uuid
+  passportNumber String?
+  guestEmail     String?
+  guestPhone     String?
+  /// Guest-facing lookup code for the public /track page — combined with
+  /// guest name, this is the guest's entire "login." Unique so a code alone
+  /// unambiguously identifies one booking.
+  bookingCode    String?       @unique
+  /// Server-set only when staff mark the guest checked out — same pattern
+  /// as paidAt. Gates receipt availability and guest ordering.
+  checkedOutAt   DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   property  Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  room      Room?     @relation(fields: [roomId], references: [id])
+  orders    Order[]
 
   @@index([workspaceId])
   @@index([propertyId])
+  @@index([roomId])
+}
+
+// ── Hostel: rooms, menu, orders (HOSTEL workspaces only) ───────────────────
+
+/// A bookable room type with a fixed nightly rate — context/01-project-
+/// overview.md's `Property.rooms: String[]` is decorative free text with no
+/// pricing/booking linkage; this is the real, priced entity HOSTEL bookings
+/// reference via `Booking.roomId`.
+model Room {
+  id            String   @id @default(uuid()) @db.Uuid
+  workspaceId   String   @db.Uuid
+  propertyId    String   @db.Uuid
+  name          String
+  pricePerNight Decimal  @db.Decimal(10, 2)
+  currency      Currency @default(GHS)
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  property  Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  bookings  Booking[]
+
+  @@index([workspaceId])
+  @@index([propertyId])
+}
+
+/// One row per dish/drink on the master menu. `category` is free text
+/// (e.g. "Food", "Desserts", "Breakfast" for Escape3Points) rather than an
+/// enum — menu structure is workspace-specific, not a fixed MNGO concept.
+/// `isAvailableToday` is the single live toggle staff use on the Kitchen
+/// screen to curate what guests can currently order — no historical
+/// per-date availability tracking in V1.
+model MenuItem {
+  id               String   @id @default(uuid()) @db.Uuid
+  workspaceId      String   @db.Uuid
+  name             String
+  category         String
+  price            Decimal  @db.Decimal(10, 2)
+  currency         Currency @default(GHS)
+  isAvailableToday Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  workspace  Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
+
+  @@index([workspaceId])
+}
+
+/// A guest's food/drink order against their stay — one Booking can have
+/// many Orders (e.g. one per day or per sitting).
+model Order {
+  id          String   @id @default(uuid()) @db.Uuid
+  workspaceId String   @db.Uuid
+  bookingId   String   @db.Uuid
+  createdAt   DateTime @default(now())
+
+  workspace Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  booking   Booking     @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  items     OrderItem[]
+
+  @@index([workspaceId])
+  @@index([bookingId])
+}
+
+/// `name`/`unitPrice`/`currency` are snapshotted from MenuItem at order
+/// time so a later menu price change never rewrites a guest's past bill.
+model OrderItem {
+  id         String   @id @default(uuid()) @db.Uuid
+  orderId    String   @db.Uuid
+  menuItemId String   @db.Uuid
+  name       String
+  quantity   Int
+  unitPrice  Decimal  @db.Decimal(10, 2)
+  currency   Currency
+  createdAt  DateTime @default(now())
+
+  order    Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id])
+
+  @@index([orderId])
+  @@index([menuItemId])
 }
 
 // ── Financials ───────────────────────────────────────────────────────────

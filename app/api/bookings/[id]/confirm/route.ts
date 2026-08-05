@@ -2,7 +2,7 @@ import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { apiSuccess, apiError } from "@/lib/api-response";
-import type { Booking } from "@/lib/types";
+import { serializeBooking } from "@/lib/bookings";
 
 const bodySchema = z.object({
   // Defaults to CONFIRMED so existing callers that PATCH with no body
@@ -54,19 +54,5 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     data: { status: parsed.data.status, paidAt },
   });
 
-  const data: Booking = {
-    id: updated.id,
-    workspaceId: updated.workspaceId,
-    propertyId: updated.propertyId,
-    guest: updated.guest,
-    checkIn: updated.checkIn.toISOString().slice(0, 10),
-    checkOut: updated.checkOut.toISOString().slice(0, 10),
-    amount: Number(updated.amount),
-    currency: updated.currency,
-    source: updated.source,
-    status: updated.status,
-    paidAt: updated.paidAt ? updated.paidAt.toISOString().slice(0, 10) : null,
-  };
-
-  return apiSuccess(data);
+  return apiSuccess(serializeBooking(updated));
 }

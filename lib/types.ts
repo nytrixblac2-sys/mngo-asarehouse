@@ -13,8 +13,13 @@ export type Role = "ACCOUNT_OWNER" | "CO_MANAGER" | "PROPERTY_OWNER";
 /** GHS and EUR only — never mixed, converted, or aggregated. */
 export type Currency = "GHS" | "EUR";
 
-export type BookingSource = "AIRBNB" | "LOCAL";
+/** "WEBSITE" is a HOSTEL-workspace guest self-service booking (app/book/[slug])
+ * — never client-supplied on the authenticated staff booking form, which
+ * only ever sends "AIRBNB"|"LOCAL". */
+export type BookingSource = "AIRBNB" | "LOCAL" | "WEBSITE";
 export type BookingStatus = "EXPECTED" | "CONFIRMED";
+
+export type WorkspaceType = "RENTAL" | "HOSTEL";
 
 /** "MANAGEMENT" is the generic term for the management company's cut — Oak
  * & Co. is the reference workspace's display name, not a schema value. */
@@ -40,6 +45,8 @@ export interface PrevBalance {
 export interface Workspace {
   id: string;
   name: string;
+  slug: string;
+  type: WorkspaceType;
   accountOwnerId: string;
 }
 
@@ -86,6 +93,15 @@ export interface Booking {
   status: BookingStatus;
   /** Set server-side only, at the moment of confirmation. Never client-supplied. */
   paidAt: string | null;
+  /** HOSTEL-only fields below — always null for RENTAL-workspace bookings. */
+  roomId: string | null;
+  passportNumber: string | null;
+  guestEmail: string | null;
+  guestPhone: string | null;
+  /** Guest's lookup code for the public /track page. */
+  bookingCode: string | null;
+  /** Set server-side only, when staff check the guest out. Never client-supplied. */
+  checkedOutAt: string | null;
 }
 
 export interface Expense {

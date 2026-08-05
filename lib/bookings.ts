@@ -13,6 +13,12 @@ type BookingRow = {
   source: Booking["source"];
   status: Booking["status"];
   paidAt: Date | null;
+  roomId: string | null;
+  passportNumber: string | null;
+  guestEmail: string | null;
+  guestPhone: string | null;
+  bookingCode: string | null;
+  checkedOutAt: Date | null;
 };
 
 export function serializeBooking(b: BookingRow): Booking {
@@ -28,6 +34,12 @@ export function serializeBooking(b: BookingRow): Booking {
     source: b.source,
     status: b.status,
     paidAt: b.paidAt ? b.paidAt.toISOString().slice(0, 10) : null,
+    roomId: b.roomId,
+    passportNumber: b.passportNumber,
+    guestEmail: b.guestEmail,
+    guestPhone: b.guestPhone,
+    bookingCode: b.bookingCode,
+    checkedOutAt: b.checkedOutAt ? b.checkedOutAt.toISOString() : null,
   };
 }
 

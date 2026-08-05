@@ -1,6 +1,6 @@
 {
   "name": "mngo-asarehouse",
-  "version": "1.0.3.8",
+  "version": "1.0.3.9",
   "private": true,
   "scripts": {
     "dev": "next dev",

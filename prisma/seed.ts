@@ -53,7 +53,7 @@ async function main() {
   // 2. Workspace, bootstrapped without an owner (see schema.prisma comment
   // on Workspace.accountOwnerId), then the users, then backfill the owner.
   const workspace = await prisma.workspace.create({
-    data: { name: "Oak & Co.", status: "ACTIVE", paid: true },
+    data: { name: "Oak & Co.", slug: "oak-co", status: "ACTIVE", paid: true },
   });
 
   const usersByName: Record<string, { id: string }> = {};
