@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchJson } from "@/lib/api-client";
-import type { Booking, BookingSource, Currency } from "@/lib/types";
+import type { Booking, BookingSource, Currency, PaymentMethod } from "@/lib/types";
 
 export interface RentalBookingInput {
   propertyId: string;
@@ -124,15 +124,21 @@ export function useUnconfirmBookingPayout() {
   });
 }
 
-/** Marks a HOSTEL booking's guest as checked out — stops further ordering
- * and finalizes the receipt. See app/api/bookings/[id]/checkout/route.ts. */
+/** Marks a HOSTEL booking's guest as checked out — stops further ordering,
+ * finalizes the receipt, records how the guest paid, and auto-logs a
+ * room-cleaning issue. See app/api/bookings/[id]/checkout/route.ts. */
 export function useCheckoutBooking() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (bookingId: string) =>
-      fetchJson<Booking>(`/api/bookings/${bookingId}/checkout`, { method: "PATCH" }),
+    mutationFn: ({ bookingId, paymentMethod }: { bookingId: string; paymentMethod: PaymentMethod }) =>
+      fetchJson<Booking>(`/api/bookings/${bookingId}/checkout`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paymentMethod }),
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["issues"] });
     },
   });
 }

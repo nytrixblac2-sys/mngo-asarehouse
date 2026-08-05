@@ -7,13 +7,15 @@ import { useEffectiveUser } from "@/components/effective-user-context";
 import { C } from "@/lib/colors";
 import { fmtCurrency } from "@/lib/format";
 import { nightsBetween } from "@/lib/periods";
-import { BOOKING_SOURCE_LABEL, ISSUE_STATUS_TONE } from "@/lib/labels";
+import { BOOKING_SOURCE_LABEL, ISSUE_STATUS_TONE, PAYMENT_METHOD_LABEL } from "@/lib/labels";
 import { useDeleteOrder, useOrders } from "@/lib/queries/orders";
 import { buildGuestReceipt } from "@/lib/guest-receipt";
-import type { Booking, Issue, Property, Room, Schedule } from "@/lib/types";
+import type { Booking, Issue, PaymentMethod, Property, Room, Schedule } from "@/lib/types";
 import { BookingFormRouter } from "./booking-form-router";
 import { GuestOrderForm } from "./guest-order-form";
 import type { BookingInput } from "@/lib/queries/bookings";
+
+const PAYMENT_METHODS: PaymentMethod[] = ["CASH", "BANK_TRANSFER", "MOMO", "CARD"];
 
 /**
  * context/07-mockup.jsx BookingDetailModal — the single canonical modal
@@ -55,8 +57,9 @@ export function BookingDetailModal({
   onDelete: (id: string) => void;
   onConfirm: (id: string) => void;
   onUnconfirm: (id: string) => void;
-  /** HOSTEL bookings only — sets checkedOutAt server-side. */
-  onCheckout?: (id: string) => void;
+  /** HOSTEL bookings only — sets checkedOutAt server-side, along with the
+   * guest's payment method. */
+  onCheckout?: (id: string, paymentMethod: PaymentMethod) => void;
   checkoutIsPending?: boolean;
   canEdit: boolean;
 }) {
@@ -65,6 +68,7 @@ export function BookingDetailModal({
   const [showOrderForm, setShowOrderForm] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
   const [confirmCheckout, setConfirmCheckout] = useState(false);
+  const [checkoutPaymentMethod, setCheckoutPaymentMethod] = useState<PaymentMethod | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
   const [deleteReason, setDeleteReason] = useState("");
@@ -355,19 +359,37 @@ export function BookingDetailModal({
             )}
             {isHostelBooking && !booking.checkedOutAt && canEdit && onCheckout && (
               confirmCheckout ? (
-                <div className="flex items-center gap-3">
+                <div className="flex flex-col gap-2">
                   <span className="text-xs" style={{ color: C.muted }}>Check {booking.guest} out? Ordering will stop.</span>
-                  <button
-                    onClick={() => { onCheckout(booking.id); setConfirmCheckout(false); }}
-                    disabled={checkoutIsPending}
-                    className="text-xs font-semibold"
-                    style={{ color: "var(--accent, #111111)" }}
-                  >
-                    Confirm
-                  </button>
-                  <button onClick={() => setConfirmCheckout(false)} className="text-xs font-semibold" style={{ color: C.muted }}>
-                    Cancel
-                  </button>
+                  <div className="flex gap-2 flex-wrap">
+                    {PAYMENT_METHODS.map((pm) => (
+                      <button
+                        key={pm}
+                        onClick={() => setCheckoutPaymentMethod(pm)}
+                        className="text-xs font-semibold px-3 py-1.5 rounded-full"
+                        style={{
+                          background: checkoutPaymentMethod === pm ? C.text : C.bg,
+                          color: checkoutPaymentMethod === pm ? "#fff" : C.text,
+                          border: `1px solid ${C.border}`,
+                        }}
+                      >
+                        {PAYMENT_METHOD_LABEL[pm]}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => { if (checkoutPaymentMethod) { onCheckout(booking.id, checkoutPaymentMethod); setConfirmCheckout(false); } }}
+                      disabled={checkoutIsPending || !checkoutPaymentMethod}
+                      className="text-xs font-semibold"
+                      style={{ color: "var(--accent, #111111)" }}
+                    >
+                      Confirm
+                    </button>
+                    <button onClick={() => { setConfirmCheckout(false); setCheckoutPaymentMethod(null); }} className="text-xs font-semibold" style={{ color: C.muted }}>
+                      Cancel
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <button

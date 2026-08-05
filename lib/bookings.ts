@@ -80,6 +80,12 @@ export const hostelBookingInputSchema = z.object({
  * exactly one branch. */
 export const bookingInputSchema = z.union([hostelBookingInputSchema, rentalBookingInputSchema]);
 
+/** How the guest paid, collected at checkout — see
+ * app/api/bookings/[id]/checkout/route.ts. */
+export const checkoutInputSchema = z.object({
+  paymentMethod: z.enum(["CASH", "BANK_TRANSFER", "MOMO", "CARD"]),
+});
+
 /** Public guest self-service booking (app/book/[slug]) — no `propertyId`
  * (derived server-side from the chosen room, since a guest never sees or
  * picks a property directly) and no staff-only fields. */

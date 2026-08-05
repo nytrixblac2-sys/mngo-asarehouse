@@ -295,7 +295,7 @@ export default function BookingsPage() {
             onDelete={(id) => deleteBooking.mutate(id)}
             onConfirm={(id) => confirmPayout.mutate(id)}
             onUnconfirm={(id) => unconfirmPayout.mutate(id)}
-            onCheckout={(id) => checkoutBooking.mutate(id)}
+            onCheckout={(id, paymentMethod) => checkoutBooking.mutate({ bookingId: id, paymentMethod })}
             checkoutIsPending={checkoutBooking.isPending}
             canEdit={effectiveCanEdit}
           />
