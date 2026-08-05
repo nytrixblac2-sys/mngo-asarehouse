@@ -1,0 +1,161 @@
+"use client";
+
+import { useState } from "react";
+import { LogOut, Minus, Plus, ShoppingCart, UtensilsCrossed } from "lucide-react";
+import { Card, Pill } from "@/components/primitives";
+import { C } from "@/lib/colors";
+import { fmtCurrency } from "@/lib/format";
+import { nightsBetween } from "@/lib/periods";
+import { useGuestBill, useGuestLogout, useGuestMenu, useGuestOrder, type GuestBill } from "@/lib/queries/guest";
+
+function GuestOrderPanel({ onClose }: { onClose: () => void }) {
+  const menuQuery = useGuestMenu(true);
+  const placeOrder = useGuestOrder();
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
+
+  const items = menuQuery.data ?? [];
+  const categories = Array.from(new Set(items.map((i) => i.category)));
+  const setQty = (id: string, qty: number) => setQuantities((q) => ({ ...q, [id]: Math.max(0, qty) }));
+  const selected = items.map((i) => ({ item: i, quantity: quantities[i.id] ?? 0 })).filter((s) => s.quantity > 0);
+  const total = selected.reduce((sum, s) => sum + s.item.price * s.quantity, 0);
+  const canSubmit = selected.length > 0;
+
+  const handleSubmit = () => {
+    if (!canSubmit) return;
+    placeOrder.mutate(
+      selected.map((s) => ({ menuItemId: s.item.id, quantity: s.quantity })),
+      { onSuccess: () => onClose() }
+    );
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end" style={{ background: "rgba(0,0,0,0.3)" }}>
+      <div className="w-full max-w-sm h-full p-6 overflow-y-auto flex flex-col" style={{ background: "#fff" }}>
+        <p className="text-lg font-bold mb-1" style={{ color: C.text }}>Order food</p>
+        <p className="text-xs mb-4" style={{ color: C.muted }}>Only today&apos;s available items are shown.</p>
+        {items.length === 0 && !menuQuery.isLoading && (
+          <p className="text-sm" style={{ color: C.muted }}>Nothing is available to order right now — check back later.</p>
+        )}
+        <div className="flex flex-col gap-5 flex-1">
+          {categories.map((cat) => (
+            <div key={cat}>
+              <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: C.muted }}>{cat}</p>
+              <div className="flex flex-col gap-2">
+                {items.filter((i) => i.category === cat).map((item) => {
+                  const qty = quantities[item.id] ?? 0;
+                  return (
+                    <div key={item.id} className="flex items-center justify-between py-2 px-3 rounded-xl" style={{ background: C.bg }}>
+                      <div>
+                        <p className="text-sm font-semibold" style={{ color: C.text }}>{item.name}</p>
+                        <p className="text-xs" style={{ color: C.muted }}>{fmtCurrency(item.price, item.currency)}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => setQty(item.id, qty - 1)} disabled={qty === 0} className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: qty === 0 ? C.border : C.tealSoft, color: qty === 0 ? C.muted : C.teal }}>
+                          <Minus size={12} />
+                        </button>
+                        <span className="text-sm font-semibold w-4 text-center" style={{ color: C.text }}>{qty}</span>
+                        <button onClick={() => setQty(item.id, qty + 1)} className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: C.tealSoft, color: C.teal }}>
+                          <Plus size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+        {selected.length > 0 && (
+          <div className="p-3 rounded-xl flex items-center justify-between mt-4" style={{ background: C.bg }}>
+            <span className="text-xs" style={{ color: C.muted }}>{selected.reduce((n, s) => n + s.quantity, 0)} item(s)</span>
+            <span className="text-sm font-bold" style={{ color: C.text }}>{fmtCurrency(total, selected[0].item.currency)}</span>
+          </div>
+        )}
+        {placeOrder.isError && <p className="text-xs text-destructive mt-2">{(placeOrder.error as Error).message}</p>}
+        <div className="flex gap-2 mt-4">
+          <button onClick={onClose} className="flex-1 text-sm font-semibold py-3 rounded-xl" style={{ background: C.bg, color: C.text, border: `1px solid ${C.border}` }}>
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={!canSubmit || placeOrder.isPending}
+            className="flex-1 text-sm font-semibold py-3 rounded-xl flex items-center justify-center gap-2"
+            style={{ background: canSubmit && !placeOrder.isPending ? C.text : C.border, color: canSubmit && !placeOrder.isPending ? "#fff" : C.muted }}
+          >
+            <ShoppingCart size={16} /> {placeOrder.isPending ? "Placing…" : "Place order"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BillContent({ bill }: { bill: GuestBill }) {
+  const [showOrderPanel, setShowOrderPanel] = useState(false);
+  const logout = useGuestLogout();
+  const { booking, room } = bill;
+  const nights = nightsBetween(booking.checkIn, booking.checkOut);
+  const checkedOut = !!booking.checkedOutAt;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-lg font-bold" style={{ color: C.text }}>{booking.guest}</p>
+          <p className="text-xs" style={{ color: C.muted }}>{room?.name} · {booking.checkIn} → {booking.checkOut} · {nights} night{nights === 1 ? "" : "s"}</p>
+        </div>
+        <button onClick={() => logout.mutate()} className="flex items-center gap-1 text-xs font-semibold" style={{ color: C.muted }}>
+          <LogOut size={12} /> Sign out
+        </button>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Pill tone={booking.status === "CONFIRMED" ? "teal" : "amber"}>{booking.status === "CONFIRMED" ? "Paid" : "Payment due at property"}</Pill>
+        {checkedOut && <Pill tone="muted">Checked out</Pill>}
+      </div>
+
+      <Card>
+        <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: C.muted }}>Your bill</p>
+        <div className="flex items-center justify-between py-2">
+          <span className="text-sm" style={{ color: C.text }}>Room ({nights} night{nights === 1 ? "" : "s"})</span>
+          <span className="text-sm font-semibold" style={{ color: C.text }}>{fmtCurrency(bill.roomCharge, booking.currency)}</span>
+        </div>
+        {bill.orders.flatMap((o) => o.items).map((item) => (
+          <div key={item.id} className="flex items-center justify-between py-2">
+            <span className="text-sm" style={{ color: C.text }}>{item.quantity}× {item.name}</span>
+            <span className="text-sm font-semibold" style={{ color: C.text }}>{fmtCurrency(item.unitPrice * item.quantity, item.currency)}</span>
+          </div>
+        ))}
+        <div className="flex items-center justify-between pt-3 mt-1" style={{ borderTop: `1px solid ${C.border}` }}>
+          <span className="text-sm font-bold" style={{ color: C.text }}>Total</span>
+          <span className="text-base font-bold" style={{ color: C.text }}>{fmtCurrency(bill.grandTotal, booking.currency)}</span>
+        </div>
+      </Card>
+
+      {!checkedOut && (
+        <button
+          onClick={() => setShowOrderPanel(true)}
+          className="w-full text-sm font-semibold py-3 rounded-xl flex items-center justify-center gap-2"
+          style={{ background: C.text, color: "#fff" }}
+        >
+          <UtensilsCrossed size={16} /> Order food
+        </button>
+      )}
+
+      {showOrderPanel && <GuestOrderPanel onClose={() => setShowOrderPanel(false)} />}
+    </div>
+  );
+}
+
+export function GuestBillView() {
+  const billQuery = useGuestBill();
+
+  if (billQuery.isLoading) {
+    return <p className="text-sm text-center" style={{ color: C.muted }}>Loading…</p>;
+  }
+  if (!billQuery.data) {
+    return null;
+  }
+
+  return <BillContent bill={billQuery.data} />;
+}

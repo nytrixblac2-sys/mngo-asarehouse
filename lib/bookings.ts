@@ -77,3 +77,17 @@ export const hostelBookingInputSchema = z.object({
  * missing roomId/passportNumber (fails hostel) — so each request matches
  * exactly one branch. */
 export const bookingInputSchema = z.union([hostelBookingInputSchema, rentalBookingInputSchema]);
+
+/** Public guest self-service booking (app/book/[slug]) — no `propertyId`
+ * (derived server-side from the chosen room, since a guest never sees or
+ * picks a property directly) and no staff-only fields. */
+export const publicBookingInputSchema = z.object({
+  workspaceSlug: z.string().min(1),
+  roomId: z.string().uuid(),
+  guest: z.string().min(1),
+  checkIn: dateStringSchema,
+  checkOut: dateStringSchema,
+  passportNumber: z.string().min(1),
+  guestEmail: z.string().email().optional(),
+  guestPhone: z.string().min(1).optional(),
+});

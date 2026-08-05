@@ -24,6 +24,7 @@ import { IssueForm } from "@/components/issue-form";
 import { BookingDetailModal } from "@/components/booking-detail-modal";
 import { EmptyPropertyState } from "@/components/empty-property-state";
 import { CsvImportModal } from "@/components/csv-import-modal";
+import { CopyBookingLinkButton } from "@/components/copy-booking-link-button";
 
 type ViewKey = "Day" | "Week" | "Month" | "Per stay";
 const VIEWS: ViewKey[] = ["Day", "Week", "Month", "Per stay"];
@@ -52,7 +53,8 @@ export default function BookingsPage() {
   const propertiesQuery = useProperties();
   const teamQuery = useTeam();
   const roomsQuery = useRooms();
-  const isHostel = useWorkspace().data?.type === "HOSTEL";
+  const workspace = useWorkspace().data;
+  const isHostel = workspace?.type === "HOSTEL";
   const pageTitle = isHostel ? "Rooms" : "Bookings";
 
   const createBooking = useCreateBooking();
@@ -159,13 +161,17 @@ export default function BookingsPage() {
             >
               <ClipboardList size={16} /> Add schedule
             </button>
-            <button
-              onClick={() => setShowCsvImport(true)}
-              className="flex items-center gap-2 text-sm font-semibold px-4 py-2.5 rounded-full"
-              style={{ background: C.bg, color: C.text, border: `1px solid ${C.border}` }}
-            >
-              <Upload size={16} /> Import CSV
-            </button>
+            {isHostel ? (
+              workspace?.slug && <CopyBookingLinkButton slug={workspace.slug} />
+            ) : (
+              <button
+                onClick={() => setShowCsvImport(true)}
+                className="flex items-center gap-2 text-sm font-semibold px-4 py-2.5 rounded-full"
+                style={{ background: C.bg, color: C.text, border: `1px solid ${C.border}` }}
+              >
+                <Upload size={16} /> Import CSV
+              </button>
+            )}
             <button
               onClick={() => setShowBookingForm(true)}
               className="flex items-center gap-2 text-sm font-semibold px-4 py-2.5 rounded-full"
