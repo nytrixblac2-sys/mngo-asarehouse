@@ -3,6 +3,7 @@ import { fetchJson } from "@/lib/api-client";
 import type { Booking, MenuItem, Order, Room } from "@/lib/types";
 
 export interface GuestBill {
+  propertyName: string;
   booking: Booking;
   room: Room | null;
   orders: Order[];

@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { X, Check, Undo2, UtensilsCrossed } from "lucide-react";
+import { X, Check, Undo2, UtensilsCrossed, LogOut, Download, Loader2 } from "lucide-react";
 import { Pill } from "@/components/primitives";
 import { C } from "@/lib/colors";
 import { fmtCurrency } from "@/lib/format";
 import { nightsBetween } from "@/lib/periods";
 import { BOOKING_SOURCE_LABEL, ISSUE_STATUS_TONE } from "@/lib/labels";
 import { useOrders } from "@/lib/queries/orders";
+import { buildGuestReceipt } from "@/lib/guest-receipt";
 import type { Booking, Issue, Property, Room, Schedule } from "@/lib/types";
 import { BookingFormRouter } from "./booking-form-router";
 import { GuestOrderForm } from "./guest-order-form";
@@ -32,6 +33,8 @@ export function BookingDetailModal({
   onDelete,
   onConfirm,
   onUnconfirm,
+  onCheckout,
+  checkoutIsPending,
   canEdit,
 }: {
   booking: Booking;
@@ -51,11 +54,16 @@ export function BookingDetailModal({
   onDelete: (id: string) => void;
   onConfirm: (id: string) => void;
   onUnconfirm: (id: string) => void;
+  /** HOSTEL bookings only — sets checkedOutAt server-side. */
+  onCheckout?: (id: string) => void;
+  checkoutIsPending?: boolean;
   canEdit: boolean;
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [showOrderForm, setShowOrderForm] = useState(false);
+  const [confirmCheckout, setConfirmCheckout] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const nights = nightsBetween(booking.checkIn, booking.checkOut);
   const relatedShifts = schedules.filter((s) => s.date >= booking.checkIn && s.date <= booking.checkOut);
@@ -66,6 +74,29 @@ export function BookingDetailModal({
   const ordersQuery = useOrders(booking.id, { enabled: isHostelBooking });
   const orders = ordersQuery.data ?? [];
   const foodTotal = orders.reduce((sum, o) => sum + o.items.reduce((s, i) => s + i.unitPrice * i.quantity, 0), 0);
+  const propertyName = properties.find((p) => p.id === booking.propertyId)?.name ?? "";
+
+  const handleDownloadReceipt = async () => {
+    setIsDownloading(true);
+    try {
+      const [{ pdf }, { GuestReceiptPdfDocument }] = await Promise.all([
+        import("@react-pdf/renderer"),
+        import("./guest-receipt-pdf-document"),
+      ]);
+      const data = buildGuestReceipt({ propertyName, booking, room: room ?? null, orders });
+      const blob = await pdf(<GuestReceiptPdfDocument data={data} />).toBlob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${propertyName} - ${booking.guest} - receipt.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   return (
     <>
@@ -179,7 +210,7 @@ export function BookingDetailModal({
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: C.muted }}>Food orders</p>
-                  {canEdit && (
+                  {canEdit && !booking.checkedOutAt && (
                     <button
                       onClick={() => setShowOrderForm(true)}
                       className="text-xs font-semibold flex items-center gap-1"
@@ -206,6 +237,45 @@ export function BookingDetailModal({
                   </div>
                 )}
               </div>
+            )}
+            {isHostelBooking && booking.checkedOutAt && (
+              <Pill tone="muted">Checked out {booking.checkedOutAt.slice(0, 10)}</Pill>
+            )}
+            {isHostelBooking && !booking.checkedOutAt && canEdit && onCheckout && (
+              confirmCheckout ? (
+                <div className="flex items-center gap-3">
+                  <span className="text-xs" style={{ color: C.muted }}>Check {booking.guest} out? Ordering will stop.</span>
+                  <button
+                    onClick={() => { onCheckout(booking.id); setConfirmCheckout(false); }}
+                    disabled={checkoutIsPending}
+                    className="text-xs font-semibold"
+                    style={{ color: "var(--accent, #111111)" }}
+                  >
+                    Confirm
+                  </button>
+                  <button onClick={() => setConfirmCheckout(false)} className="text-xs font-semibold" style={{ color: C.muted }}>
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setConfirmCheckout(true)}
+                  className="w-full flex items-center justify-center gap-2 text-sm font-semibold py-3 rounded-xl"
+                  style={{ background: C.bg, color: C.text, border: `1px solid ${C.border}` }}
+                >
+                  <LogOut size={16} /> Check guest out
+                </button>
+              )
+            )}
+            {isHostelBooking && booking.checkedOutAt && (
+              <button
+                onClick={handleDownloadReceipt}
+                disabled={isDownloading}
+                className="w-full flex items-center justify-center gap-2 text-sm font-semibold py-3 rounded-xl"
+                style={{ background: C.text, color: "#fff" }}
+              >
+                {isDownloading ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />} {isDownloading ? "Preparing…" : "Download receipt"}
+              </button>
             )}
             {relatedShifts.length > 0 && (
               <div>

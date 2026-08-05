@@ -123,3 +123,16 @@ export function useUnconfirmBookingPayout() {
     },
   });
 }
+
+/** Marks a HOSTEL booking's guest as checked out — stops further ordering
+ * and finalizes the receipt. See app/api/bookings/[id]/checkout/route.ts. */
+export function useCheckoutBooking() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (bookingId: string) =>
+      fetchJson<Booking>(`/api/bookings/${bookingId}/checkout`, { method: "PATCH" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bookings"] });
+    },
+  });
+}

@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { LogOut, Minus, Plus, ShoppingCart, UtensilsCrossed } from "lucide-react";
+import { Download, Loader2, LogOut, Minus, Plus, ShoppingCart, UtensilsCrossed } from "lucide-react";
 import { Card, Pill } from "@/components/primitives";
 import { C } from "@/lib/colors";
 import { fmtCurrency } from "@/lib/format";
 import { nightsBetween } from "@/lib/periods";
+import { buildGuestReceipt } from "@/lib/guest-receipt";
 import { useGuestBill, useGuestLogout, useGuestMenu, useGuestOrder, type GuestBill } from "@/lib/queries/guest";
 
 function GuestOrderPanel({ onClose }: { onClose: () => void }) {
@@ -96,6 +97,29 @@ function BillContent({ bill }: { bill: GuestBill }) {
   const { booking, room } = bill;
   const nights = nightsBetween(booking.checkIn, booking.checkOut);
   const checkedOut = !!booking.checkedOutAt;
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const handleDownloadReceipt = async () => {
+    setIsDownloading(true);
+    try {
+      const [{ pdf }, { GuestReceiptPdfDocument }] = await Promise.all([
+        import("@react-pdf/renderer"),
+        import("@/components/guest-receipt-pdf-document"),
+      ]);
+      const data = buildGuestReceipt({ propertyName: bill.propertyName, booking, room, orders: bill.orders });
+      const blob = await pdf(<GuestReceiptPdfDocument data={data} />).toBlob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${bill.propertyName} - ${booking.guest} - receipt.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -139,6 +163,16 @@ function BillContent({ bill }: { bill: GuestBill }) {
           style={{ background: C.text, color: "#fff" }}
         >
           <UtensilsCrossed size={16} /> Order food
+        </button>
+      )}
+      {checkedOut && (
+        <button
+          onClick={handleDownloadReceipt}
+          disabled={isDownloading}
+          className="w-full text-sm font-semibold py-3 rounded-xl flex items-center justify-center gap-2"
+          style={{ background: C.text, color: "#fff" }}
+        >
+          {isDownloading ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />} {isDownloading ? "Preparing…" : "Download receipt"}
         </button>
       )}
 

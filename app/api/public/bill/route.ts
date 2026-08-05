@@ -15,7 +15,8 @@ export async function GET() {
   const booking = await getGuestSessionBooking();
   if (!booking) return apiError("Not signed in", 401);
 
-  const [room, orders] = await Promise.all([
+  const [property, room, orders] = await Promise.all([
+    prisma.property.findUnique({ where: { id: booking.propertyId }, select: { name: true } }),
     booking.roomId ? prisma.room.findUnique({ where: { id: booking.roomId } }) : null,
     prisma.order.findMany({ where: { bookingId: booking.id }, include: { items: true }, orderBy: { createdAt: "asc" } }),
   ]);
@@ -27,6 +28,7 @@ export async function GET() {
   const roomCharge = Number(booking.amount);
 
   return apiSuccess({
+    propertyName: property?.name ?? "",
     booking: serializeBooking(booking),
     room: room ? serializeRoom(room) : null,
     orders: orders.map(serializeOrder),
