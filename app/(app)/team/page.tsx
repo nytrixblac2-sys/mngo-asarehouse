@@ -22,12 +22,16 @@ import type { TeamMember } from "@/lib/types";
  * in GET /api/expenses (MANAGEMENT category) and GET /api/team itself
  * (manager-only) — this is UX, not the security gate.
  *
- * On a HOSTEL workspace this page — including staff pay — is further
- * restricted to the ACCOUNT_OWNER only (Architecture Decision 85): a
- * HOSTEL-specific inversion of the usual effectiveCanEdit gate, matching
- * the nav-level hiding in tabs-sidebar.tsx/top-bar.tsx. RENTAL is
- * untouched — Cecilia's CO_MANAGER access at Oak & Co. still sees this
- * page exactly as before.
+ * On a HOSTEL workspace, staff pay specifically is further restricted to
+ * the ACCOUNT_OWNER only (Architecture Decision 87) — Janet (CO_MANAGER)
+ * still manages the team roster (add/remove, see who's on staff) from
+ * this same page, she just never sees the amount or history of what
+ * anyone's been paid; only Akwesi does. GET /api/expenses already strips
+ * MANAGEMENT-category rows server-side for her, so `payments` below is
+ * naturally empty on her session — `canSeePay` only controls whether the
+ * (already-empty-for-her) amount/history UI renders at all, not a second
+ * data filter. RENTAL is untouched — Cecilia's CO_MANAGER access at Oak &
+ * Co. still sees this page exactly as before.
  */
 export default function TeamPage() {
   const { effectiveCanEdit, effectiveUser } = useEffectiveUser();
@@ -42,14 +46,15 @@ export default function TeamPage() {
   const createTeamMember = useCreateTeamMember();
   const deleteTeamMember = useDeleteTeamMember();
 
-  const isHostelNonOwner = workspace?.type === "HOSTEL" && effectiveUser.role !== "ACCOUNT_OWNER";
-  if (!effectiveCanEdit || isHostelNonOwner) {
+  if (!effectiveCanEdit) {
     return (
       <p className="text-sm" style={{ color: C.muted }}>
         You don&apos;t have access to this page.
       </p>
     );
   }
+
+  const canSeePay = !(workspace?.type === "HOSTEL" && effectiveUser.role !== "ACCOUNT_OWNER");
 
   const isLoading = teamQuery.isLoading || expensesQuery.isLoading;
   const isError = teamQuery.isError || expensesQuery.isError;
@@ -69,7 +74,9 @@ export default function TeamPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold" style={{ color: C.text }}>Team</h1>
-          <p className="text-sm mt-1" style={{ color: C.muted }}>Click a team member to see their payment history.</p>
+          <p className="text-sm mt-1" style={{ color: C.muted }}>
+            {canSeePay ? "Click a team member to see their payment history." : "Manage who's on staff."}
+          </p>
         </div>
         <button
           onClick={() => setShowForm(true)}
@@ -88,17 +95,19 @@ export default function TeamPage() {
 
           return (
             <Card key={t.id}>
-              <div onClick={() => setSelected(t)} className="cursor-pointer">
+              <div onClick={() => canSeePay && setSelected(t)} className={canSeePay ? "cursor-pointer" : ""}>
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-semibold" style={{ color: C.text }}>{t.name}</p>
                     <p className="text-xs" style={{ color: C.muted }}>{t.role}</p>
                   </div>
-                  <p className="text-sm font-bold" style={{ color: C.text }}>{fmtCurrency(totalGhs, "GHS")}</p>
+                  {canSeePay && <p className="text-sm font-bold" style={{ color: C.text }}>{fmtCurrency(totalGhs, "GHS")}</p>}
                 </div>
-                <p className="text-xs mt-3" style={{ color: C.muted }}>
-                  {last ? `Last payment ${last} · ${payments.length} payment${payments.length !== 1 ? "s" : ""}` : "No payments yet"}
-                </p>
+                {canSeePay && (
+                  <p className="text-xs mt-3" style={{ color: C.muted }}>
+                    {last ? `Last payment ${last} · ${payments.length} payment${payments.length !== 1 ? "s" : ""}` : "No payments yet"}
+                  </p>
+                )}
               </div>
               <div className="flex items-center justify-end mt-3" style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
                 {confirmDeleteId === t.id ? (
@@ -126,7 +135,7 @@ export default function TeamPage() {
         })}
       </div>
 
-      {selected && (
+      {canSeePay && selected && (
         <TeamMemberDetail name={selected.name} role={selected.role} expenses={expenses} onClose={() => setSelected(null)} />
       )}
       {showForm && (

@@ -35,14 +35,18 @@ export function TabsSidebar({
   const pathname = usePathname();
   const workspace = useWorkspace().data;
   const allNavItems = getNavItems(workspace?.type);
-  // Team is hidden from the Property Owner nav (RENTAL). Team and
-  // Financials are hidden from anyone but the ACCOUNT_OWNER on a HOSTEL
-  // workspace — the manager (Janet) shouldn't see the owner's financial
-  // internals or staff pay, a HOSTEL-specific inversion of the usual
-  // effectiveCanEdit gate (Architecture Decision 85). RENTAL is untouched.
+  // Team is hidden from the Property Owner nav (RENTAL). Financials is
+  // hidden from anyone but the ACCOUNT_OWNER on a HOSTEL workspace — the
+  // manager (Janet) shouldn't see the owner's financial internals, a
+  // HOSTEL-specific inversion of the usual effectiveCanEdit gate
+  // (Architecture Decision 87, refining Decision 85). Team itself stays
+  // visible to a HOSTEL manager — she manages staff and needs the
+  // roster — but the payment amounts inside it are owner-only, gated at
+  // the page level (app/(app)/team/page.tsx), not hidden from the nav.
+  // RENTAL is untouched.
   const isHostelNonOwner = workspace?.type === "HOSTEL" && effectiveUser.role !== "ACCOUNT_OWNER";
   const navItems = allNavItems.filter((i) => {
-    if (i.key === "team" && (!effectiveCanEdit || isHostelNonOwner)) return false;
+    if (i.key === "team" && !effectiveCanEdit) return false;
     if (i.key === "financials" && isHostelNonOwner) return false;
     return true;
   });

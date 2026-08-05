@@ -47,10 +47,10 @@ export function TopBar({
   const workspace = useWorkspace().data;
   const allNavItems = getNavItems(workspace?.type);
   // Same HOSTEL owner-only inversion as tabs-sidebar.tsx — see its comment
-  // and Architecture Decision 85.
+  // and Architecture Decision 87.
   const isHostelNonOwner = workspace?.type === "HOSTEL" && effectiveUser.role !== "ACCOUNT_OWNER";
   const navItems = allNavItems.filter((i) => {
-    if (i.key === "team" && (!effectiveCanEdit || isHostelNonOwner)) return false;
+    if (i.key === "team" && !effectiveCanEdit) return false;
     if (i.key === "financials" && isHostelNonOwner) return false;
     return true;
   });

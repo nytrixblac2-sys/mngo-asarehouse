@@ -10,14 +10,23 @@ import { expenseInputSchema, serializeExpense } from "@/lib/expenses";
  * role sessions — enforced server-side, not in component conditionals."
  * This is the actual enforcement point for that invariant; property-scoped
  * too, same as /api/bookings.
+ *
+ * Extended by Architecture Decision 87: on a HOSTEL workspace, MANAGEMENT
+ * rows (team payments) are also excluded for anyone but the ACCOUNT_OWNER
+ * — Janet manages the Team roster but shouldn't see what staff are paid,
+ * only Akwesi should. RENTAL's CO_MANAGER (Cecilia) is unaffected.
  */
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return apiError("Unauthorized", 401);
 
+  const workspace = await prisma.workspace.findUnique({ where: { id: user.workspaceId }, select: { type: true } });
+  const isHostelNonOwner = workspace?.type === "HOSTEL" && user.role !== "ACCOUNT_OWNER";
+
   const propertyFilter =
     user.role === "PROPERTY_OWNER" ? { property: { owners: { some: { userId: user.id } } } } : {};
-  const categoryFilter = user.role === "PROPERTY_OWNER" ? { category: { not: "MANAGEMENT" as const } } : {};
+  const categoryFilter =
+    user.role === "PROPERTY_OWNER" || isHostelNonOwner ? { category: { not: "MANAGEMENT" as const } } : {};
 
   const rows = await prisma.expense.findMany({
     where: { workspaceId: user.workspaceId, ...propertyFilter, ...categoryFilter },
