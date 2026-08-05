@@ -2,6 +2,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { bookingInputSchema, serializeBooking } from "@/lib/bookings";
+import { computeHostelBookingFields, RoomBookingError } from "@/lib/rooms";
 
 /**
  * Edits a booking's core fields. Deliberately does NOT accept `status` or
@@ -27,6 +28,40 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     return apiError("Property not found", 404);
   }
 
+  if ("roomId" in parsed.data) {
+    let fields;
+    try {
+      fields = await computeHostelBookingFields({
+        workspaceId: user.workspaceId,
+        roomId: parsed.data.roomId,
+        checkIn: parsed.data.checkIn,
+        checkOut: parsed.data.checkOut,
+        excludeBookingId: params.id,
+      });
+    } catch (err) {
+      if (err instanceof RoomBookingError) return apiError(err.message, 409);
+      throw err;
+    }
+
+    const updated = await prisma.booking.update({
+      where: { id: params.id },
+      data: {
+        propertyId: parsed.data.propertyId,
+        guest: parsed.data.guest,
+        checkIn: new Date(parsed.data.checkIn),
+        checkOut: new Date(parsed.data.checkOut),
+        amount: fields.amount,
+        currency: fields.currency,
+        source: "LOCAL",
+        roomId: parsed.data.roomId,
+        passportNumber: parsed.data.passportNumber,
+        guestEmail: parsed.data.guestEmail,
+        guestPhone: parsed.data.guestPhone,
+      },
+    });
+    return apiSuccess(serializeBooking(updated));
+  }
+
   const updated = await prisma.booking.update({
     where: { id: params.id },
     data: {
@@ -37,6 +72,13 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       amount: parsed.data.amount,
       currency: parsed.data.currency,
       source: parsed.data.source,
+      // Editing a RENTAL booking back from HOSTEL shape never happens in
+      // practice (workspaces don't mix types), but clear these defensively
+      // so a stale roomId/passportNumber can't linger from a prior edit.
+      roomId: null,
+      passportNumber: null,
+      guestEmail: null,
+      guestPhone: null,
     },
   });
 

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { FileText } from "lucide-react";
 import { C } from "@/lib/colors";
-import { NAV_ITEMS } from "@/lib/nav";
+import { getNavItems } from "@/lib/nav";
 import { useAppStore } from "@/store/use-app-store";
 import { useProperties } from "@/lib/queries/properties";
 import { useWorkspace } from "@/lib/queries/workspace";
@@ -31,9 +31,11 @@ export function TabsSidebar({
   const [showReportModal, setShowReportModal] = useState(false);
   const exitPreview = useAppStore((s) => s.exitPreview);
   const pathname = usePathname();
-  const navItems = effectiveCanEdit ? NAV_ITEMS : NAV_ITEMS.filter((i) => i.key !== "team");
+  const workspace = useWorkspace().data;
+  const allNavItems = getNavItems(workspace?.type);
+  const navItems = effectiveCanEdit ? allNavItems : allNavItems.filter((i) => i.key !== "team");
   const properties = useProperties(initialProperties).data ?? initialProperties;
-  const workspaceName = useWorkspace().data?.name ?? "Management";
+  const workspaceName = workspace?.name ?? "Management";
 
   return (
     <div className="flex-shrink-0 flex flex-col p-3" style={{ width: 200, height: "100%", borderRight: `1px solid ${C.border}` }}>

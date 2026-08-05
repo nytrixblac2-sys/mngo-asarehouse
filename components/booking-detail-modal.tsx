@@ -6,9 +6,9 @@ import { Pill } from "@/components/primitives";
 import { C } from "@/lib/colors";
 import { fmtCurrency } from "@/lib/format";
 import { nightsBetween } from "@/lib/periods";
-import { ISSUE_STATUS_TONE } from "@/lib/labels";
-import type { Booking, Issue, Property, Schedule } from "@/lib/types";
-import { BookingForm } from "./booking-form";
+import { BOOKING_SOURCE_LABEL, ISSUE_STATUS_TONE } from "@/lib/labels";
+import type { Booking, Issue, Property, Room, Schedule } from "@/lib/types";
+import { BookingFormRouter } from "./booking-form-router";
 import type { BookingInput } from "@/lib/queries/bookings";
 
 /**
@@ -21,9 +21,12 @@ export function BookingDetailModal({
   schedules,
   issues,
   properties,
+  rooms,
   showPropertyTag,
   onClose,
   onSubmitEdit,
+  editIsPending,
+  editError,
   onDelete,
   onConfirm,
   onUnconfirm,
@@ -33,9 +36,16 @@ export function BookingDetailModal({
   schedules: Schedule[];
   issues: Issue[];
   properties: Property[];
+  /** HOSTEL bookings only — used to show the room name against booking.roomId. */
+  rooms?: Room[];
   showPropertyTag: boolean;
   onClose: () => void;
-  onSubmitEdit: (id: string, input: BookingInput) => void;
+  /** `opts.onSuccess` fires only once the edit actually saves — the edit
+   * form stays open on failure (e.g. a HOSTEL room-conflict rejection)
+   * instead of closing unconditionally and swallowing the error. */
+  onSubmitEdit: (id: string, input: BookingInput, opts: { onSuccess: () => void }) => void;
+  editIsPending?: boolean;
+  editError?: string | null;
   onDelete: (id: string) => void;
   onConfirm: (id: string) => void;
   onUnconfirm: (id: string) => void;
@@ -48,6 +58,7 @@ export function BookingDetailModal({
   const relatedShifts = schedules.filter((s) => s.date >= booking.checkIn && s.date <= booking.checkOut);
   const relatedIssues = issues.filter((i) => i.guest === booking.guest);
   const propertyColor = properties.find((p) => p.id === booking.propertyId)?.color ?? "var(--accent, #111111)";
+  const room = booking.roomId ? rooms?.find((r) => r.id === booking.roomId) : undefined;
 
   return (
     <>
@@ -120,9 +131,21 @@ export function BookingDetailModal({
                 <p className="text-xs" style={{ color: C.muted }}>Amount</p>
                 <p className="text-sm font-semibold mt-0.5" style={{ color: C.text }}>{fmtCurrency(booking.amount, booking.currency)}</p>
               </div>
+              {room && (
+                <div className="p-3 rounded-xl" style={{ background: C.bg }}>
+                  <p className="text-xs" style={{ color: C.muted }}>Room</p>
+                  <p className="text-sm font-semibold mt-0.5" style={{ color: C.text }}>{room.name}</p>
+                </div>
+              )}
+              {booking.passportNumber && (
+                <div className="p-3 rounded-xl" style={{ background: C.bg }}>
+                  <p className="text-xs" style={{ color: C.muted }}>Passport</p>
+                  <p className="text-sm font-semibold mt-0.5" style={{ color: C.text }}>{booking.passportNumber}</p>
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-2">
-              <Pill tone="muted">{booking.source === "AIRBNB" ? "Airbnb" : "Local / Cash"}</Pill>
+              <Pill tone="muted">{BOOKING_SOURCE_LABEL[booking.source]}</Pill>
               <Pill tone={booking.status === "CONFIRMED" ? "teal" : "amber"}>
                 {booking.status === "CONFIRMED" ? "Confirmed" : "Expected"}
               </Pill>
@@ -183,14 +206,19 @@ export function BookingDetailModal({
         </div>
       </div>
       {showEditForm && (
-        <BookingForm
+        <BookingFormRouter
           booking={booking}
           onClose={() => setShowEditForm(false)}
-          onSubmit={(input) => {
-            onSubmitEdit(booking.id, input);
-            setShowEditForm(false);
-            onClose();
-          }}
+          onSubmit={(input) =>
+            onSubmitEdit(booking.id, input, {
+              onSuccess: () => {
+                setShowEditForm(false);
+                onClose();
+              },
+            })
+          }
+          isPending={editIsPending}
+          error={editError}
           properties={properties}
           defaultPropertyId={booking.propertyId}
         />

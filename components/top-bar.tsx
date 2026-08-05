@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Menu, PanelLeft, ChevronLeft, ChevronRight, FileText } from "lucide-react";
 import { C } from "@/lib/colors";
-import { NAV_ITEMS } from "@/lib/nav";
+import { getNavItems } from "@/lib/nav";
 import { useAppStore } from "@/store/use-app-store";
 import { useProperties } from "@/lib/queries/properties";
 import { useWorkspace } from "@/lib/queries/workspace";
@@ -44,12 +44,14 @@ export function TopBar({
   const exitPreview = useAppStore((s) => s.exitPreview);
   const pathname = usePathname();
   const router = useRouter();
-  const navItems = effectiveCanEdit ? NAV_ITEMS : NAV_ITEMS.filter((i) => i.key !== "team");
+  const workspace = useWorkspace().data;
+  const allNavItems = getNavItems(workspace?.type);
+  const navItems = effectiveCanEdit ? allNavItems : allNavItems.filter((i) => i.key !== "team");
   // Reactive, cache-invalidated list — seeded with the server-rendered
   // prop so there's no loading flash, but updates instantly on
   // create/edit/delete instead of needing a full page reload.
   const properties = useProperties(initialProperties).data ?? initialProperties;
-  const workspaceName = useWorkspace().data?.name ?? "Management";
+  const workspaceName = workspace?.name ?? "Management";
 
   return (
     <div className="flex items-center gap-1 px-4 py-3" style={{ borderBottom: `1px solid ${C.border}` }}>

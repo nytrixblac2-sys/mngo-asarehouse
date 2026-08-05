@@ -2,11 +2,14 @@ import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { apiSuccess, apiError } from "@/lib/api-response";
-import { bookingInputSchema, serializeBooking } from "@/lib/bookings";
+import { rentalBookingInputSchema, serializeBooking } from "@/lib/bookings";
 
 const bulkInputSchema = z.object({
   propertyId: z.string().uuid(),
-  bookings: z.array(bookingInputSchema.omit({ propertyId: true })).min(1).max(1000),
+  // Bulk import (CSV backfill) is a RENTAL-workspace feature — free-typed
+  // amount/currency/source, same as the manual RENTAL booking form. HOSTEL
+  // bookings always go through the room-priced flow instead.
+  bookings: z.array(rentalBookingInputSchema.omit({ propertyId: true })).min(1).max(1000),
   // Applies to every row in the batch — matches the importer's UI, which
   // asks once per import ("were these already paid, or not yet?") rather
   // than per row. Defaults to EXPECTED: user clarification, 2026-08-04,

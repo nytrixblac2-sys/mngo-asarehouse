@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { Check, Loader2, X } from "lucide-react";
 import { C, THEME_COLORS } from "@/lib/colors";
-import type { Allocation, Currency, Property } from "@/lib/types";
+import type { Allocation, Currency, Property, WorkspaceType } from "@/lib/types";
 import type { UpdatePropertyInput } from "@/lib/queries/properties";
+import { RoomManagerPanel } from "./room-manager";
 
 const DEFAULT_ALLOCATION: Allocation = { owners: 60, operations: 15, management: 25 };
 const ALLOCATION_FIELDS: Array<[keyof Allocation, string]> = [
@@ -30,6 +31,7 @@ export function PropertyProfileModal({
   canDelete,
   isDeleting,
   deleteError,
+  workspaceType,
 }: {
   property: Property;
   onClose: () => void;
@@ -38,6 +40,9 @@ export function PropertyProfileModal({
   canDelete: boolean;
   isDeleting: boolean;
   deleteError: Error | null;
+  /** HOSTEL workspaces get real priced Rooms (RoomManagerPanel) instead of
+   * the plain string room-name list below. */
+  workspaceType?: WorkspaceType;
 }) {
   const [color, setColor] = useState(property.color);
   const [currencies, setCurrencies] = useState<Currency[]>(property.currencies);
@@ -191,33 +196,37 @@ export function PropertyProfileModal({
             );
           })}
 
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: C.muted }}>Rooms</p>
-            <div className="flex flex-col gap-2 mb-3">
-              {rooms.length === 0 && <p className="text-sm" style={{ color: C.muted }}>No rooms added yet.</p>}
-              {rooms.map((room) => (
-                <div key={room} className="flex items-center justify-between py-2 px-3 rounded-xl" style={{ background: C.bg }}>
-                  <span className="text-sm" style={{ color: C.text }}>{room}</span>
-                  <button onClick={() => removeRoom(room)} className="text-xs font-semibold" style={{ color: "var(--accent, #111111)" }}>
-                    Remove
-                  </button>
-                </div>
-              ))}
+          {workspaceType === "HOSTEL" ? (
+            <RoomManagerPanel propertyId={property.id} />
+          ) : (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: C.muted }}>Rooms</p>
+              <div className="flex flex-col gap-2 mb-3">
+                {rooms.length === 0 && <p className="text-sm" style={{ color: C.muted }}>No rooms added yet.</p>}
+                {rooms.map((room) => (
+                  <div key={room} className="flex items-center justify-between py-2 px-3 rounded-xl" style={{ background: C.bg }}>
+                    <span className="text-sm" style={{ color: C.text }}>{room}</span>
+                    <button onClick={() => removeRoom(room)} className="text-xs font-semibold" style={{ color: "var(--accent, #111111)" }}>
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  value={roomInput}
+                  onChange={(e) => setRoomInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && addRoom()}
+                  className="flex-1 px-3 py-2.5 rounded-xl text-sm"
+                  style={{ border: `1px solid ${C.border}` }}
+                  placeholder="e.g. Master Bedroom"
+                />
+                <button onClick={addRoom} className="px-4 py-2.5 rounded-xl text-sm font-semibold" style={{ background: C.text, color: "#fff" }}>
+                  Add
+                </button>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <input
-                value={roomInput}
-                onChange={(e) => setRoomInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && addRoom()}
-                className="flex-1 px-3 py-2.5 rounded-xl text-sm"
-                style={{ border: `1px solid ${C.border}` }}
-                placeholder="e.g. Master Bedroom"
-              />
-              <button onClick={addRoom} className="px-4 py-2.5 rounded-xl text-sm font-semibold" style={{ background: C.text, color: "#fff" }}>
-                Add
-              </button>
-            </div>
-          </div>
+          )}
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: C.muted }}>Facilities</p>

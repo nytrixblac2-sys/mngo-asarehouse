@@ -5,6 +5,7 @@ import { ChevronDown, Loader2 } from "lucide-react";
 import { C } from "@/lib/colors";
 import { useAppStore } from "@/store/use-app-store";
 import { useCreateProperty, useDeleteProperty, useUpdateProperty } from "@/lib/queries/properties";
+import { useWorkspace } from "@/lib/queries/workspace";
 import type { Property } from "@/lib/types";
 import { PropertyForm } from "./property-form";
 import { PropertyProfileModal } from "./property-profile-modal";
@@ -23,6 +24,7 @@ export function PropertySwitcher({ properties, canEdit }: { properties: Property
   const createProperty = useCreateProperty();
   const updateProperty = useUpdateProperty();
   const deleteProperty = useDeleteProperty();
+  const workspaceType = useWorkspace().data?.type;
 
   const current = properties.find((p) => p.id === activePropertyId);
   const label = activePropertyId === "all" ? "All properties" : current?.name ?? "All properties";
@@ -192,6 +194,7 @@ export function PropertySwitcher({ properties, canEdit }: { properties: Property
           isDeleting={deleteProperty.isPending && deleteProperty.variables === profileFor.id}
           deleteError={deleteProperty.isError && deleteProperty.variables === profileFor.id ? (deleteProperty.error as Error) : null}
           canDelete={properties.length > 1}
+          workspaceType={workspaceType}
         />
       )}
     </div>

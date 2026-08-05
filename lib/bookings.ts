@@ -45,7 +45,8 @@ export function serializeBooking(b: BookingRow): Booking {
 
 const dateStringSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Expected YYYY-MM-DD");
 
-export const bookingInputSchema = z.object({
+/** RENTAL-workspace shape — free-typed amount/currency/source, as always. */
+export const rentalBookingInputSchema = z.object({
   propertyId: z.string().uuid(),
   guest: z.string().min(1),
   checkIn: dateStringSchema,
@@ -54,3 +55,25 @@ export const bookingInputSchema = z.object({
   currency: z.enum(["GHS", "EUR"]),
   source: z.enum(["AIRBNB", "LOCAL"]),
 });
+
+/** HOSTEL-workspace shape — a room + passport, no amount/currency/source:
+ * the server derives those from the room's rate (lib/rooms.ts
+ * computeHostelBookingFields) and always sets source to LOCAL for
+ * staff-entered bookings (guest self-bookings go through a separate public
+ * route that sets WEBSITE — Phase 4). */
+export const hostelBookingInputSchema = z.object({
+  propertyId: z.string().uuid(),
+  guest: z.string().min(1),
+  checkIn: dateStringSchema,
+  checkOut: dateStringSchema,
+  roomId: z.string().uuid(),
+  passportNumber: z.string().min(1),
+  guestEmail: z.string().email().optional(),
+  guestPhone: z.string().min(1).optional(),
+});
+
+/** Discriminated by shape, not an explicit tag: a hostel-shaped payload is
+ * missing amount/currency/source (fails rental), a rental-shaped payload is
+ * missing roomId/passportNumber (fails hostel) — so each request matches
+ * exactly one branch. */
+export const bookingInputSchema = z.union([hostelBookingInputSchema, rentalBookingInputSchema]);

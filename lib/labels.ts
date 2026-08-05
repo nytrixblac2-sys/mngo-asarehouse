@@ -1,4 +1,10 @@
-import type { ExpenseCategory, IssueStatus, IssueType, ScheduleType } from "./types";
+import type { BookingSource, ExpenseCategory, IssueStatus, IssueType, ScheduleType } from "./types";
+
+export const BOOKING_SOURCE_LABEL: Record<BookingSource, string> = {
+  AIRBNB: "Airbnb",
+  LOCAL: "Local / Cash",
+  WEBSITE: "Website booking",
+};
 
 /** Display labels for enum values — context/07-mockup.jsx ISSUE_TYPES / SHIFT_TYPES. */
 export const ISSUE_TYPE_LABEL: Record<IssueType, string> = {

@@ -80,6 +80,19 @@ export interface Property {
   prevBalanceEur: PrevBalance;
 }
 
+/** HOSTEL-workspace-only priced room type — see prisma/schema.prisma Room
+ * doc comment. `Property.rooms: String[]` (above) is unrelated decorative
+ * free text used by RENTAL workspaces; this is the real, bookable entity. */
+export interface Room {
+  id: string;
+  workspaceId: string;
+  propertyId: string;
+  name: string;
+  pricePerNight: number;
+  currency: Currency;
+  active: boolean;
+}
+
 export interface Booking {
   id: string;
   workspaceId: string;

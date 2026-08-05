@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ChevronRight, ExternalLink, ClipboardList, AlertTriangle, Check, Undo2 } from "lucide-react";
 import { Card, Pill } from "@/components/primitives";
-import { BookingForm } from "@/components/booking-form";
+import { BookingFormRouter } from "@/components/booking-form-router";
 import { ShiftForm } from "@/components/shift-form";
 import { C } from "@/lib/colors";
 import { fmtCurrency } from "@/lib/format";
@@ -21,6 +21,8 @@ export function PerStayView({
   onSchedule,
   onLogIssue,
   onSubmitEditBooking,
+  editBookingIsPending,
+  editBookingError,
   onDeleteBooking,
   onSubmitEditSchedule,
   onConfirmPayout,
@@ -38,7 +40,9 @@ export function PerStayView({
    * number — see the call sites below (Architecture Decision 60). */
   onSchedule: (dayOrDate: number | string) => void;
   onLogIssue: (dayOrDate: number | string, guest?: string) => void;
-  onSubmitEditBooking: (id: string, input: BookingInput) => void;
+  onSubmitEditBooking: (id: string, input: BookingInput, opts: { onSuccess: () => void }) => void;
+  editBookingIsPending?: boolean;
+  editBookingError?: string | null;
   onDeleteBooking: (id: string) => void;
   onSubmitEditSchedule: (id: string, input: ScheduleInput) => void;
   onConfirmPayout: (id: string) => void;
@@ -220,13 +224,14 @@ export function PerStayView({
         );
       })}
       {editingBooking && (
-        <BookingForm
+        <BookingFormRouter
           booking={editingBooking}
           onClose={() => setEditingBooking(null)}
-          onSubmit={(input) => {
-            onSubmitEditBooking(editingBooking.id, input);
-            setEditingBooking(null);
-          }}
+          onSubmit={(input) =>
+            onSubmitEditBooking(editingBooking.id, input, { onSuccess: () => setEditingBooking(null) })
+          }
+          isPending={editBookingIsPending}
+          error={editBookingError}
           properties={properties}
           defaultPropertyId={editingBooking.propertyId}
         />

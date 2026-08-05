@@ -5,10 +5,12 @@ import { ChevronLeft, ChevronRight, Plus, AlertTriangle, ClipboardList, Upload }
 import { useEffectiveUser } from "@/components/effective-user-context";
 import { useAppStore } from "@/store/use-app-store";
 import { useBookings, useConfirmBookingPayout, useCreateBooking, useDeleteBooking, useUnconfirmBookingPayout, useUpdateBooking } from "@/lib/queries/bookings";
+import { useRooms } from "@/lib/queries/rooms";
 import { useCreateSchedule, useSchedules, useUpdateSchedule } from "@/lib/queries/schedules";
 import { useCreateIssue, useIssues, useSetIssueStatus } from "@/lib/queries/issues";
 import { useProperties } from "@/lib/queries/properties";
 import { useTeam } from "@/lib/queries/team";
+import { useWorkspace } from "@/lib/queries/workspace";
 import { C } from "@/lib/colors";
 import { MONTH_NAMES, pad2 } from "@/lib/calendar";
 import type { Booking, Issue } from "@/lib/types";
@@ -16,7 +18,7 @@ import { DayView } from "@/components/bookings/day-view";
 import { WeekView } from "@/components/bookings/week-view";
 import { MonthView } from "@/components/bookings/month-view";
 import { PerStayView } from "@/components/bookings/per-stay-view";
-import { BookingForm } from "@/components/booking-form";
+import { BookingFormRouter } from "@/components/booking-form-router";
 import { ShiftForm } from "@/components/shift-form";
 import { IssueForm } from "@/components/issue-form";
 import { BookingDetailModal } from "@/components/booking-detail-modal";
@@ -49,6 +51,9 @@ export default function BookingsPage() {
   const issuesQuery = useIssues();
   const propertiesQuery = useProperties();
   const teamQuery = useTeam();
+  const roomsQuery = useRooms();
+  const isHostel = useWorkspace().data?.type === "HOSTEL";
+  const pageTitle = isHostel ? "Rooms" : "Bookings";
 
   const createBooking = useCreateBooking();
   const updateBooking = useUpdateBooking();
@@ -117,7 +122,7 @@ export default function BookingsPage() {
   if ((propertiesQuery.data?.length ?? 0) === 0) {
     return (
       <div className="flex flex-col gap-5">
-        <h1 className="text-2xl font-bold" style={{ color: C.text }}>Bookings</h1>
+        <h1 className="text-2xl font-bold" style={{ color: C.text }}>{pageTitle}</h1>
         <EmptyPropertyState canEdit={effectiveCanEdit} />
       </div>
     );
@@ -127,7 +132,7 @@ export default function BookingsPage() {
     <div className="flex flex-col gap-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: C.text }}>Bookings</h1>
+          <h1 className="text-2xl font-bold" style={{ color: C.text }}>{pageTitle}</h1>
           <div className="flex items-center gap-1 mt-1">
             <button onClick={goToPrevMonth} className="p-1 rounded-full" style={{ color: C.muted }}>
               <ChevronLeft size={14} />
@@ -216,7 +221,9 @@ export default function BookingsPage() {
         <PerStayView
           bookings={monthBookings} schedules={monthShifts} issues={monthIssues}
           onSchedule={openSchedule} onLogIssue={openIssue}
-          onSubmitEditBooking={(id, input) => updateBooking.mutate({ id, input })}
+          onSubmitEditBooking={(id, input, opts) => updateBooking.mutate({ id, input }, opts)}
+          editBookingIsPending={updateBooking.isPending}
+          editBookingError={updateBooking.isError ? (updateBooking.error as Error).message : null}
           onDeleteBooking={(id) => deleteBooking.mutate(id)}
           onSubmitEditSchedule={(id, input) => updateSchedule.mutate({ id, input })}
           onConfirmPayout={(id) => confirmPayout.mutate(id)}
@@ -234,11 +241,13 @@ export default function BookingsPage() {
         />
       )}
       {effectiveCanEdit && showBookingForm && (
-        <BookingForm
+        <BookingFormRouter
           onClose={() => setShowBookingForm(false)}
-          onSubmit={(input) => { createBooking.mutate(input); setShowBookingForm(false); }}
+          onSubmit={(input) => createBooking.mutate(input, { onSuccess: () => setShowBookingForm(false) })}
           properties={properties}
           defaultPropertyId={defaultPropertyId}
+          isPending={createBooking.isPending}
+          error={createBooking.isError ? (createBooking.error as Error).message : null}
         />
       )}
       {effectiveCanEdit && shiftFormDate && (
@@ -270,9 +279,12 @@ export default function BookingsPage() {
             schedules={schedulesQuery.data ?? []}
             issues={issuesQuery.data ?? []}
             properties={propertiesQuery.data ?? []}
+            rooms={roomsQuery.data ?? []}
             showPropertyTag={showPropertyTag}
             onClose={() => setSelectedBooking(null)}
-            onSubmitEdit={(id, input) => updateBooking.mutate({ id, input })}
+            onSubmitEdit={(id, input, opts) => updateBooking.mutate({ id, input }, opts)}
+            editIsPending={updateBooking.isPending}
+            editError={updateBooking.isError ? (updateBooking.error as Error).message : null}
             onDelete={(id) => deleteBooking.mutate(id)}
             onConfirm={(id) => confirmPayout.mutate(id)}
             onUnconfirm={(id) => unconfirmPayout.mutate(id)}

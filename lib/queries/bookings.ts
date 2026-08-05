@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchJson } from "@/lib/api-client";
 import type { Booking, BookingSource, Currency } from "@/lib/types";
 
-export interface BookingInput {
+export interface RentalBookingInput {
   propertyId: string;
   guest: string;
   checkIn: string;
@@ -11,6 +11,21 @@ export interface BookingInput {
   currency: Currency;
   source: BookingSource;
 }
+
+/** HOSTEL-workspace shape — server derives amount/currency/source from the
+ * room's rate (lib/rooms.ts computeHostelBookingFields). */
+export interface HostelBookingInput {
+  propertyId: string;
+  guest: string;
+  checkIn: string;
+  checkOut: string;
+  roomId: string;
+  passportNumber: string;
+  guestEmail?: string;
+  guestPhone?: string;
+}
+
+export type BookingInput = RentalBookingInput | HostelBookingInput;
 
 export function useBookings() {
   return useQuery({

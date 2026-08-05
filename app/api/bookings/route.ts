@@ -2,6 +2,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { bookingInputSchema, serializeBooking } from "@/lib/bookings";
+import { computeHostelBookingFields, RoomBookingError } from "@/lib/rooms";
 
 /**
  * All bookings visible to the requesting user's workspace — scoped to
@@ -44,6 +45,40 @@ export async function POST(req: Request) {
   const property = await prisma.property.findUnique({ where: { id: parsed.data.propertyId } });
   if (!property || property.workspaceId !== user.workspaceId) {
     return apiError("Property not found", 404);
+  }
+
+  if ("roomId" in parsed.data) {
+    let fields;
+    try {
+      fields = await computeHostelBookingFields({
+        workspaceId: user.workspaceId,
+        roomId: parsed.data.roomId,
+        checkIn: parsed.data.checkIn,
+        checkOut: parsed.data.checkOut,
+      });
+    } catch (err) {
+      if (err instanceof RoomBookingError) return apiError(err.message, 409);
+      throw err;
+    }
+
+    const created = await prisma.booking.create({
+      data: {
+        workspaceId: user.workspaceId,
+        propertyId: parsed.data.propertyId,
+        guest: parsed.data.guest,
+        checkIn: new Date(parsed.data.checkIn),
+        checkOut: new Date(parsed.data.checkOut),
+        amount: fields.amount,
+        currency: fields.currency,
+        source: "LOCAL",
+        status: "EXPECTED",
+        roomId: parsed.data.roomId,
+        passportNumber: parsed.data.passportNumber,
+        guestEmail: parsed.data.guestEmail,
+        guestPhone: parsed.data.guestPhone,
+      },
+    });
+    return apiSuccess(serializeBooking(created));
   }
 
   const created = await prisma.booking.create({
