@@ -93,6 +93,43 @@ export interface Room {
   active: boolean;
 }
 
+/** HOSTEL-workspace-only master menu row. `category` is free text
+ * (e.g. "Food"/"Desserts"/"Breakfast" for Escape3Points), not an enum —
+ * menu structure is workspace-specific. `isAvailableToday` is the single
+ * live toggle staff use on the Kitchen screen to curate what guests (and
+ * staff ordering on a guest's behalf) can currently order. */
+export interface MenuItem {
+  id: string;
+  workspaceId: string;
+  name: string;
+  category: string;
+  price: number;
+  currency: Currency;
+  isAvailableToday: boolean;
+}
+
+/** A snapshot of one menu item within an Order — `name`/`unitPrice`/
+ * `currency` are captured at order time so a later menu price change
+ * never rewrites a guest's past bill. */
+export interface OrderItem {
+  id: string;
+  menuItemId: string;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  currency: Currency;
+}
+
+/** A guest's food/drink order against their stay — one Booking can have
+ * many Orders (e.g. one per sitting). */
+export interface Order {
+  id: string;
+  workspaceId: string;
+  bookingId: string;
+  createdAt: string;
+  items: OrderItem[];
+}
+
 export interface Booking {
   id: string;
   workspaceId: string;

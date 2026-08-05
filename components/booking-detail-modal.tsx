@@ -1,14 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { X, Check, Undo2 } from "lucide-react";
+import { X, Check, Undo2, UtensilsCrossed } from "lucide-react";
 import { Pill } from "@/components/primitives";
 import { C } from "@/lib/colors";
 import { fmtCurrency } from "@/lib/format";
 import { nightsBetween } from "@/lib/periods";
 import { BOOKING_SOURCE_LABEL, ISSUE_STATUS_TONE } from "@/lib/labels";
+import { useOrders } from "@/lib/queries/orders";
 import type { Booking, Issue, Property, Room, Schedule } from "@/lib/types";
 import { BookingFormRouter } from "./booking-form-router";
+import { GuestOrderForm } from "./guest-order-form";
 import type { BookingInput } from "@/lib/queries/bookings";
 
 /**
@@ -53,12 +55,17 @@ export function BookingDetailModal({
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
+  const [showOrderForm, setShowOrderForm] = useState(false);
 
   const nights = nightsBetween(booking.checkIn, booking.checkOut);
   const relatedShifts = schedules.filter((s) => s.date >= booking.checkIn && s.date <= booking.checkOut);
   const relatedIssues = issues.filter((i) => i.guest === booking.guest);
   const propertyColor = properties.find((p) => p.id === booking.propertyId)?.color ?? "var(--accent, #111111)";
   const room = booking.roomId ? rooms?.find((r) => r.id === booking.roomId) : undefined;
+  const isHostelBooking = !!room;
+  const ordersQuery = useOrders(booking.id, { enabled: isHostelBooking });
+  const orders = ordersQuery.data ?? [];
+  const foodTotal = orders.reduce((sum, o) => sum + o.items.reduce((s, i) => s + i.unitPrice * i.quantity, 0), 0);
 
   return (
     <>
@@ -168,6 +175,38 @@ export function BookingDetailModal({
                 <Undo2 size={16} /> Mark as not yet paid
               </button>
             )}
+            {isHostelBooking && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: C.muted }}>Food orders</p>
+                  {canEdit && (
+                    <button
+                      onClick={() => setShowOrderForm(true)}
+                      className="text-xs font-semibold flex items-center gap-1"
+                      style={{ color: "var(--accent, #111111)" }}
+                    >
+                      <UtensilsCrossed size={12} /> Order for guest
+                    </button>
+                  )}
+                </div>
+                {orders.length === 0 ? (
+                  <p className="text-sm" style={{ color: C.muted }}>No orders yet.</p>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    {orders.flatMap((o) => o.items).map((item) => (
+                      <div key={item.id} className="flex items-center justify-between py-2 px-3 rounded-xl" style={{ background: C.bg }}>
+                        <span className="text-sm" style={{ color: C.text }}>{item.quantity}× {item.name}</span>
+                        <span className="text-sm font-semibold" style={{ color: C.text }}>{fmtCurrency(item.unitPrice * item.quantity, item.currency)}</span>
+                      </div>
+                    ))}
+                    <div className="flex items-center justify-between py-2 px-3 rounded-xl" style={{ background: C.tealSoft }}>
+                      <span className="text-sm font-semibold" style={{ color: C.teal }}>Food total</span>
+                      <span className="text-sm font-bold" style={{ color: C.teal }}>{fmtCurrency(foodTotal, booking.currency)}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             {relatedShifts.length > 0 && (
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: C.muted }}>
@@ -222,6 +261,9 @@ export function BookingDetailModal({
           properties={properties}
           defaultPropertyId={booking.propertyId}
         />
+      )}
+      {showOrderForm && (
+        <GuestOrderForm bookingId={booking.id} guestName={booking.guest} onClose={() => setShowOrderForm(false)} />
       )}
     </>
   );
