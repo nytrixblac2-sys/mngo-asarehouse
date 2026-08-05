@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { bookingInputSchema, serializeBooking } from "@/lib/bookings";
 import { computeHostelBookingFields, RoomBookingError } from "@/lib/rooms";
+import { uniqueBookingCode } from "@/lib/booking-code";
 
 /**
  * Edits a booking's core fields. Deliberately does NOT accept `status` or
@@ -43,6 +44,11 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       throw err;
     }
 
+    // Safety net for any HOSTEL booking that somehow still has no
+    // bookingCode (e.g. one created before this was fixed to always
+    // generate one) — backfilled the first time it's touched again.
+    const bookingCode = existing.bookingCode ?? (await uniqueBookingCode());
+
     const updated = await prisma.booking.update({
       where: { id: params.id },
       data: {
@@ -57,6 +63,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         passportNumber: parsed.data.passportNumber,
         guestEmail: parsed.data.guestEmail,
         guestPhone: parsed.data.guestPhone,
+        bookingCode,
       },
     });
     return apiSuccess(serializeBooking(updated));

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X, ShoppingCart, Minus, Plus } from "lucide-react";
+import { X, ShoppingCart, Minus, Plus, Search } from "lucide-react";
 import { C } from "@/lib/colors";
 import { fmtCurrency } from "@/lib/format";
 import { isMenuItemOrderable } from "@/lib/menu";
@@ -29,9 +29,13 @@ export function GuestOrderForm({
   const menuQuery = useMenuItems();
   const createOrder = useCreateOrder();
   const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [search, setSearch] = useState("");
 
   const items = (menuQuery.data ?? []).filter(isMenuItemOrderable);
-  const categories = Array.from(new Set(items.map((i) => i.category)));
+  const visibleItems = search.trim()
+    ? items.filter((i) => i.name.toLowerCase().includes(search.trim().toLowerCase()))
+    : items;
+  const categories = Array.from(new Set(visibleItems.map((i) => i.category)));
 
   const setQty = (id: string, qty: number) => {
     setQuantities((q) => ({ ...q, [id]: Math.max(0, qty) }));
@@ -59,10 +63,26 @@ export function GuestOrderForm({
           <p className="text-lg font-bold" style={{ color: C.text }}>Order for {guestName}</p>
           <button onClick={onClose}><X size={20} style={{ color: C.muted }} /></button>
         </div>
-        <p className="text-xs mb-4" style={{ color: C.muted }}>Only today&apos;s available items are shown.</p>
+        <p className="text-xs mb-3" style={{ color: C.muted }}>Only today&apos;s available items are shown.</p>
+
+        {items.length > 0 && (
+          <div className="relative mb-4">
+            <Search size={14} style={{ color: C.muted, position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }} />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search the menu…"
+              className="w-full pl-8 pr-3 py-2.5 rounded-xl text-sm"
+              style={{ border: `1px solid ${C.border}` }}
+            />
+          </div>
+        )}
 
         {items.length === 0 && (
           <p className="text-sm" style={{ color: C.muted }}>No menu items are marked available today — turn some on from the Kitchen screen first.</p>
+        )}
+        {items.length > 0 && visibleItems.length === 0 && (
+          <p className="text-sm" style={{ color: C.muted }}>No items match &quot;{search}&quot;.</p>
         )}
 
         <div className="flex flex-col gap-5 flex-1">
@@ -70,7 +90,7 @@ export function GuestOrderForm({
             <div key={cat}>
               <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: C.muted }}>{cat}</p>
               <div className="flex flex-col gap-2">
-                {items.filter((i) => i.category === cat).map((item) => {
+                {visibleItems.filter((i) => i.category === cat).map((item) => {
                   const qty = quantities[item.id] ?? 0;
                   return (
                     <div key={item.id} className="flex items-center justify-between py-2 px-3 rounded-xl" style={{ background: C.bg }}>

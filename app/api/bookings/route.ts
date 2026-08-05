@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { bookingInputSchema, serializeBooking } from "@/lib/bookings";
 import { computeHostelBookingFields, RoomBookingError } from "@/lib/rooms";
+import { uniqueBookingCode } from "@/lib/booking-code";
 
 /**
  * All bookings visible to the requesting user's workspace — scoped to
@@ -61,6 +62,12 @@ export async function POST(req: Request) {
       throw err;
     }
 
+    // Every HOSTEL booking gets a bookingCode, staff-entered walk-ins
+    // included — not just guest self-service ones (app/api/public/bookings)
+    // — otherwise a guest Janet checks in manually has no way to ever sign
+    // into /track to see their bill or order food.
+    const bookingCode = await uniqueBookingCode();
+
     const created = await prisma.booking.create({
       data: {
         workspaceId: user.workspaceId,
@@ -76,6 +83,7 @@ export async function POST(req: Request) {
         passportNumber: parsed.data.passportNumber,
         guestEmail: parsed.data.guestEmail,
         guestPhone: parsed.data.guestPhone,
+        bookingCode,
       },
     });
     return apiSuccess(serializeBooking(created));

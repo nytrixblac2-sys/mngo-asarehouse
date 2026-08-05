@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Download, Loader2, LogOut, Minus, Plus, ShoppingCart, UtensilsCrossed } from "lucide-react";
+import { Download, Loader2, LogOut, Minus, Plus, Search, ShoppingCart, UtensilsCrossed } from "lucide-react";
 import { Card, Pill } from "@/components/primitives";
 import { C } from "@/lib/colors";
 import { fmtCurrency } from "@/lib/format";
@@ -13,9 +13,13 @@ function GuestOrderPanel({ onClose }: { onClose: () => void }) {
   const menuQuery = useGuestMenu(true);
   const placeOrder = useGuestOrder();
   const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [search, setSearch] = useState("");
 
   const items = menuQuery.data ?? [];
-  const categories = Array.from(new Set(items.map((i) => i.category)));
+  const visibleItems = search.trim()
+    ? items.filter((i) => i.name.toLowerCase().includes(search.trim().toLowerCase()))
+    : items;
+  const categories = Array.from(new Set(visibleItems.map((i) => i.category)));
   const setQty = (id: string, qty: number) => setQuantities((q) => ({ ...q, [id]: Math.max(0, qty) }));
   const selected = items.map((i) => ({ item: i, quantity: quantities[i.id] ?? 0 })).filter((s) => s.quantity > 0);
   const total = selected.reduce((sum, s) => sum + s.item.price * s.quantity, 0);
@@ -33,16 +37,31 @@ function GuestOrderPanel({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-50 flex justify-end" style={{ background: "rgba(0,0,0,0.3)" }}>
       <div className="w-full max-w-sm h-full p-6 overflow-y-auto flex flex-col" style={{ background: "#fff" }}>
         <p className="text-lg font-bold mb-1" style={{ color: C.text }}>Order food</p>
-        <p className="text-xs mb-4" style={{ color: C.muted }}>Only today&apos;s available items are shown.</p>
+        <p className="text-xs mb-3" style={{ color: C.muted }}>Only today&apos;s available items are shown.</p>
         {items.length === 0 && !menuQuery.isLoading && (
           <p className="text-sm" style={{ color: C.muted }}>Nothing is available to order right now — check back later.</p>
+        )}
+        {items.length > 0 && (
+          <div className="relative mb-4">
+            <Search size={14} style={{ color: C.muted, position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }} />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search the menu…"
+              className="w-full pl-8 pr-3 py-2.5 rounded-xl text-sm"
+              style={{ border: `1px solid ${C.border}` }}
+            />
+          </div>
+        )}
+        {items.length > 0 && visibleItems.length === 0 && (
+          <p className="text-sm" style={{ color: C.muted }}>No items match &quot;{search}&quot;.</p>
         )}
         <div className="flex flex-col gap-5 flex-1">
           {categories.map((cat) => (
             <div key={cat}>
               <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: C.muted }}>{cat}</p>
               <div className="flex flex-col gap-2">
-                {items.filter((i) => i.category === cat).map((item) => {
+                {visibleItems.filter((i) => i.category === cat).map((item) => {
                   const qty = quantities[item.id] ?? 0;
                   return (
                     <div key={item.id} className="flex items-center justify-between py-2 px-3 rounded-xl" style={{ background: C.bg }}>

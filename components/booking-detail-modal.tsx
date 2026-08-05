@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X, Check, Undo2, UtensilsCrossed, LogOut, Download, Loader2 } from "lucide-react";
+import { X, Check, Undo2, UtensilsCrossed, LogOut, Download, Loader2, Copy, KeyRound } from "lucide-react";
 import { Pill } from "@/components/primitives";
 import { C } from "@/lib/colors";
 import { fmtCurrency } from "@/lib/format";
@@ -62,6 +62,7 @@ export function BookingDetailModal({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [showOrderForm, setShowOrderForm] = useState(false);
+  const [codeCopied, setCodeCopied] = useState(false);
   const [confirmCheckout, setConfirmCheckout] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
 
@@ -182,6 +183,29 @@ export function BookingDetailModal({
                 </div>
               )}
             </div>
+            {isHostelBooking && booking.bookingCode && (
+              <div className="p-3 rounded-xl flex items-center justify-between" style={{ background: C.tealSoft }}>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide flex items-center gap-1" style={{ color: C.teal }}>
+                    <KeyRound size={11} /> Guest login
+                  </p>
+                  <p className="text-sm font-bold mt-0.5" style={{ color: C.teal, letterSpacing: "0.08em" }}>{booking.bookingCode}</p>
+                  <p className="text-xs mt-0.5" style={{ color: C.teal }}>+ &quot;{booking.guest}&quot; at /track — to view their bill and order food</p>
+                </div>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(booking.bookingCode ?? "");
+                    setCodeCopied(true);
+                    setTimeout(() => setCodeCopied(false), 1500);
+                  }}
+                  className="p-2 rounded-lg flex-shrink-0"
+                  style={{ color: C.teal }}
+                  title="Copy code"
+                >
+                  {codeCopied ? <Check size={16} /> : <Copy size={16} />}
+                </button>
+              </div>
+            )}
             <div className="flex items-center gap-2">
               <Pill tone="muted">{BOOKING_SOURCE_LABEL[booking.source]}</Pill>
               <Pill tone={booking.status === "CONFIRMED" ? "teal" : "amber"}>
