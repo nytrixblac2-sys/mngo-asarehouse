@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Trash2, Pencil } from "lucide-react";
+import { Trash2, Pencil, ChevronRight, Search } from "lucide-react";
 import { useEffectiveUser } from "@/components/effective-user-context";
 import { useCreateMenuItem, useDeleteMenuItem, useMenuItems, useToggleMenuItemAvailability, useUpdateMenuItem } from "@/lib/queries/menu";
 import type { MenuItemInput } from "@/lib/queries/menu";
@@ -287,6 +287,18 @@ export default function MenuPage() {
   const deleteItem = useDeleteMenuItem();
   const updateItem = useUpdateMenuItem();
   const isOwner = effectiveUser.role === "ACCOUNT_OWNER";
+  const [search, setSearch] = useState("");
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+  const toggleSection = (key: string) =>
+    setExpandedSections((cur) => {
+      const next = new Set(cur);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
 
   if (workspace && workspace.type !== "HOSTEL") {
     return <p className="text-sm" style={{ color: C.muted }}>The Menu screen is only available for hostel-style workspaces.</p>;
@@ -298,33 +310,52 @@ export default function MenuPage() {
     return <p className="text-sm text-destructive">Something went wrong loading the menu.</p>;
   }
 
-  const items = menuQuery.data ?? [];
+  const isSearching = search.trim().length > 0;
+  const query = search.trim().toLowerCase();
+  const items = (menuQuery.data ?? []).filter((i) => !isSearching || i.name.toLowerCase().includes(query));
   const dailyItems = items.filter((i) => !i.alwaysAvailable);
   const constantItems = items.filter((i) => i.alwaysAvailable);
   const dailyCategories = Array.from(new Set(dailyItems.map((i) => i.category)));
   const constantCategories = Array.from(new Set(constantItems.map((i) => i.category)));
 
-  const renderCategory = (cat: string, catItems: MenuItem[], showToggle: boolean) => (
-    <div key={cat}>
-      <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: C.muted }}>{cat}</p>
-      <div className="flex flex-col gap-2">
-        {catItems.map((item) => (
-          <ItemRow
-            key={item.id}
-            item={item}
-            showToggle={showToggle}
-            canEdit={effectiveCanEdit}
-            isOwner={isOwner}
-            onToggle={() => toggleAvailability.mutate({ id: item.id, isAvailableToday: !item.isAvailableToday })}
-            onDelete={() => deleteItem.mutate(item.id)}
-            onUpdate={(input, onSuccess) => updateItem.mutate({ id: item.id, input }, { onSuccess })}
-            updateIsPending={updateItem.isPending}
-            updateError={updateItem.isError ? (updateItem.error as Error).message : null}
-          />
-        ))}
+  const renderCategory = (sectionKey: string, cat: string, catItems: MenuItem[], showToggle: boolean) => {
+    const key = `${sectionKey}:${cat}`;
+    const isOpen = isSearching || expandedSections.has(key);
+    return (
+      <div key={key}>
+        <button
+          onClick={() => toggleSection(key)}
+          className="w-full flex items-center justify-between py-2"
+          disabled={isSearching}
+        >
+          <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: C.muted }}>
+            {cat} <span style={{ color: C.muted, opacity: 0.7 }}>({catItems.length})</span>
+          </p>
+          {!isSearching && (
+            <ChevronRight size={14} style={{ color: C.muted, transform: isOpen ? "rotate(90deg)" : "none", transition: "transform 0.15s" }} />
+          )}
+        </button>
+        {isOpen && (
+          <div className="flex flex-col gap-2 mt-2">
+            {catItems.map((item) => (
+              <ItemRow
+                key={item.id}
+                item={item}
+                showToggle={showToggle}
+                canEdit={effectiveCanEdit}
+                isOwner={isOwner}
+                onToggle={() => toggleAvailability.mutate({ id: item.id, isAvailableToday: !item.isAvailableToday })}
+                onDelete={() => deleteItem.mutate(item.id)}
+                onUpdate={(input, onSuccess) => updateItem.mutate({ id: item.id, input }, { onSuccess })}
+                updateIsPending={updateItem.isPending}
+                updateError={updateItem.isError ? (updateItem.error as Error).message : null}
+              />
+            ))}
+          </div>
+        )}
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="flex flex-col gap-8">
@@ -333,13 +364,26 @@ export default function MenuPage() {
         <p className="text-sm mt-1" style={{ color: C.muted }}>Toggle what&apos;s on today&apos;s rotating menu, and manage the rest of the menu when it changes.</p>
       </div>
 
+      <div className="relative">
+        <Search size={14} style={{ color: C.muted, position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }} />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search for a menu item…"
+          className="w-full pl-8 pr-3 py-2.5 rounded-xl text-sm"
+          style={{ border: `1px solid ${C.border}` }}
+        />
+      </div>
+
       <div className="flex flex-col gap-5">
         <p className="text-sm font-semibold" style={{ color: C.text }}>Today&apos;s Lunch &amp; Dinner</p>
         {dailyItems.length === 0 && (
-          <p className="text-sm" style={{ color: C.muted }}>No rotating menu items yet — add one below.</p>
+          <p className="text-sm" style={{ color: C.muted }}>
+            {isSearching ? `No rotating items match "${search.trim()}".` : "No rotating menu items yet — add one below."}
+          </p>
         )}
-        {dailyCategories.map((cat) => renderCategory(cat, dailyItems.filter((i) => i.category === cat), true))}
-        {effectiveCanEdit && (
+        {dailyCategories.map((cat) => renderCategory("daily", cat, dailyItems.filter((i) => i.category === cat), true))}
+        {effectiveCanEdit && !isSearching && (
           <AddItemForm
             categories={dailyCategories}
             alwaysAvailable={false}
@@ -355,10 +399,12 @@ export default function MenuPage() {
           <p className="text-xs mt-0.5" style={{ color: C.muted }}>Breakfast, drinks, the all-day menu — orderable every day, no daily toggle needed.</p>
         </div>
         {constantItems.length === 0 && (
-          <p className="text-sm" style={{ color: C.muted }}>No standing menu items yet — add one below.</p>
+          <p className="text-sm" style={{ color: C.muted }}>
+            {isSearching ? `No standing items match "${search.trim()}".` : "No standing menu items yet — add one below."}
+          </p>
         )}
-        {constantCategories.map((cat) => renderCategory(cat, constantItems.filter((i) => i.category === cat), false))}
-        {effectiveCanEdit && (
+        {constantCategories.map((cat) => renderCategory("constant", cat, constantItems.filter((i) => i.category === cat), false))}
+        {effectiveCanEdit && !isSearching && (
           <AddItemForm
             categories={constantCategories}
             alwaysAvailable
