@@ -104,6 +104,28 @@ export function useConfirmBookingPayout() {
   });
 }
 
+/** Corrects an already-confirmed booking's `paidAt` date — for when the
+ * "Confirm payout" button wasn't clicked the same day the money actually
+ * arrived. Financials/reports bucket income by this date (Architecture
+ * Decision 89), so a wrong one silently puts the booking's income in the
+ * wrong month — Architecture Decision 90 lets staff fix it directly. Kept
+ * separate from useConfirmBookingPayout() (which always confirms as of
+ * today) rather than overloading that hook's simple bookingId signature. */
+export function useEditPaidAt() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ bookingId, paidAt }: { bookingId: string; paidAt: string }) =>
+      fetchJson<Booking>(`/api/bookings/${bookingId}/confirm`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "CONFIRMED", paidAt }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bookings"] });
+    },
+  });
+}
+
 /** Reverts a booking back to EXPECTED (clears `paidAt`) — for when a
  * booking was marked CONFIRMED but the money hasn't actually arrived yet.
  * User clarification, 2026-08-04: "confirmed" means payment was actually

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X, Check, Undo2, UtensilsCrossed, LogOut, Download, Loader2, Copy, KeyRound, Trash2 } from "lucide-react";
+import { X, Check, Undo2, UtensilsCrossed, LogOut, Download, Loader2, Copy, KeyRound, Trash2, Pencil } from "lucide-react";
 import { Pill } from "@/components/primitives";
 import { useEffectiveUser } from "@/components/effective-user-context";
 import { C } from "@/lib/colors";
@@ -9,6 +9,7 @@ import { fmtCurrency } from "@/lib/format";
 import { nightsBetween } from "@/lib/periods";
 import { BOOKING_SOURCE_LABEL, ISSUE_STATUS_TONE, PAYMENT_METHOD_LABEL } from "@/lib/labels";
 import { useDeleteOrder, useOrders } from "@/lib/queries/orders";
+import { useEditPaidAt } from "@/lib/queries/bookings";
 import { buildGuestReceipt } from "@/lib/guest-receipt";
 import type { Booking, Issue, PaymentMethod, Property, Room, Schedule } from "@/lib/types";
 import { BookingFormRouter } from "./booking-form-router";
@@ -73,9 +74,17 @@ export function BookingDetailModal({
   const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
   const [deleteReason, setDeleteReason] = useState("");
   const [deletePin, setDeletePin] = useState("");
+  const [isEditingPaidAt, setIsEditingPaidAt] = useState(false);
+  const [draftPaidAt, setDraftPaidAt] = useState("");
 
   const { effectiveUser } = useEffectiveUser();
   const deleteOrder = useDeleteOrder();
+  const editPaidAt = useEditPaidAt();
+
+  const handleSavePaidAt = () => {
+    if (!draftPaidAt) return;
+    editPaidAt.mutate({ bookingId: booking.id, paidAt: draftPaidAt }, { onSuccess: () => setIsEditingPaidAt(false) });
+  };
 
   const nights = nightsBetween(booking.checkIn, booking.checkOut);
   const relatedShifts = schedules.filter((s) => s.date >= booking.checkIn && s.date <= booking.checkOut);
@@ -238,6 +247,53 @@ export function BookingDetailModal({
                 {booking.status === "CONFIRMED" ? "Confirmed" : "Expected"}
               </Pill>
             </div>
+            {booking.status === "CONFIRMED" && booking.paidAt && (
+              <div className="p-3 rounded-xl" style={{ background: C.bg }}>
+                {isEditingPaidAt ? (
+                  <div className="flex flex-col gap-2">
+                    <p className="text-xs" style={{ color: C.muted }}>
+                      Confirmed date — this decides which month&apos;s income/report this booking counts toward.
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="date"
+                        value={draftPaidAt}
+                        onChange={(e) => setDraftPaidAt(e.target.value)}
+                        className="flex-1 px-3 py-2 rounded-lg text-sm"
+                        style={{ border: `1px solid ${C.border}` }}
+                      />
+                      <button
+                        onClick={handleSavePaidAt}
+                        disabled={!draftPaidAt || editPaidAt.isPending}
+                        className="text-xs font-semibold px-3 py-2 rounded-lg"
+                        style={{ background: draftPaidAt ? C.text : C.border, color: draftPaidAt ? "#fff" : C.muted }}
+                      >
+                        {editPaidAt.isPending ? "Saving…" : "Save"}
+                      </button>
+                      <button onClick={() => setIsEditingPaidAt(false)} className="text-xs font-semibold" style={{ color: C.muted }}>
+                        Cancel
+                      </button>
+                    </div>
+                    {editPaidAt.isError && <p className="text-xs text-destructive">{(editPaidAt.error as Error).message}</p>}
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs" style={{ color: C.muted }}>Confirmed</p>
+                      <p className="text-sm font-semibold" style={{ color: C.text }}>{booking.paidAt}</p>
+                    </div>
+                    {canEdit && (
+                      <button
+                        onClick={() => { setDraftPaidAt(booking.paidAt ?? ""); setIsEditingPaidAt(true); }}
+                        title="Edit confirmed date"
+                      >
+                        <Pencil size={14} style={{ color: C.muted }} />
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
             {canEdit && booking.status === "EXPECTED" && (
               <button
                 onClick={() => onConfirm(booking.id)}

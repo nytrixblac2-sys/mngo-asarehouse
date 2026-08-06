@@ -9,13 +9,29 @@ const bodySchema = z.object({
   // (or an empty body) keep confirming, same as before this endpoint
   // could also revert a booking.
   status: z.enum(["CONFIRMED", "EXPECTED"]).default("CONFIRMED"),
+  /** Only meaningful when status is CONFIRMED. Omit for the normal
+   * one-click "Confirm payout" flow (defaults to today, same as before —
+   * see Architecture Decision 90 below). Pass an explicit date to
+   * *correct* an already-confirmed booking's date after the fact, e.g.
+   * the button wasn't clicked the same day the money actually arrived.
+   * Ignored when status is EXPECTED (paidAt is always cleared to null). */
+  paidAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Expected YYYY-MM-DD").optional(),
 });
 
 /**
- * Sets a booking's payment-confirmation status, in either direction.
- * `paidAt` is always server-computed here, never accepted from the
- * client — context/02-architecture-context.md invariant #4 — the client
- * only says which status it wants, not what date to use.
+ * Sets a booking's payment-confirmation status, in either direction, and
+ * — as of Architecture Decision 90 — lets that confirmation date be
+ * corrected after the fact. Previously `paidAt` was always
+ * server-computed as "today," never accepted from the client at all
+ * (context/02-architecture-context.md invariant #4); that invariant is
+ * now narrower: the *default* confirm action still always uses today
+ * (the client can't backdate a fresh confirmation by omitting `paidAt`
+ * and expecting anything but today), but an explicit edit is allowed,
+ * gated the same as confirming itself (managers only). This exists
+ * because Financials/reports now bucket income by `paidAt`, not
+ * `checkIn` (Architecture Decision 89) — a wrong confirmation date
+ * silently puts a booking's income in the wrong month's report, so staff
+ * need a way to fix it directly rather than it being a support request.
  *
  * User clarification, 2026-08-04: "confirmed" means money was actually
  * sent/received, not just that a booking exists — the CSV bulk importer
@@ -43,10 +59,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     return apiError("Not found", 404);
   }
 
-  const today = new Date();
   const paidAt =
     parsed.data.status === "CONFIRMED"
-      ? new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()))
+      ? new Date(parsed.data.paidAt ?? new Date().toISOString().slice(0, 10))
       : null;
 
   const updated = await prisma.booking.update({
