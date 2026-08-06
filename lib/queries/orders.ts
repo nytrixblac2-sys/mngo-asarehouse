@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchJson } from "@/lib/api-client";
-import type { IssueStatus, Order } from "@/lib/types";
+import type { IssueStatus, MenuStation, Order } from "@/lib/types";
 
 export interface OrderInput {
   bookingId: string;
@@ -63,7 +63,7 @@ export function useDeleteOrder() {
 export function useUpdateOrderStatus() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ orderId, station, status }: { orderId: string; station: "KITCHEN" | "BAR"; status: IssueStatus }) =>
+    mutationFn: ({ orderId, station, status }: { orderId: string; station: MenuStation; status: IssueStatus }) =>
       fetchJson<Order>(`/api/orders/${orderId}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },

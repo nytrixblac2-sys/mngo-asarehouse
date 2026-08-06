@@ -7,7 +7,18 @@ import { fmtCurrency } from "@/lib/format";
 import { isMenuItemOrderable } from "@/lib/menu";
 import { useMenuItems } from "@/lib/queries/menu";
 import { useCreateOrder } from "@/lib/queries/orders";
-import type { Currency } from "@/lib/types";
+import type { Currency, MenuStation } from "@/lib/types";
+
+/** "Menu" covers both Kitchen and Bar stations (food + drinks together) —
+ * Shop and Experiences are their own tabs, same split as the guest's own
+ * ordering panel (app/track/guest-bill-view.tsx). Architecture Decision 91. */
+type OrderTab = "MENU" | "SHOP" | "EXPERIENCE";
+const TAB_STATIONS: Record<OrderTab, MenuStation[]> = {
+  MENU: ["KITCHEN", "BAR"],
+  SHOP: ["SHOP"],
+  EXPERIENCE: ["EXPERIENCE"],
+};
+const TAB_LABEL: Record<OrderTab, string> = { MENU: "Menu", SHOP: "Shop", EXPERIENCE: "Experiences" };
 
 /**
  * Staff-side "order for guest" — Janet picks from orderable menu items on
@@ -30,11 +41,15 @@ export function GuestOrderForm({
   const createOrder = useCreateOrder();
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [search, setSearch] = useState("");
+  const [tab, setTab] = useState<OrderTab>("MENU");
 
   const items = (menuQuery.data ?? []).filter(isMenuItemOrderable);
+  // The cart spans all three tabs — Janet can add a meal, a shop item, and
+  // an experience to the same order for a guest in one go.
+  const tabItems = items.filter((i) => TAB_STATIONS[tab].includes(i.station));
   const visibleItems = search.trim()
-    ? items.filter((i) => i.name.toLowerCase().includes(search.trim().toLowerCase()))
-    : items;
+    ? tabItems.filter((i) => i.name.toLowerCase().includes(search.trim().toLowerCase()))
+    : tabItems;
   const categories = Array.from(new Set(visibleItems.map((i) => i.category)));
 
   const setQty = (id: string, qty: number) => {
@@ -65,13 +80,26 @@ export function GuestOrderForm({
         </div>
         <p className="text-xs mb-3" style={{ color: C.muted }}>Only today&apos;s available items are shown.</p>
 
+        <div className="flex items-center gap-1 rounded-full p-1 mb-3" style={{ background: C.bg }}>
+          {(Object.keys(TAB_LABEL) as OrderTab[]).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className="flex-1 text-xs font-semibold px-3 py-2 rounded-full"
+              style={{ background: tab === t ? "#fff" : "transparent", color: tab === t ? C.text : C.muted }}
+            >
+              {TAB_LABEL[t]}
+            </button>
+          ))}
+        </div>
+
         {items.length > 0 && (
           <div className="relative mb-4">
             <Search size={14} style={{ color: C.muted, position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }} />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search the menu…"
+              placeholder={`Search ${TAB_LABEL[tab].toLowerCase()}…`}
               className="w-full pl-8 pr-3 py-2.5 rounded-xl text-sm"
               style={{ border: `1px solid ${C.border}` }}
             />
@@ -79,9 +107,12 @@ export function GuestOrderForm({
         )}
 
         {items.length === 0 && (
-          <p className="text-sm" style={{ color: C.muted }}>No menu items are marked available today — turn some on from the Kitchen screen first.</p>
+          <p className="text-sm" style={{ color: C.muted }}>No menu items are marked available today — turn some on from the Menu screen first.</p>
         )}
-        {items.length > 0 && visibleItems.length === 0 && (
+        {items.length > 0 && tabItems.length === 0 && (
+          <p className="text-sm" style={{ color: C.muted }}>Nothing available under {TAB_LABEL[tab]} right now.</p>
+        )}
+        {tabItems.length > 0 && visibleItems.length === 0 && (
           <p className="text-sm" style={{ color: C.muted }}>No items match &quot;{search}&quot;.</p>
         )}
 

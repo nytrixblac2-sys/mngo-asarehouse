@@ -90,6 +90,8 @@ function AddItemForm({
       >
         <option value="KITCHEN">Kitchen</option>
         <option value="BAR">Bar</option>
+        <option value="SHOP">Shop</option>
+        <option value="EXPERIENCE">Experiences</option>
       </select>
       <button
         onClick={handleAdd}

@@ -8,17 +8,34 @@ import { fmtCurrency } from "@/lib/format";
 import { nightsBetween } from "@/lib/periods";
 import { buildGuestReceipt } from "@/lib/guest-receipt";
 import { useGuestBill, useGuestLogout, useGuestMenu, useGuestOrder, type GuestBill } from "@/lib/queries/guest";
+import type { MenuStation } from "@/lib/types";
+
+/** "Menu" covers both Kitchen and Bar stations (food + drinks together,
+ * same as staff see them on the /menu screen) — Shop and Experiences are
+ * their own tabs. Architecture Decision 91. */
+type GuestOrderTab = "MENU" | "SHOP" | "EXPERIENCE";
+const TAB_STATIONS: Record<GuestOrderTab, MenuStation[]> = {
+  MENU: ["KITCHEN", "BAR"],
+  SHOP: ["SHOP"],
+  EXPERIENCE: ["EXPERIENCE"],
+};
+const TAB_LABEL: Record<GuestOrderTab, string> = { MENU: "Menu", SHOP: "Shop", EXPERIENCE: "Experiences" };
 
 function GuestOrderPanel({ onClose }: { onClose: () => void }) {
   const menuQuery = useGuestMenu(true);
   const placeOrder = useGuestOrder();
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [search, setSearch] = useState("");
+  const [tab, setTab] = useState<GuestOrderTab>("MENU");
 
   const items = menuQuery.data ?? [];
+  // The cart spans all three tabs at once — a guest can add a meal, a shop
+  // item, and an experience in one order, which the server then splits
+  // into independent per-station tickets automatically.
+  const tabItems = items.filter((i) => TAB_STATIONS[tab].includes(i.station));
   const visibleItems = search.trim()
-    ? items.filter((i) => i.name.toLowerCase().includes(search.trim().toLowerCase()))
-    : items;
+    ? tabItems.filter((i) => i.name.toLowerCase().includes(search.trim().toLowerCase()))
+    : tabItems;
   const categories = Array.from(new Set(visibleItems.map((i) => i.category)));
   const setQty = (id: string, qty: number) => setQuantities((q) => ({ ...q, [id]: Math.max(0, qty) }));
   const selected = items.map((i) => ({ item: i, quantity: quantities[i.id] ?? 0 })).filter((s) => s.quantity > 0);
@@ -36,8 +53,20 @@ function GuestOrderPanel({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex justify-end" style={{ background: "rgba(0,0,0,0.3)" }}>
       <div className="w-full max-w-sm h-full p-6 overflow-y-auto flex flex-col" style={{ background: "#fff" }}>
-        <p className="text-lg font-bold mb-1" style={{ color: C.text }}>Order food</p>
+        <p className="text-lg font-bold mb-1" style={{ color: C.text }}>Order</p>
         <p className="text-xs mb-3" style={{ color: C.muted }}>Only today&apos;s available items are shown.</p>
+        <div className="flex items-center gap-1 rounded-full p-1 mb-3" style={{ background: "#F2F2F2" }}>
+          {(Object.keys(TAB_LABEL) as GuestOrderTab[]).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className="flex-1 text-xs font-semibold px-3 py-2 rounded-full"
+              style={{ background: tab === t ? "#fff" : "transparent", color: tab === t ? C.text : C.muted }}
+            >
+              {TAB_LABEL[t]}
+            </button>
+          ))}
+        </div>
         {items.length === 0 && !menuQuery.isLoading && (
           <p className="text-sm" style={{ color: C.muted }}>Nothing is available to order right now — check back later.</p>
         )}
@@ -47,13 +76,16 @@ function GuestOrderPanel({ onClose }: { onClose: () => void }) {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search the menu…"
+              placeholder={`Search ${TAB_LABEL[tab].toLowerCase()}…`}
               className="w-full pl-8 pr-3 py-2.5 rounded-xl text-sm"
               style={{ border: `1px solid ${C.border}` }}
             />
           </div>
         )}
-        {items.length > 0 && visibleItems.length === 0 && (
+        {tabItems.length === 0 && items.length > 0 && (
+          <p className="text-sm" style={{ color: C.muted }}>Nothing available under {TAB_LABEL[tab]} right now.</p>
+        )}
+        {tabItems.length > 0 && visibleItems.length === 0 && (
           <p className="text-sm" style={{ color: C.muted }}>No items match &quot;{search}&quot;.</p>
         )}
         <div className="flex flex-col gap-5 flex-1">
@@ -181,7 +213,7 @@ function BillContent({ bill }: { bill: GuestBill }) {
           className="w-full text-sm font-semibold py-3 rounded-xl flex items-center justify-center gap-2"
           style={{ background: C.text, color: "#fff" }}
         >
-          <UtensilsCrossed size={16} /> Order food
+          <UtensilsCrossed size={16} /> Order food, shop &amp; experiences
         </button>
       )}
       {checkedOut && (

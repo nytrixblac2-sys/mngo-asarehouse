@@ -9,18 +9,28 @@ import { useBookings } from "@/lib/queries/bookings";
 import { useRooms } from "@/lib/queries/rooms";
 import { useWorkspace } from "@/lib/queries/workspace";
 import { C } from "@/lib/colors";
-import { ORDER_STATUS_LABEL, ORDER_STATUS_TONE } from "@/lib/labels";
+import { ORDER_STATUS_LABEL, ORDER_STATUS_TONE, STATION_STATUS_FIELD } from "@/lib/labels";
 import type { IssueStatus, MenuStation } from "@/lib/types";
 
 const STATUS_OPTIONS: IssueStatus[] = ["OPEN", "IN_PROGRESS", "RESOLVED"];
 
+const STATION_DESCRIPTION: Record<MenuStation, string> = {
+  KITCHEN: "Food orders waiting to be prepared and served.",
+  BAR: "Drink orders waiting to be prepared and served.",
+  SHOP: "Shop purchases waiting to be handed over.",
+  EXPERIENCE: "Booked experiences waiting to happen.",
+};
+
 /**
- * Order fulfillment tickets for one station (Kitchen or Bar) — shared by
- * app/(app)/kitchen/page.tsx and app/(app)/bar/page.tsx, since the two
- * screens are identical apart from which of Order.kitchenStatus/barStatus
- * they read and which of each order's items (by MenuItem.station) they
- * show. See Order model doc comment (prisma/schema.prisma) and
- * Architecture Decision 79 for the independent-per-station design.
+ * Order fulfillment tickets for one station (Kitchen, Bar, Shop, or
+ * Experiences) — shared by app/(app)/kitchen/page.tsx,
+ * app/(app)/bar/page.tsx, app/(app)/shop/page.tsx, and
+ * app/(app)/experiences/page.tsx, since all four screens are identical
+ * apart from which of Order.kitchenStatus/barStatus/shopStatus/
+ * experienceStatus they read and which of each order's items (by
+ * MenuItem.station) they show. See Order model doc comment
+ * (prisma/schema.prisma) and Architecture Decisions 79/91 for the
+ * independent-per-station design.
  */
 export function OrderFulfillmentScreen({ station, title }: { station: MenuStation; title: string }) {
   const { effectiveCanEdit } = useEffectiveUser();
@@ -54,7 +64,7 @@ export function OrderFulfillmentScreen({ station, title }: { station: MenuStatio
 
   const bookings = bookingsQuery.data ?? [];
   const rooms = roomsQuery.data ?? [];
-  const statusField = station === "KITCHEN" ? "kitchenStatus" : "barStatus";
+  const statusField = STATION_STATUS_FIELD[station];
 
   const tickets = (ordersQuery.data ?? [])
     .filter((o) => o[statusField] !== null && o.deletedAt === null)
@@ -76,9 +86,7 @@ export function OrderFulfillmentScreen({ station, title }: { station: MenuStatio
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-bold" style={{ color: C.text }}>{title}</h1>
-        <p className="text-sm mt-1" style={{ color: C.muted }}>
-          {station === "KITCHEN" ? "Food orders waiting to be prepared and served." : "Drink orders waiting to be prepared and served."}
-        </p>
+        <p className="text-sm mt-1" style={{ color: C.muted }}>{STATION_DESCRIPTION[station]}</p>
       </div>
 
       {tickets.length === 0 && (

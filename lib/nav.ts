@@ -15,17 +15,22 @@ export const NAV_ITEMS = [
  * same underlying /bookings route, just a different label for a room-based
  * product. "Menu" (/menu) is daily menu curation (formerly the "Kitchen"
  * label on this same route, when order fulfillment didn't exist yet).
- * "Kitchen" (/kitchen) and "Bar" (/bar) are order-fulfillment screens —
- * Kitchen for food, Bar for drinks, split by MenuItem.station. Team and
- * Financials become owner-only visibility for HOSTEL (Architecture
- * Decision — see app-shell.tsx / tabs-sidebar.tsx / top-bar.tsx), not
- * filtered here since this array doesn't know the viewer's role. */
+ * "Kitchen"/"Bar"/"Shop"/"Experiences" are order-fulfillment screens, one
+ * per MenuItem.station — Kitchen for food, Bar for drinks, Shop for
+ * gift-shop purchases, Experiences for bookable guest experiences
+ * (Architecture Decision 91 added the latter two alongside the original
+ * Kitchen/Bar). Team and Financials become owner-only visibility for
+ * HOSTEL (Architecture Decision — see app-shell.tsx / tabs-sidebar.tsx /
+ * top-bar.tsx), not filtered here since this array doesn't know the
+ * viewer's role. */
 export const NAV_ITEMS_HOSTEL = [
   { key: "dashboard", label: "Dashboard", href: "/dashboard" },
   { key: "bookings", label: "Guest", href: "/bookings" },
   { key: "menu", label: "Menu", href: "/menu" },
   { key: "kitchen", label: "Kitchen", href: "/kitchen" },
   { key: "bar", label: "Bar", href: "/bar" },
+  { key: "shop", label: "Shop", href: "/shop" },
+  { key: "experiences", label: "Experiences", href: "/experiences" },
   { key: "issues", label: "Issues & Schedules", href: "/issues" },
   { key: "team", label: "Team", href: "/team" },
   { key: "financials", label: "Financials", href: "/financials" },

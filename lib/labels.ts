@@ -54,7 +54,22 @@ export const EXPENSE_CATEGORY_TONE: Record<ExpenseCategory, "accent" | "teal" | 
 export const MENU_STATION_LABEL: Record<MenuStation, string> = {
   KITCHEN: "Kitchen",
   BAR: "Bar",
+  SHOP: "Shop",
+  EXPERIENCE: "Experiences",
 };
+
+/** Which Order column tracks a given station's fulfillment status — the
+ * one shared map every station/status helper reads from, client and
+ * server alike (server-side lib/orders.ts re-exports this rather than
+ * duplicating it, since this file has no server-only dependencies and
+ * client components need the same map without pulling in lib/orders.ts's
+ * Prisma import). */
+export const STATION_STATUS_FIELD = {
+  KITCHEN: "kitchenStatus",
+  BAR: "barStatus",
+  SHOP: "shopStatus",
+  EXPERIENCE: "experienceStatus",
+} as const satisfies Record<MenuStation, string>;
 
 /** Order.kitchenStatus/barStatus reuse IssueStatus (Architecture Decision
  * 79) but read as a fulfillment stage here, not an issue lifecycle —

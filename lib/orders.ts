@@ -2,7 +2,8 @@ import { z } from "zod";
 import { prisma } from "./prisma";
 import { isMenuItemOrderable } from "./menu";
 import { verifyWorkspacePin } from "./workspace-pin";
-import type { Order } from "./types";
+import { STATION_STATUS_FIELD } from "./labels";
+import type { MenuStation, Order } from "./types";
 
 export const orderInputSchema = z.object({
   bookingId: z.string().uuid(),
@@ -17,7 +18,7 @@ export const orderInputSchema = z.object({
 });
 
 export const orderStatusInputSchema = z.object({
-  station: z.enum(["KITCHEN", "BAR"]),
+  station: z.enum(["KITCHEN", "BAR", "SHOP", "EXPERIENCE"]),
   status: z.enum(["OPEN", "IN_PROGRESS", "RESOLVED"]),
 });
 
@@ -37,12 +38,14 @@ type OrderRow = {
   createdAt: Date;
   kitchenStatus: Order["kitchenStatus"];
   barStatus: Order["barStatus"];
+  shopStatus: Order["shopStatus"];
+  experienceStatus: Order["experienceStatus"];
   deletedAt: Date | null;
   deletedBy: string | null;
   deleteReason: string | null;
   items: {
     id: string;
-    menuItemId: string;
+    menuItemId: string | null;
     name: string;
     quantity: number;
     unitPrice: unknown;
@@ -59,6 +62,8 @@ export function serializeOrder(o: OrderRow): Order {
     createdAt: o.createdAt.toISOString(),
     kitchenStatus: o.kitchenStatus,
     barStatus: o.barStatus,
+    shopStatus: o.shopStatus,
+    experienceStatus: o.experienceStatus,
     deletedAt: o.deletedAt ? o.deletedAt.toISOString() : null,
     deletedBy: o.deletedBy,
     deleteReason: o.deleteReason,
@@ -115,12 +120,14 @@ export async function createGuestOrder(params: {
 
   const byId = new Map(menuItems.map((m) => [m.id, m]));
   const orderedStations = new Set(params.items.map(({ menuItemId }) => byId.get(menuItemId)!.station));
+  const statusColumns = Object.fromEntries(
+    Object.entries(STATION_STATUS_FIELD).map(([station, field]) => [field, orderedStations.has(station as MenuStation) ? "OPEN" : null])
+  );
   const order = await prisma.order.create({
     data: {
       workspaceId: params.workspaceId,
       bookingId: params.bookingId,
-      kitchenStatus: orderedStations.has("KITCHEN") ? "OPEN" : null,
-      barStatus: orderedStations.has("BAR") ? "OPEN" : null,
+      ...statusColumns,
       items: {
         create: params.items.map(({ menuItemId, quantity }) => {
           const item = byId.get(menuItemId)!;
@@ -143,28 +150,29 @@ export async function createGuestOrder(params: {
 
 /**
  * Advances one station's fulfillment status on an order — used by the
- * Kitchen and Bar screens. The two stations are tracked independently
- * (see Order model doc comment): marking food "Delivered" never touches
- * the drinks side of the same order.
+ * Kitchen, Bar, Shop, and Experiences screens. Every station is tracked
+ * independently (see Order model doc comment): marking food "Delivered"
+ * never touches the drinks, shop, or experience side of the same order.
  */
 export async function setOrderStationStatus(params: {
   workspaceId: string;
   orderId: string;
-  station: "KITCHEN" | "BAR";
+  station: MenuStation;
   status: "OPEN" | "IN_PROGRESS" | "RESOLVED";
 }) {
   const order = await prisma.order.findUnique({ where: { id: params.orderId } });
   if (!order || order.workspaceId !== params.workspaceId) {
     throw new OrderError("Order not found");
   }
-  const currentStatus = params.station === "KITCHEN" ? order.kitchenStatus : order.barStatus;
+  const field = STATION_STATUS_FIELD[params.station];
+  const currentStatus = order[field];
   if (currentStatus === null) {
     throw new OrderError(`This order has no ${params.station.toLowerCase()} items`);
   }
 
   return prisma.order.update({
     where: { id: params.orderId },
-    data: params.station === "KITCHEN" ? { kitchenStatus: params.status } : { barStatus: params.status },
+    data: { [field]: params.status },
     include: { items: true },
   });
 }

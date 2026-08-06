@@ -11,12 +11,23 @@ import { BOOKING_SOURCE_LABEL, ISSUE_STATUS_TONE, PAYMENT_METHOD_LABEL } from "@
 import { useDeleteOrder, useOrders } from "@/lib/queries/orders";
 import { useEditPaidAt } from "@/lib/queries/bookings";
 import { buildGuestReceipt } from "@/lib/guest-receipt";
-import type { Booking, Issue, PaymentMethod, Property, Room, Schedule } from "@/lib/types";
+import type { Booking, Issue, MenuStation, PaymentMethod, Property, Room, Schedule } from "@/lib/types";
 import { BookingFormRouter } from "./booking-form-router";
 import { GuestOrderForm } from "./guest-order-form";
 import type { BookingInput } from "@/lib/queries/bookings";
 
 const PAYMENT_METHODS: PaymentMethod[] = ["CASH", "BANK_TRANSFER", "MOMO", "CARD"];
+
+/** Groups Kitchen+Bar items together as "Food & Drink" — same grouping
+ * the ordering panels themselves use — so the owner/manager can tell
+ * shop purchases and booked experiences apart from food in a guest's
+ * order history, even within one mixed order (Architecture Decision 91). */
+const ORDER_ITEM_GROUP_LABEL: Record<MenuStation, string> = {
+  KITCHEN: "Food & Drink",
+  BAR: "Food & Drink",
+  SHOP: "Shop",
+  EXPERIENCE: "Experiences",
+};
 
 /**
  * context/07-mockup.jsx BookingDetailModal — the single canonical modal
@@ -94,7 +105,7 @@ export function BookingDetailModal({
   const isHostelBooking = !!room;
   const ordersQuery = useOrders(booking.id, { enabled: isHostelBooking });
   const orders = ordersQuery.data ?? [];
-  const foodTotal = orders.reduce((sum, o) => sum + o.items.reduce((s, i) => s + i.unitPrice * i.quantity, 0), 0);
+  const ordersTotal = orders.reduce((sum, o) => sum + o.items.reduce((s, i) => s + i.unitPrice * i.quantity, 0), 0);
   const propertyName = properties.find((p) => p.id === booking.propertyId)?.name ?? "";
 
   const handleDownloadReceipt = async () => {
@@ -315,7 +326,7 @@ export function BookingDetailModal({
             {isHostelBooking && (
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: C.muted }}>Food orders</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: C.muted }}>Orders</p>
                   {canEdit && !booking.checkedOutAt && (
                     <button
                       onClick={() => setShowOrderForm(true)}
@@ -333,13 +344,22 @@ export function BookingDetailModal({
                     {orders.map((order) => {
                       const orderTotal = order.items.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
                       const isDeletingThis = deletingOrderId === order.id;
+                      const groups = Array.from(new Set(order.items.map((i) => ORDER_ITEM_GROUP_LABEL[i.station])));
+                      const showGroupLabels = groups.length > 1;
                       return (
                         <div key={order.id} className="p-3 rounded-xl" style={{ background: C.bg }}>
-                          <div className="flex flex-col gap-1.5 mb-2">
-                            {order.items.map((item) => (
-                              <div key={item.id} className="flex items-center justify-between">
-                                <span className="text-sm" style={{ color: C.text }}>{item.quantity}× {item.name}</span>
-                                <span className="text-sm font-semibold" style={{ color: C.text }}>{fmtCurrency(item.unitPrice * item.quantity, item.currency)}</span>
+                          <div className="flex flex-col gap-3 mb-2">
+                            {groups.map((group) => (
+                              <div key={group} className="flex flex-col gap-1.5">
+                                {showGroupLabels && (
+                                  <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: C.muted }}>{group}</p>
+                                )}
+                                {order.items.filter((i) => ORDER_ITEM_GROUP_LABEL[i.station] === group).map((item) => (
+                                  <div key={item.id} className="flex items-center justify-between">
+                                    <span className="text-sm" style={{ color: C.text }}>{item.quantity}× {item.name}</span>
+                                    <span className="text-sm font-semibold" style={{ color: C.text }}>{fmtCurrency(item.unitPrice * item.quantity, item.currency)}</span>
+                                  </div>
+                                ))}
                               </div>
                             ))}
                           </div>
@@ -403,8 +423,8 @@ export function BookingDetailModal({
                       );
                     })}
                     <div className="flex items-center justify-between py-2 px-3 rounded-xl" style={{ background: C.tealSoft }}>
-                      <span className="text-sm font-semibold" style={{ color: C.teal }}>Food total</span>
-                      <span className="text-sm font-bold" style={{ color: C.teal }}>{fmtCurrency(foodTotal, booking.currency)}</span>
+                      <span className="text-sm font-semibold" style={{ color: C.teal }}>Orders total</span>
+                      <span className="text-sm font-bold" style={{ color: C.teal }}>{fmtCurrency(ordersTotal, booking.currency)}</span>
                     </div>
                   </div>
                 )}

@@ -95,13 +95,18 @@ enum IssueStatus {
   RESOLVED
 }
 
-/// Which physical station prepares a MenuItem — explicit rather than
-/// inferred from the free-text `category` (too fragile once staff add
-/// arbitrary categories). Drives which of the Kitchen/Bar screens an
-/// order's items show up on.
+/// Which physical station prepares/fulfills a MenuItem — explicit rather
+/// than inferred from the free-text `category` (too fragile once staff
+/// add arbitrary categories). Drives which of the Kitchen/Bar/Shop/
+/// Experiences screens an order's items show up on. SHOP and EXPERIENCE
+/// were added alongside KITCHEN/BAR (Architecture Decision 91) — same
+/// fulfillment-ticket mechanism, just for gift-shop purchases and bookable
+/// guest experiences instead of food and drink.
 enum MenuStation {
   KITCHEN
   BAR
+  SHOP
+  EXPERIENCE
 }
 
 /// How a guest paid at checkout (app/api/bookings/[id]/checkout) — HOSTEL
@@ -331,26 +336,30 @@ model MenuItem {
   @@index([workspaceId])
 }
 
-/// A guest's food/drink order against their stay — one Booking can have
-/// many Orders (e.g. one per day or per sitting). `kitchenStatus`/
-/// `barStatus` are independent (reusing IssueStatus — OPEN/IN_PROGRESS/
-/// RESOLVED, shown as Received/Preparing/Delivered): set at creation to
-/// OPEN if the order has any item for that station, else left null, so an
-/// order spanning both stations gets two independently-tracked tickets
-/// without one station's progress affecting the other. Soft-deletable
-/// (deletedAt/deletedBy/deleteReason) — a deleted order drops out of the
-/// guest's bill and the Kitchen/Bar screens but stays queryable for the
-/// owner (app/api/orders/[id]/route.ts DELETE, PIN-gated).
+/// A guest's order against their stay — one Booking can have many Orders
+/// (e.g. one per day or per sitting). `kitchenStatus`/`barStatus`/
+/// `shopStatus`/`experienceStatus` are independent (reusing IssueStatus —
+/// OPEN/IN_PROGRESS/RESOLVED, shown as Received/Preparing/Delivered): set
+/// at creation to OPEN if the order has any item for that station, else
+/// left null, so an order spanning multiple stations gets one
+/// independently-tracked ticket per station without one's progress
+/// affecting another's (Architecture Decision 91 added shopStatus/
+/// experienceStatus alongside the original kitchenStatus/barStatus).
+/// Soft-deletable (deletedAt/deletedBy/deleteReason) — a deleted order
+/// drops out of the guest's bill and the fulfillment screens but stays
+/// queryable for the owner (app/api/orders/[id]/route.ts DELETE, PIN-gated).
 model Order {
-  id            String       @id @default(uuid()) @db.Uuid
-  workspaceId   String       @db.Uuid
-  bookingId     String       @db.Uuid
-  kitchenStatus IssueStatus?
-  barStatus     IssueStatus?
-  deletedAt     DateTime?
-  deletedBy     String?
-  deleteReason  String?
-  createdAt     DateTime     @default(now())
+  id               String       @id @default(uuid()) @db.Uuid
+  workspaceId      String       @db.Uuid
+  bookingId        String       @db.Uuid
+  kitchenStatus    IssueStatus?
+  barStatus        IssueStatus?
+  shopStatus       IssueStatus?
+  experienceStatus IssueStatus?
+  deletedAt        DateTime?
+  deletedBy        String?
+  deleteReason     String?
+  createdAt        DateTime     @default(now())
 
   workspace Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   booking   Booking     @relation(fields: [bookingId], references: [id], onDelete: Cascade)
@@ -363,11 +372,18 @@ model Order {
 /// `name`/`unitPrice`/`currency`/`station` are snapshotted from MenuItem
 /// at order time so a later menu edit (price change or reclassifying
 /// which station prepares it) never rewrites a guest's past bill or which
-/// screen a historical order appeared on.
+/// screen a historical order appeared on. `menuItemId` is nullable with
+/// `onDelete: SetNull` (Architecture Decision 91) — a real production bug
+/// found while reseeding the menu: the FK was previously required with no
+/// cascade, so `DELETE /api/menu/[id]` on any item that had ever actually
+/// been ordered failed with a raw foreign-key-violation 500, contradicting
+/// this doc comment's own claim that past orders are "unaffected." The
+/// snapshot fields above are what make an OrderItem meaningful once
+/// `menuItemId` is null — nothing reads it back off an existing order.
 model OrderItem {
   id         String      @id @default(uuid()) @db.Uuid
   orderId    String      @db.Uuid
-  menuItemId String      @db.Uuid
+  menuItemId String?     @db.Uuid
   name       String
   quantity   Int
   unitPrice  Decimal     @db.Decimal(10, 2)
@@ -375,8 +391,8 @@ model OrderItem {
   station    MenuStation @default(KITCHEN)
   createdAt  DateTime    @default(now())
 
-  order    Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  menuItem MenuItem @relation(fields: [menuItemId], references: [id])
+  order    Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem MenuItem? @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
 
   @@index([orderId])
   @@index([menuItemId])
