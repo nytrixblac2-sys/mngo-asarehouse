@@ -54,6 +54,7 @@ const styles = StyleSheet.create({
   openingLabel: { fontSize: 8, color: "#00A699", textTransform: "uppercase", marginBottom: 2 },
   openingValue: { fontSize: 13, fontWeight: 700, color: "#00A699" },
   transferCard: { padding: 12, backgroundColor: "#FEF3C7", borderRadius: 6, marginTop: 4, marginBottom: 10, border: "1 solid #F59E0B" },
+  unconfirmedBox: { padding: 8, backgroundColor: "#FFFBEB", borderRadius: 6, border: "1 solid #F59E0B", marginBottom: 10 },
   transferLabel: { fontSize: 9, fontWeight: 700, color: "#92400E", marginBottom: 3 },
   transferValue: { fontSize: 16, fontWeight: 700, color: "#92400E" },
   transferSub: { fontSize: 8, color: "#92400E", marginTop: 3 },
@@ -105,6 +106,38 @@ function IncomeTable({ rows, currency }: { rows: ReportIncomeRow[]; currency: Cu
       ))}
       <View style={styles.totalRow}>
         <Text style={styles.totalLabel}>Total</Text>
+        <Text style={styles.totalValue}>{fmtCurrencyPdf(total, currency)}</Text>
+      </View>
+    </View>
+  );
+}
+
+/** Bookings that checked in this month but aren't confirmed/paid yet —
+ * shown for transparency (user request, 2026-08-06), never counted toward
+ * the Income table's total above it. Styled amber, like the other
+ * "money not yet in hand" card (transferCard), to read as distinct from
+ * real income at a glance. */
+function UnconfirmedTable({ rows, currency }: { rows: ReportIncomeRow[]; currency: Currency }) {
+  if (rows.length === 0) return null;
+  const total = rows.reduce((s, r) => s + r.amount, 0);
+  return (
+    <View style={styles.unconfirmedBox}>
+      <View style={styles.tableHeader}>
+        <Text style={[styles.th, styles.colDate]}>Check-in</Text>
+        <Text style={[styles.th, styles.colDesc]}>Guest / Source</Text>
+        <Text style={[styles.th, styles.colPerson]}>Status</Text>
+        <Text style={[styles.th, styles.colAmount]}>Amount owed</Text>
+      </View>
+      {rows.map((r, i) => (
+        <View key={i} style={styles.tableRow}>
+          <Text style={[styles.td, styles.colDate]}>{r.date}</Text>
+          <Text style={[styles.td, styles.colDesc]}>{r.label}{r.sublabel ? ` — ${r.sublabel}` : ""}</Text>
+          <Text style={[styles.td, styles.colPerson]}>Not paid</Text>
+          <Text style={[styles.td, styles.colAmount]}>{fmtCurrencyPdf(r.amount, currency)}</Text>
+        </View>
+      ))}
+      <View style={styles.totalRow}>
+        <Text style={styles.totalLabel}>Total owed (not received — excluded from income)</Text>
         <Text style={styles.totalValue}>{fmtCurrencyPdf(total, currency)}</Text>
       </View>
     </View>
@@ -235,6 +268,15 @@ export function ReportPdfDocument({ data }: { data: MonthlyReportData }) {
                   {/* Itemized income backing the overview/allocation figures above. */}
                   <Text style={styles.subheading}>Income — {currency}</Text>
                   <IncomeTable rows={current.incomeRows} currency={currency} />
+
+                  {/* Bookings that came in this month but haven't paid yet —
+                      listed for transparency, excluded from every total above. */}
+                  {current.unconfirmedRows.length > 0 && (
+                    <View wrap={false}>
+                      <Text style={styles.subheading}>Awaiting Payment — {currency}</Text>
+                      <UnconfirmedTable rows={current.unconfirmedRows} currency={currency} />
+                    </View>
+                  )}
 
                   {/* 4. Expenses (Owners + Operations). */}
                   <Text style={styles.subheading}>Expenses</Text>

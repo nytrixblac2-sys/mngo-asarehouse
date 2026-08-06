@@ -1,4 +1,4 @@
-import { applyMomo, bookingOrderTotal, computeManagementReport, computeOwnersReport, confirmedBookings, sumConfirmedIncome, sumConfirmedIncomeHostel } from "./financials";
+import { applyMomo, bookingOrderTotal, computeManagementReport, computeOwnersReport, confirmedBookings, outstandingBookings, sumConfirmedIncome, sumConfirmedIncomeHostel } from "./financials";
 import type { Allocation, Booking, Currency, Expense, ManualIncome, Order, PrevBalance, Property } from "./types";
 
 /** context/07-mockup.jsx GenerateReportModal's two checkboxes ("Owner Report",
@@ -39,6 +39,10 @@ interface CurrencyMonthFigures {
   owner: ReturnType<typeof computeOwnersReport>;
   management: ReturnType<typeof computeManagementReport>;
   incomeRows: ReportIncomeRow[];
+  /** Bookings that checked in this month but are still EXPECTED (unpaid) —
+   * listed for owner transparency, never summed into confirmedIncome or
+   * any total. See buildMonthlyReport's doc comment. */
+  unconfirmedRows: ReportIncomeRow[];
   ownerExpenseRows: ReportExpenseRow[];
   managementExpenseRows: ReportExpenseRow[];
   ownersBalanceStated: boolean;
@@ -97,6 +101,15 @@ function computeCurrencyFigures(params: {
   const monthExpenses = expenses.filter((e) => e.propertyId === property.id && e.currency === currency && e.date.startsWith(prefix));
   const monthManualIncome = manualIncome.filter((m) => m.propertyId === property.id && m.currency === currency && m.date.startsWith(prefix));
 
+  // Transparency, not income: bookings that checked in this month but
+  // haven't been confirmed/paid — shown separately so the owner sees the
+  // full picture of what came in, without those unpaid amounts touching
+  // any total. Scoped by checkIn (when the stay happened), not paidAt,
+  // since these have no paidAt yet.
+  const monthUnconfirmed = outstandingBookings(bookings).filter(
+    (b) => b.propertyId === property.id && b.currency === currency && b.checkIn.startsWith(prefix)
+  );
+
   const allocation = property.allocation[currency] ?? DEFAULT_ALLOCATION;
   const storedPrevBalance: PrevBalance = currency === "GHS" ? property.prevBalanceGhs : property.prevBalanceEur;
   const ownersBalanceStated = openingBalanceOverride?.owners !== undefined;
@@ -135,6 +148,17 @@ function computeCurrencyFigures(params: {
     })),
   ].sort((a, b) => (a.date < b.date ? -1 : 1));
 
+  const unconfirmedRows: ReportIncomeRow[] = monthUnconfirmed
+    .map((b) => ({
+      kind: "booking" as const,
+      label: b.guest,
+      sublabel: `${b.source === "AIRBNB" ? "Airbnb" : "Local"} · stayed ${b.checkIn} to ${b.checkOut} · not yet paid`,
+      // No paidAt to sort by yet — checkIn is the only date this row has.
+      date: b.checkIn,
+      amount: b.amount,
+    }))
+    .sort((a, b) => (a.date < b.date ? -1 : 1));
+
   const toRow = (e: Expense): ReportExpenseRow => ({
     date: e.date,
     description: e.description,
@@ -161,6 +185,7 @@ function computeCurrencyFigures(params: {
     owner,
     management,
     incomeRows,
+    unconfirmedRows,
     ownerExpenseRows,
     managementExpenseRows,
     ownersBalanceStated,
@@ -168,6 +193,15 @@ function computeCurrencyFigures(params: {
   };
 }
 
+/**
+ * User request, 2026-08-06: bookings that checked in this month but
+ * haven't been confirmed/paid yet should still appear in the report, for
+ * full owner transparency — "Victor's local booking that hasn't been
+ * confirmed yet should still be listed, but there will be no money from
+ * it because he hasn't paid yet." Each `CurrencyMonthFigures.unconfirmedRows`
+ * lists them separately from `incomeRows`, and they're never added into
+ * `confirmedIncome`, any allocation, or any running balance — only shown.
+ */
 export function buildMonthlyReport(params: {
   property: Property;
   bookings: Booking[];
