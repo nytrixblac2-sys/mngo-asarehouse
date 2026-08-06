@@ -19,6 +19,37 @@ export function sumConfirmedIncome(bookings: Booking[]): number {
   return bookings.filter((b) => b.status === "CONFIRMED").reduce((s, b) => s + b.amount, 0);
 }
 
+/**
+ * Cash-basis: which bookings actually count as income at all, full stop
+ * — CONFIRMED with a real `paidAt`. Callers then scope this further by
+ * whatever date range they need (a calendar month via `paidAt.startsWith`,
+ * or a rolling period via `inRange(paidAt, range)`) — deliberately not
+ * baked into this helper, since different screens bucket time differently
+ * (Financials/reports use calendar months, the Dashboard uses
+ * Week/Month/Year rolling periods).
+ *
+ * The critical part: every caller must key that date range off `paidAt`
+ * (when the money actually arrived), never `checkIn` (when the guest
+ * stayed) — those are frequently different months. Architecture Decision
+ * 89, from a real reporting mistake the user caught before sending a
+ * report: a guest who stays in May but settles their balance in July is
+ * July income, not May income — "this was not a stay, [they were]
+ * catching up on \[their\] balance."
+ */
+export function confirmedBookings(bookings: Booking[]): Booking[] {
+  return bookings.filter((b) => b.status === "CONFIRMED" && !!b.paidAt);
+}
+
+/** EXPECTED bookings — money owed but not yet received, independent of
+ * any month (a stay from six months ago can still be sitting unpaid).
+ * The "Outstanding balances" list — Architecture Decision 89's other
+ * half: money that isn't income yet has to stay visible *somewhere*, or
+ * it silently falls out of every month-scoped view once bookings stop
+ * being listed by checkIn. */
+export function outstandingBookings(bookings: Booking[]): Booking[] {
+  return bookings.filter((b) => b.status === "EXPECTED");
+}
+
 /** A booking's own non-deleted food/drink spend, in one currency —
  * guest orders tied to their stay (Architecture Decision 84). Orders are
  * already deletedAt-filtered by the API by default, but this checks too

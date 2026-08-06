@@ -15,7 +15,7 @@ import { useSchedules } from "@/lib/queries/schedules";
 import { useIssues } from "@/lib/queries/issues";
 import { useProperties } from "@/lib/queries/properties";
 import { C } from "@/lib/colors";
-import { applyMomo } from "@/lib/financials";
+import { applyMomo, confirmedBookings } from "@/lib/financials";
 import { fmtCurrency, fmtGHS, fmtEUR } from "@/lib/format";
 import { ISSUE_TYPE_LABEL, ISSUE_STATUS_LABEL, ISSUE_STATUS_TONE, SCHEDULE_TYPE_LABEL } from "@/lib/labels";
 import { getPeriodPair, inRange, nightsBetween, type PeriodKey } from "@/lib/periods";
@@ -102,12 +102,22 @@ export default function DashboardPage() {
   const currentShifts = schedules.filter((s) => inRange(s.date, period.current)).length;
   const previousShifts = schedules.filter((s) => inRange(s.date, period.previous)).length;
 
+  // Income is cash-basis: which bookings were *confirmed* (paidAt) in this
+  // period, not which ones the guest stayed during (checkIn) — a booking
+  // whose stay falls in this period but hasn't been paid yet contributes
+  // nothing here (see Architecture Decision 89). Deliberately a separate
+  // filter from currentBookings/previousBookings above, which stay
+  // checkIn-based since occupancy/booking-count are genuinely about the
+  // stay, not the money.
+  const confirmedInWorkspace = confirmedBookings(bookings);
+  const currentIncomeBookings = confirmedInWorkspace.filter((b) => inRange(b.paidAt!, period.current));
+  const previousIncomeBookings = confirmedInWorkspace.filter((b) => inRange(b.paidAt!, period.previous));
   const sumByCurrency = (list: Booking[], currency: Currency) =>
     list.filter((b) => b.currency === currency).reduce((s, b) => s + b.amount, 0);
-  const currentIncomeGHS = sumByCurrency(currentBookings, "GHS");
-  const previousIncomeGHS = sumByCurrency(previousBookings, "GHS");
-  const currentIncomeEUR = sumByCurrency(currentBookings, "EUR");
-  const previousIncomeEUR = sumByCurrency(previousBookings, "EUR");
+  const currentIncomeGHS = sumByCurrency(currentIncomeBookings, "GHS");
+  const previousIncomeGHS = sumByCurrency(previousIncomeBookings, "GHS");
+  const currentIncomeEUR = sumByCurrency(currentIncomeBookings, "EUR");
+  const previousIncomeEUR = sumByCurrency(previousIncomeBookings, "EUR");
 
   const nightsBooked = (list: Booking[]) => list.reduce((s, b) => s + nightsBetween(b.checkIn, b.checkOut), 0);
   const currentOccupancy = Math.min(100, Math.round((nightsBooked(currentBookings) / period.current.days) * 100));

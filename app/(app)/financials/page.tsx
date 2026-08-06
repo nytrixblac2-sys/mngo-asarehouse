@@ -21,7 +21,7 @@ import { useTeam } from "@/lib/queries/team";
 import { useWorkspace } from "@/lib/queries/workspace";
 import { C } from "@/lib/colors";
 import { fmtCurrency } from "@/lib/format";
-import { applyMomo, bookingOrderTotal, computeManagementReport, computeOwnersReport, sumConfirmedIncome, sumConfirmedIncomeHostel } from "@/lib/financials";
+import { applyMomo, bookingOrderTotal, computeManagementReport, computeOwnersReport, confirmedBookings, outstandingBookings, sumConfirmedIncome, sumConfirmedIncomeHostel } from "@/lib/financials";
 import { EXPENSE_CATEGORY_LABEL, EXPENSE_CATEGORY_TONE } from "@/lib/labels";
 import { MONTH_NAMES, pad2 } from "@/lib/calendar";
 import type { Allocation, Currency, PrevBalance } from "@/lib/types";
@@ -127,11 +127,23 @@ export default function FinancialsPage() {
   const propertyExpenses = (expensesQuery.data ?? []).filter((e) => e.propertyId === activeProperty.id);
   const propertyManualIncome = (manualIncomeQuery.data ?? []).filter((m) => m.propertyId === activeProperty.id);
 
-  const monthBookingsOwner = propertyBookings.filter((b) => b.checkIn.startsWith(monthPrefix) && b.currency === ownerCur);
-  const monthBookingsOak = propertyBookings.filter((b) => b.checkIn.startsWith(monthPrefix) && b.currency === oakCur);
+  // Cash-basis: a booking counts toward a month's income when it was
+  // *confirmed* (paidAt) in that month, not when the guest stayed
+  // (checkIn) — see Architecture Decision 89. `confirmedPropertyBookings`
+  // also means these lists never include EXPECTED bookings at all
+  // anymore; those live in the separate Outstanding balances list below.
+  const confirmedPropertyBookings = confirmedBookings(propertyBookings);
+  const monthBookingsOwner = confirmedPropertyBookings.filter((b) => b.paidAt!.startsWith(monthPrefix) && b.currency === ownerCur);
+  const monthBookingsOak = confirmedPropertyBookings.filter((b) => b.paidAt!.startsWith(monthPrefix) && b.currency === oakCur);
   const monthExpensesOwner = propertyExpenses.filter((e) => e.date.startsWith(monthPrefix) && e.currency === ownerCur);
   const monthExpensesOak = propertyExpenses.filter((e) => e.date.startsWith(monthPrefix) && e.currency === oakCur);
   const monthManualIncome = propertyManualIncome.filter((m) => m.date.startsWith(monthPrefix) && m.currency === ownerCur);
+  const outstanding = outstandingBookings(propertyBookings).sort((a, b) => (a.checkIn < b.checkIn ? -1 : 1));
+  const outstandingTotals: Partial<Record<Currency, number>> = {};
+  for (const cur of propCurrencies) {
+    const total = outstanding.filter((b) => b.currency === cur).reduce((s, b) => s + b.amount, 0);
+    if (total > 0) outstandingTotals[cur] = total;
+  }
 
   const allocOwner: Allocation = propAlloc[ownerCur] ?? DEFAULT_ALLOCATION;
   const allocOak: Allocation = propAlloc[oakCur] ?? DEFAULT_ALLOCATION;
@@ -295,12 +307,7 @@ export default function FinancialsPage() {
                         <p className="text-xs" style={{ color: C.muted }}>{r.booking.checkIn} → {r.booking.checkOut}</p>
                         {r.booking.paidAt && <p className="text-xs" style={{ color: C.teal }}>Confirmed {r.booking.paidAt}</p>}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Pill tone={r.booking.status === "CONFIRMED" ? "teal" : "amber"}>
-                          {r.booking.status === "CONFIRMED" ? "Confirmed" : "Expected"}
-                        </Pill>
-                        {isHostel && <span className="text-sm font-semibold" style={{ color: C.text }}>{fmtCurrency(r.ownersAmt + r.opsAmt + r.foodTotal, ownerCur)}</span>}
-                      </div>
+                      {isHostel && <span className="text-sm font-semibold" style={{ color: C.text }}>{fmtCurrency(r.ownersAmt + r.opsAmt + r.foodTotal, ownerCur)}</span>}
                     </div>
                     {!isHostel && (
                       <div className="flex gap-4 mt-1">
@@ -422,12 +429,7 @@ export default function FinancialsPage() {
                       <p className="text-xs" style={{ color: C.muted }}>{r.booking.checkIn} → {r.booking.checkOut} · Management {allocOak.management}%</p>
                       {r.booking.paidAt && <p className="text-xs" style={{ color: C.teal }}>Confirmed {r.booking.paidAt}</p>}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Pill tone={r.booking.status === "CONFIRMED" ? "teal" : "amber"}>
-                        {r.booking.status === "CONFIRMED" ? "Confirmed" : "Expected"}
-                      </Pill>
-                      <span className="text-sm font-semibold" style={{ color: C.text }}>{fmtCurrency(r.amt, oakCur)}</span>
-                    </div>
+                    <span className="text-sm font-semibold" style={{ color: C.text }}>{fmtCurrency(r.amt, oakCur)}</span>
                   </div>
                 ))}
                 {oakIncomeRows.length > 0 && (
@@ -473,6 +475,33 @@ export default function FinancialsPage() {
             </Card>
           )}
         </>
+      )}
+
+      {outstanding.length > 0 && (
+        <Card>
+          <p className="text-sm font-semibold" style={{ color: C.text }}>Outstanding balances</p>
+          <p className="text-xs mt-0.5 mb-3" style={{ color: C.muted }}>
+            Not yet paid — won&apos;t count as income until confirmed, whichever month that ends up being.
+          </p>
+          {Object.keys(outstandingTotals).length > 0 && (
+            <div className="flex gap-4 mb-3">
+              {(Object.entries(outstandingTotals) as [Currency, number][]).map(([cur, total]) => (
+                <span key={cur} className="text-lg font-bold" style={{ color: C.amber }}>{fmtCurrency(total, cur)}</span>
+              ))}
+            </div>
+          )}
+          <div className="flex flex-col gap-2">
+            {outstanding.map((b) => (
+              <div key={b.id} className="flex items-center justify-between py-2 px-3 rounded-xl" style={{ background: C.amberSoft }}>
+                <div>
+                  <p className="text-sm font-medium" style={{ color: C.text }}>{b.guest}</p>
+                  <p className="text-xs" style={{ color: C.muted }}>{b.checkIn} → {b.checkOut}</p>
+                </div>
+                <span className="text-sm font-semibold" style={{ color: C.text }}>{fmtCurrency(b.amount, b.currency)}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
       )}
 
       {isHostel && effectiveUser.role === "ACCOUNT_OWNER" && <DeletedOrdersLog />}

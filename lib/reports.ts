@@ -1,4 +1,4 @@
-import { applyMomo, bookingOrderTotal, computeManagementReport, computeOwnersReport, sumConfirmedIncome, sumConfirmedIncomeHostel } from "./financials";
+import { applyMomo, bookingOrderTotal, computeManagementReport, computeOwnersReport, confirmedBookings, sumConfirmedIncome, sumConfirmedIncomeHostel } from "./financials";
 import type { Allocation, Booking, Currency, Expense, ManualIncome, Order, PrevBalance, Property } from "./types";
 
 /** context/07-mockup.jsx GenerateReportModal's two checkboxes ("Owner Report",
@@ -88,7 +88,12 @@ function computeCurrencyFigures(params: {
   const { currency, year, month, property, bookings, expenses, manualIncome, orders, isHostel, openingBalanceOverride } = params;
   const prefix = monthPrefix(year, month);
 
-  const monthBookings = bookings.filter((b) => b.propertyId === property.id && b.currency === currency && b.checkIn.startsWith(prefix));
+  // Cash-basis: a booking counts toward a month's income when it was
+  // *confirmed* (paidAt) in that month, not when the guest stayed
+  // (checkIn) — see Architecture Decision 89.
+  const monthBookings = confirmedBookings(bookings).filter(
+    (b) => b.propertyId === property.id && b.currency === currency && b.paidAt!.startsWith(prefix)
+  );
   const monthExpenses = expenses.filter((e) => e.propertyId === property.id && e.currency === currency && e.date.startsWith(prefix));
   const monthManualIncome = manualIncome.filter((m) => m.propertyId === property.id && m.currency === currency && m.date.startsWith(prefix));
 
@@ -114,9 +119,11 @@ function computeCurrencyFigures(params: {
         kind: "booking" as const,
         label: b.guest,
         sublabel:
-          `${b.source === "AIRBNB" ? "Airbnb" : "Local"} · ${b.checkIn} to ${b.checkOut}` +
+          `${b.source === "AIRBNB" ? "Airbnb" : "Local"} · stayed ${b.checkIn} to ${b.checkOut} · confirmed ${b.paidAt}` +
           (foodTotal > 0 ? ` · room + food` : ""),
-        date: b.checkIn,
+        // Sorted by paidAt (when the money arrived), not checkIn — that's
+        // what determines this row's place in this specific month.
+        date: b.paidAt!,
         amount: b.amount + foodTotal,
       };
     }),
