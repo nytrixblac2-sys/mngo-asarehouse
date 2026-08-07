@@ -11,17 +11,28 @@ import { uniqueBookingCode } from "@/lib/booking-code";
  * "Auth and Access Control Model"). No property/date filtering server-side;
  * the client filters by active property and period, per "Financial
  * Calculation Model": "The API returns full booking and expense records;
- * the client computes ... dynamically."
+ * the client computes ... dynamically." Excludes soft-deleted bookings by
+ * default; ?deletedOnly=true returns only deleted ones, for the owner-only
+ * "deleted bookings" log (Architecture Decision 93) — owner only, since
+ * it's the audit trail for a sensitive action, same rule as orders.
  */
-export async function GET() {
+export async function GET(req: Request) {
   const user = await getCurrentUser();
   if (!user) return apiError("Unauthorized", 401);
+
+  const url = new URL(req.url);
+  const deletedOnly = url.searchParams.get("deletedOnly") === "true";
+  if (deletedOnly && user.role !== "ACCOUNT_OWNER") return apiError("Forbidden", 403);
 
   const propertyFilter =
     user.role === "PROPERTY_OWNER" ? { property: { owners: { some: { userId: user.id } } } } : {};
 
   const rows = await prisma.booking.findMany({
-    where: { workspaceId: user.workspaceId, ...propertyFilter },
+    where: {
+      workspaceId: user.workspaceId,
+      ...propertyFilter,
+      deletedAt: deletedOnly ? { not: null } : null,
+    },
     orderBy: { checkIn: "asc" },
   });
 

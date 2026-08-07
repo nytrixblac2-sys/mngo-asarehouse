@@ -5,6 +5,7 @@ import { ChevronRight, ExternalLink, ClipboardList, AlertTriangle, Check, Undo2 
 import { Card, Pill } from "@/components/primitives";
 import { BookingFormRouter } from "@/components/booking-form-router";
 import { ShiftForm } from "@/components/shift-form";
+import { useEffectiveUser } from "@/components/effective-user-context";
 import { C } from "@/lib/colors";
 import { fmtCurrency } from "@/lib/format";
 import { nightsBetween } from "@/lib/periods";
@@ -24,6 +25,8 @@ export function PerStayView({
   editBookingIsPending,
   editBookingError,
   onDeleteBooking,
+  deleteBookingIsPending,
+  deleteBookingError,
   onSubmitEditSchedule,
   onConfirmPayout,
   onUnconfirmPayout,
@@ -43,7 +46,12 @@ export function PerStayView({
   onSubmitEditBooking: (id: string, input: BookingInput, opts: { onSuccess: () => void }) => void;
   editBookingIsPending?: boolean;
   editBookingError?: string | null;
-  onDeleteBooking: (id: string) => void;
+  /** Requires a reason; requires the workspace PIN too unless the actor is
+   * the ACCOUNT_OWNER — see BookingDetailModal's identical rule
+   * (Architecture Decision 93). */
+  onDeleteBooking: (id: string, reason: string, pin?: string) => void;
+  deleteBookingIsPending?: boolean;
+  deleteBookingError?: string | null;
   onSubmitEditSchedule: (id: string, input: ScheduleInput) => void;
   onConfirmPayout: (id: string) => void;
   onUnconfirmPayout: (id: string) => void;
@@ -56,7 +64,21 @@ export function PerStayView({
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deleteReason, setDeleteReason] = useState("");
+  const [deletePin, setDeletePin] = useState("");
   const [editingSchedule, setEditingSchedule] = useState<Schedule | null>(null);
+  const { effectiveUser } = useEffectiveUser();
+  const isOwner = effectiveUser.role === "ACCOUNT_OWNER";
+
+  const handleDeleteBooking = (id: string) => {
+    if (!deleteReason.trim() || (!isOwner && deletePin.trim().length === 0)) return;
+    onDeleteBooking(id, deleteReason.trim(), isOwner ? undefined : deletePin.trim());
+  };
+  const cancelDelete = () => {
+    setConfirmDeleteId(null);
+    setDeleteReason("");
+    setDeletePin("");
+  };
 
   const sorted = [...bookings].sort((a, b) => (a.checkIn < b.checkIn ? -1 : 1));
 
@@ -108,6 +130,7 @@ export function PerStayView({
                   <ExternalLink size={13} style={{ color: "var(--accent, #111111)" }} />
                 </button>
                 {canEdit && (
+                  <>
                   <div className="flex gap-2 flex-wrap">
                     <button
                       onClick={() => onSchedule(b.checkIn)}
@@ -148,20 +171,7 @@ export function PerStayView({
                         <Undo2 size={12} /> Mark unpaid
                       </button>
                     )}
-                    {confirmDeleteId === b.id ? (
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => { onDeleteBooking(b.id); setConfirmDeleteId(null); setExpandedId(null); }}
-                          className="text-xs font-semibold px-3 py-2 rounded-full"
-                          style={{ background: "var(--accent, #111111)", color: "#fff" }}
-                        >
-                          Confirm delete
-                        </button>
-                        <button onClick={() => setConfirmDeleteId(null)} className="text-xs font-semibold" style={{ color: C.muted }}>
-                          Cancel
-                        </button>
-                      </div>
-                    ) : (
+                    {confirmDeleteId !== b.id && (
                       <button
                         onClick={() => setConfirmDeleteId(b.id)}
                         className="text-xs font-semibold px-3 py-2 rounded-full"
@@ -171,6 +181,46 @@ export function PerStayView({
                       </button>
                     )}
                   </div>
+                  {confirmDeleteId === b.id && (
+                    <div className="mt-2 pt-2 flex flex-col gap-2" style={{ borderTop: `1px solid ${C.border}` }}>
+                      <p className="text-xs" style={{ color: C.muted }}>
+                        {isOwner ? "Type a reason to delete this stay." : "Ask the owner for the PIN, and type why you're deleting this stay."}
+                      </p>
+                      {!isOwner && (
+                        <input
+                          value={deletePin}
+                          onChange={(e) => setDeletePin(e.target.value.replace(/\D/g, ""))}
+                          type="password"
+                          inputMode="numeric"
+                          placeholder="Owner PIN"
+                          className="w-full px-3 py-2 rounded-lg text-sm"
+                          style={{ border: `1px solid ${C.border}` }}
+                        />
+                      )}
+                      <input
+                        value={deleteReason}
+                        onChange={(e) => setDeleteReason(e.target.value)}
+                        placeholder="Reason (e.g. duplicate entry)"
+                        className="w-full px-3 py-2 rounded-lg text-sm"
+                        style={{ border: `1px solid ${C.border}` }}
+                      />
+                      {deleteBookingError && <p className="text-xs text-destructive">{deleteBookingError}</p>}
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => handleDeleteBooking(b.id)}
+                          disabled={deleteBookingIsPending || !deleteReason.trim() || (!isOwner && deletePin.trim().length === 0)}
+                          className="text-xs font-semibold"
+                          style={{ color: "var(--accent, #111111)" }}
+                        >
+                          {deleteBookingIsPending ? "Deleting…" : "Confirm delete"}
+                        </button>
+                        <button onClick={cancelDelete} className="text-xs font-semibold" style={{ color: C.muted }}>
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  </>
                 )}
 
                 {relatedSchedules.length > 0 && (

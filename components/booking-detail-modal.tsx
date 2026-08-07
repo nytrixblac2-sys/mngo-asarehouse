@@ -46,6 +46,8 @@ export function BookingDetailModal({
   editIsPending,
   editError,
   onDelete,
+  deleteIsPending,
+  deleteError,
   onConfirm,
   onUnconfirm,
   onCheckout,
@@ -66,7 +68,15 @@ export function BookingDetailModal({
   onSubmitEdit: (id: string, input: BookingInput, opts: { onSuccess: () => void }) => void;
   editIsPending?: boolean;
   editError?: string | null;
-  onDelete: (id: string) => void;
+  /** Requires a reason; requires the workspace PIN too unless the actor is
+   * the ACCOUNT_OWNER — same rule as order deletion (Architecture Decision
+   * 93, mirroring 79). `opts.onSuccess` fires only once the delete actually
+   * saves, same reasoning as onSubmitEdit — a wrong PIN keeps the modal
+   * (and the typed reason) open with the error shown, instead of closing
+   * unconditionally. */
+  onDelete: (id: string, reason: string, pin: string | undefined, opts: { onSuccess: () => void }) => void;
+  deleteIsPending?: boolean;
+  deleteError?: string | null;
   onConfirm: (id: string) => void;
   onUnconfirm: (id: string) => void;
   /** HOSTEL bookings only — sets checkedOutAt server-side, along with the
@@ -85,6 +95,8 @@ export function BookingDetailModal({
   const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
   const [deleteReason, setDeleteReason] = useState("");
   const [deletePin, setDeletePin] = useState("");
+  const [bookingDeleteReason, setBookingDeleteReason] = useState("");
+  const [bookingDeletePin, setBookingDeletePin] = useState("");
   const [isEditingPaidAt, setIsEditingPaidAt] = useState(false);
   const [draftPaidAt, setDraftPaidAt] = useState("");
 
@@ -131,6 +143,12 @@ export function BookingDetailModal({
   };
 
   const isOwner = effectiveUser.role === "ACCOUNT_OWNER";
+  const handleDeleteBooking = () => {
+    if (!bookingDeleteReason.trim() || (!isOwner && bookingDeletePin.trim().length === 0)) return;
+    onDelete(booking.id, bookingDeleteReason.trim(), isOwner ? undefined : bookingDeletePin.trim(), {
+      onSuccess: () => onClose(),
+    });
+  };
   const handleDeleteOrder = (orderId: string) => {
     if (!deleteReason.trim() || (!isOwner && deletePin.trim().length === 0)) return;
     deleteOrder.mutate(
@@ -166,23 +184,7 @@ export function BookingDetailModal({
                   >
                     Edit
                   </button>
-                  {confirmDelete ? (
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => {
-                          onDelete(booking.id);
-                          onClose();
-                        }}
-                        className="text-xs font-semibold px-3 py-1.5 rounded-full"
-                        style={{ background: "var(--accent, #111111)", color: "#fff" }}
-                      >
-                        Confirm delete
-                      </button>
-                      <button onClick={() => setConfirmDelete(false)} className="text-xs font-semibold" style={{ color: C.muted }}>
-                        Cancel
-                      </button>
-                    </div>
-                  ) : (
+                  {!confirmDelete && (
                     <button
                       onClick={() => setConfirmDelete(true)}
                       className="text-xs font-semibold px-3 py-1.5 rounded-full"
@@ -199,6 +201,50 @@ export function BookingDetailModal({
             </div>
           </div>
           <div className="px-6 py-4 overflow-y-auto flex flex-col gap-4">
+            {confirmDelete && (
+              <div className="p-3 rounded-xl flex flex-col gap-2" style={{ background: C.bg, border: `1px solid ${C.border}` }}>
+                <p className="text-xs font-semibold" style={{ color: C.text }}>Delete this stay</p>
+                <p className="text-xs" style={{ color: C.muted }}>
+                  {isOwner ? "Type a reason to delete this stay." : "Ask the owner for the PIN, and type why you're deleting this stay."}
+                </p>
+                {!isOwner && (
+                  <input
+                    value={bookingDeletePin}
+                    onChange={(e) => setBookingDeletePin(e.target.value.replace(/\D/g, ""))}
+                    type="password"
+                    inputMode="numeric"
+                    placeholder="Owner PIN"
+                    className="w-full px-3 py-2 rounded-lg text-sm"
+                    style={{ border: `1px solid ${C.border}` }}
+                  />
+                )}
+                <input
+                  value={bookingDeleteReason}
+                  onChange={(e) => setBookingDeleteReason(e.target.value)}
+                  placeholder="Reason (e.g. duplicate entry)"
+                  className="w-full px-3 py-2 rounded-lg text-sm"
+                  style={{ border: `1px solid ${C.border}` }}
+                />
+                {deleteError && <p className="text-xs text-destructive">{deleteError}</p>}
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleDeleteBooking}
+                    disabled={deleteIsPending || !bookingDeleteReason.trim() || (!isOwner && bookingDeletePin.trim().length === 0)}
+                    className="text-xs font-semibold"
+                    style={{ color: "var(--accent, #111111)" }}
+                  >
+                    {deleteIsPending ? "Deleting…" : "Confirm delete"}
+                  </button>
+                  <button
+                    onClick={() => { setConfirmDelete(false); setBookingDeleteReason(""); setBookingDeletePin(""); }}
+                    className="text-xs font-semibold"
+                    style={{ color: C.muted }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div className="p-3 rounded-xl" style={{ background: C.bg }}>
                 <p className="text-xs" style={{ color: C.muted }}>Check-in</p>

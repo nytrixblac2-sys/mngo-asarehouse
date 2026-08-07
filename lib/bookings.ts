@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { prisma } from "./prisma";
+import { verifyWorkspacePin } from "./workspace-pin";
+import { findOverlappingBooking } from "./rooms";
 import type { Booking } from "./types";
 
 type BookingRow = {
@@ -20,6 +23,9 @@ type BookingRow = {
   bookingCode: string | null;
   checkedOutAt: Date | null;
   paymentMethod: Booking["paymentMethod"];
+  deletedAt: Date | null;
+  deletedBy: string | null;
+  deleteReason: string | null;
 };
 
 export function serializeBooking(b: BookingRow): Booking {
@@ -42,6 +48,9 @@ export function serializeBooking(b: BookingRow): Booking {
     bookingCode: b.bookingCode,
     checkedOutAt: b.checkedOutAt ? b.checkedOutAt.toISOString() : null,
     paymentMethod: b.paymentMethod,
+    deletedAt: b.deletedAt ? b.deletedAt.toISOString() : null,
+    deletedBy: b.deletedBy,
+    deleteReason: b.deleteReason,
   };
 }
 
@@ -85,6 +94,85 @@ export const bookingInputSchema = z.union([hostelBookingInputSchema, rentalBooki
 export const checkoutInputSchema = z.object({
   paymentMethod: z.enum(["CASH", "BANK_TRANSFER", "MOMO", "CARD"]),
 });
+
+export const bookingDeleteInputSchema = z.object({
+  reason: z.string().min(1),
+  /** Required for a CO_MANAGER-initiated delete, ignored for
+   * ACCOUNT_OWNER — see deleteBooking. */
+  pin: z.string().optional(),
+});
+
+export class BookingError extends Error {}
+
+/**
+ * Soft-deletes a booking (Architecture Decision 93) — same rule as
+ * deleteOrder (lib/orders.ts, Architecture Decision 79): CO_MANAGER needs
+ * the workspace PIN, the ACCOUNT_OWNER (who sets the PIN) can delete
+ * without it. A reason is always required either way, for the audit trail.
+ * Unlike orders, a deleted booking can be restored — see restoreBooking.
+ */
+export async function deleteBooking(params: {
+  workspaceId: string;
+  bookingId: string;
+  actorRole: "ACCOUNT_OWNER" | "CO_MANAGER" | "PROPERTY_OWNER";
+  actorName: string;
+  reason: string;
+  pin?: string;
+}) {
+  const booking = await prisma.booking.findUnique({ where: { id: params.bookingId } });
+  if (!booking || booking.workspaceId !== params.workspaceId) {
+    throw new BookingError("Booking not found");
+  }
+  if (booking.deletedAt) {
+    throw new BookingError("This booking was already deleted");
+  }
+
+  if (params.actorRole !== "ACCOUNT_OWNER") {
+    if (!params.pin || !(await verifyWorkspacePin(params.workspaceId, params.pin))) {
+      throw new BookingError("Incorrect PIN");
+    }
+  }
+
+  return prisma.booking.update({
+    where: { id: params.bookingId },
+    data: { deletedAt: new Date(), deletedBy: params.actorName, deleteReason: params.reason.trim() },
+  });
+}
+
+/**
+ * Restores a soft-deleted booking — owner only (same gate as viewing the
+ * deleted-bookings log; matches deleteOrder's "owner sees the audit trail"
+ * reasoning). For a HOSTEL booking, re-checks the room isn't now booked by
+ * someone else for the same dates before restoring — another guest may
+ * have taken that room while this booking was deleted. RENTAL bookings
+ * have no room to conflict over, so they always restore cleanly.
+ */
+export async function restoreBooking(params: { workspaceId: string; bookingId: string }) {
+  const booking = await prisma.booking.findUnique({ where: { id: params.bookingId } });
+  if (!booking || booking.workspaceId !== params.workspaceId) {
+    throw new BookingError("Booking not found");
+  }
+  if (!booking.deletedAt) {
+    throw new BookingError("This booking isn't deleted");
+  }
+
+  if (booking.roomId) {
+    const overlap = await findOverlappingBooking({
+      roomId: booking.roomId,
+      checkIn: booking.checkIn,
+      checkOut: booking.checkOut,
+      excludeBookingId: booking.id,
+    });
+    if (overlap) {
+      throw new BookingError("Can't restore — this room is now booked by someone else for part of that date range");
+    }
+  }
+
+  return prisma.booking.update({
+    where: { id: params.bookingId },
+    data: { deletedAt: null, deletedBy: null, deleteReason: null },
+  });
+}
 
 /** Public guest self-service booking (app/book/[slug]) — no `propertyId`
  * (derived server-side from the chosen room, since a guest never sees or

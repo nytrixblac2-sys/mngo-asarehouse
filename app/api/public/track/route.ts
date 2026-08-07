@@ -23,7 +23,7 @@ export async function POST(req: Request) {
     where: { bookingCode: parsed.data.bookingCode.trim().toUpperCase() },
   });
 
-  if (!booking || booking.guest.trim().toLowerCase() !== parsed.data.guestName.trim().toLowerCase()) {
+  if (!booking || booking.deletedAt || booking.guest.trim().toLowerCase() !== parsed.data.guestName.trim().toLowerCase()) {
     return apiError("We couldn't find a booking matching that code and name.", 404);
   }
 

@@ -188,6 +188,12 @@ export interface Booking {
   checkedOutAt: string | null;
   /** How the guest paid, selected at checkout. Null until checkout. */
   paymentMethod: PaymentMethod | null;
+  /** Soft-deleted bookings never appear here except via the owner-only
+   * deleted-bookings log (Architecture Decision 93) — deletedAt set means
+   * the other two are too. */
+  deletedAt: string | null;
+  deletedBy: string | null;
+  deleteReason: string | null;
 }
 
 export interface Expense {

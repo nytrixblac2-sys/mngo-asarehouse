@@ -144,10 +144,12 @@ model Workspace {
   /// Manual paid/unpaid flag, admin-toggled from /admin — no payment
   /// processor integration for V1 (billing handled outside MNGO).
   paid           Boolean         @default(false)
-  /// bcrypt hash of the owner-set PIN gating sensitive HOSTEL actions
-  /// (deleting an order, changing a menu item's price) — never the
+  /// bcrypt hash of the owner-set PIN gating sensitive actions (deleting a
+  /// booking or order, changing a menu item's price) — never the
   /// plaintext, never sent to the client. Null until the owner sets one
-  /// via ProfileModal's Security section. See lib/workspace-pin.ts.
+  /// via ProfileModal's Security section, available for every workspace
+  /// type since Architecture Decision 93 (originally HOSTEL-only, per
+  /// Architecture Decision 79). See lib/workspace-pin.ts.
   actionPinHash  String?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
@@ -269,6 +271,15 @@ model Booking {
   paymentMethod  PaymentMethod?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
+  /// Soft-deletable, PIN-gated — same pattern as Order (Architecture
+  /// Decision 79), now applied to every workspace (RENTAL and HOSTEL
+  /// alike), not just HOSTEL orders (Architecture Decision 93). Deleting
+  /// clears nothing — the row stays exactly as it was, just hidden from
+  /// normal views and excluded from every calculation, so it can be
+  /// restored intact.
+  deletedAt      DateTime?
+  deletedBy      String?
+  deleteReason   String?
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   property  Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)

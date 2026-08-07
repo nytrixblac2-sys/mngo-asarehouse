@@ -59,8 +59,10 @@ export async function clearGuestSessionCookie() {
 /**
  * Resolves the current guest session to a real Booking row, or null if
  * there's no cookie, a tampered/invalid one, or the booking no longer
- * exists. Every public/* route that acts on behalf of a guest calls this
- * instead of trusting any client-supplied bookingId directly.
+ * exists — including if it's been soft-deleted since the guest signed in,
+ * which should end their access exactly like a hard delete used to. Every
+ * public/* route that acts on behalf of a guest calls this instead of
+ * trusting any client-supplied bookingId directly.
  */
 export async function getGuestSessionBooking() {
   const store = await cookies();
@@ -70,5 +72,6 @@ export async function getGuestSessionBooking() {
   const bookingId = verify(token);
   if (!bookingId) return null;
 
-  return prisma.booking.findUnique({ where: { id: bookingId } });
+  const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
+  return booking && !booking.deletedAt ? booking : null;
 }

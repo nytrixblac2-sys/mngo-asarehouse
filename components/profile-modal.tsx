@@ -48,7 +48,10 @@ export function ProfileModal({
   const setPin = useSetWorkspacePin();
   const setPreviewUser = useAppStore((s) => s.setPreviewUser);
   const exitPreview = useAppStore((s) => s.exitPreview);
-  const showSecurity = realUser.role === "ACCOUNT_OWNER" && workspace?.type === "HOSTEL";
+  // Was HOSTEL-only (Architecture Decision 79, order deletion/menu price
+  // changes only existed there); now every workspace type can set a PIN
+  // since it also gates booking deletion (Architecture Decision 93).
+  const showSecurity = realUser.role === "ACCOUNT_OWNER";
 
   const handleSavePin = () => {
     setPin.mutate(
@@ -165,8 +168,8 @@ export function ProfileModal({
               </p>
               <p className="text-xs mb-2" style={{ color: C.muted }}>
                 {workspace?.hasPin
-                  ? "Required from managers to delete an order or change a menu price."
-                  : "Not set yet — managers can't delete orders or change menu prices until you set one."}
+                  ? "Required from managers to delete a booking or order, or change a menu price."
+                  : "Not set yet — managers can't delete bookings or orders, or change menu prices, until you set one."}
               </p>
               <div className="flex flex-col gap-2">
                 {workspace?.hasPin && (

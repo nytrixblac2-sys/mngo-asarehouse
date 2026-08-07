@@ -64,17 +64,37 @@ export async function computeHostelBookingFields(params: {
     throw new RoomBookingError("Check-out must be after check-in");
   }
 
-  const overlap = await prisma.booking.findFirst({
-    where: {
-      roomId: params.roomId,
-      ...(params.excludeBookingId ? { id: { not: params.excludeBookingId } } : {}),
-      checkIn: { lt: checkOutDate },
-      checkOut: { gt: checkInDate },
-    },
+  const overlap = await findOverlappingBooking({
+    roomId: params.roomId,
+    checkIn: checkInDate,
+    checkOut: checkOutDate,
+    excludeBookingId: params.excludeBookingId,
   });
   if (overlap) {
     throw new RoomBookingError(`${room.name} is already booked for part of that date range`);
   }
 
   return { amount: Number(room.pricePerNight) * nights, currency: room.currency };
+}
+
+/** The room double-booking check, factored out so restoreBooking (lib/
+ * bookings.ts) can run the exact same overlap rule before un-deleting a
+ * HOSTEL booking — another guest may have booked that room for those dates
+ * while this one was deleted. Always excludes soft-deleted bookings: a
+ * deleted booking must never block a room, restored or not. */
+export async function findOverlappingBooking(params: {
+  roomId: string;
+  checkIn: Date;
+  checkOut: Date;
+  excludeBookingId?: string;
+}) {
+  return prisma.booking.findFirst({
+    where: {
+      roomId: params.roomId,
+      deletedAt: null,
+      ...(params.excludeBookingId ? { id: { not: params.excludeBookingId } } : {}),
+      checkIn: { lt: params.checkOut },
+      checkOut: { gt: params.checkIn },
+    },
+  });
 }

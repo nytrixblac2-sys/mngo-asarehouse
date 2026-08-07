@@ -1,7 +1,7 @@
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { apiSuccess, apiError } from "@/lib/api-response";
-import { bookingInputSchema, serializeBooking } from "@/lib/bookings";
+import { bookingDeleteInputSchema, bookingInputSchema, BookingError, deleteBooking, serializeBooking } from "@/lib/bookings";
 import { computeHostelBookingFields, RoomBookingError } from "@/lib/rooms";
 import { uniqueBookingCode } from "@/lib/booking-code";
 
@@ -17,7 +17,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (user.role === "PROPERTY_OWNER") return apiError("Forbidden", 403);
 
   const existing = await prisma.booking.findUnique({ where: { id: params.id } });
-  if (!existing || existing.workspaceId !== user.workspaceId) {
+  if (!existing || existing.workspaceId !== user.workspaceId || existing.deletedAt) {
     return apiError("Not found", 404);
   }
 
@@ -92,16 +92,32 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   return apiSuccess(serializeBooking(updated));
 }
 
-export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
+/**
+ * Soft-deletes a booking (Architecture Decision 93) — CO_MANAGER needs the
+ * workspace PIN and a reason; ACCOUNT_OWNER needs just a reason. See
+ * lib/bookings.ts deleteBooking for the full rule. Restorable — see
+ * POST /api/bookings/[id]/restore.
+ */
+export async function DELETE(req: Request, { params }: { params: { id: string } }) {
   const user = await getCurrentUser();
   if (!user) return apiError("Unauthorized", 401);
   if (user.role === "PROPERTY_OWNER") return apiError("Forbidden", 403);
 
-  const existing = await prisma.booking.findUnique({ where: { id: params.id } });
-  if (!existing || existing.workspaceId !== user.workspaceId) {
-    return apiError("Not found", 404);
-  }
+  const parsed = bookingDeleteInputSchema.safeParse(await req.json());
+  if (!parsed.success) return apiError(parsed.error.message, 400);
 
-  await prisma.booking.delete({ where: { id: params.id } });
-  return apiSuccess({ id: params.id });
+  try {
+    const booking = await deleteBooking({
+      workspaceId: user.workspaceId,
+      bookingId: params.id,
+      actorRole: user.role,
+      actorName: user.name,
+      reason: parsed.data.reason,
+      pin: parsed.data.pin,
+    });
+    return apiSuccess(serializeBooking(booking));
+  } catch (err) {
+    if (err instanceof BookingError) return apiError(err.message, err.message === "Incorrect PIN" ? 403 : 409);
+    throw err;
+  }
 }

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, Plus, AlertTriangle, ClipboardList, Upload } from "lucide-react";
 import { useEffectiveUser } from "@/components/effective-user-context";
+import { DeletedBookingsLog } from "@/components/deleted-bookings-log";
 import { useAppStore } from "@/store/use-app-store";
 import { useBookings, useCheckoutBooking, useConfirmBookingPayout, useCreateBooking, useDeleteBooking, useUnconfirmBookingPayout, useUpdateBooking } from "@/lib/queries/bookings";
 import { useRooms } from "@/lib/queries/rooms";
@@ -31,7 +32,7 @@ const VIEWS: ViewKey[] = ["Day", "Week", "Month", "Per stay"];
 
 /** context/07-mockup.jsx BookingsView. */
 export default function BookingsPage() {
-  const { effectiveCanEdit } = useEffectiveUser();
+  const { effectiveUser, effectiveCanEdit } = useEffectiveUser();
   const activePropertyId = useAppStore((s) => s.activePropertyId);
   // Persisted across refresh — user feedback, 2026-08-05: refreshing while
   // viewing a past/future month bounced back to the real current month.
@@ -197,6 +198,8 @@ export default function BookingsPage() {
         ))}
       </div>
 
+      {effectiveUser.role === "ACCOUNT_OWNER" && <DeletedBookingsLog />}
+
       {view === "Day" && (
         <DayView
           bookings={monthBookings} schedules={monthShifts} issues={monthIssues}
@@ -231,7 +234,9 @@ export default function BookingsPage() {
           onSubmitEditBooking={(id, input, opts) => updateBooking.mutate({ id, input }, opts)}
           editBookingIsPending={updateBooking.isPending}
           editBookingError={updateBooking.isError ? (updateBooking.error as Error).message : null}
-          onDeleteBooking={(id) => deleteBooking.mutate(id)}
+          onDeleteBooking={(id, reason, pin) => deleteBooking.mutate({ id, reason, pin })}
+          deleteBookingIsPending={deleteBooking.isPending}
+          deleteBookingError={deleteBooking.isError ? (deleteBooking.error as Error).message : null}
           onSubmitEditSchedule={(id, input) => updateSchedule.mutate({ id, input })}
           onConfirmPayout={(id) => confirmPayout.mutate(id)}
           onUnconfirmPayout={(id) => unconfirmPayout.mutate(id)}
@@ -292,7 +297,9 @@ export default function BookingsPage() {
             onSubmitEdit={(id, input, opts) => updateBooking.mutate({ id, input }, opts)}
             editIsPending={updateBooking.isPending}
             editError={updateBooking.isError ? (updateBooking.error as Error).message : null}
-            onDelete={(id) => deleteBooking.mutate(id)}
+            onDelete={(id, reason, pin, opts) => deleteBooking.mutate({ id, reason, pin }, opts)}
+            deleteIsPending={deleteBooking.isPending}
+            deleteError={deleteBooking.isError ? (deleteBooking.error as Error).message : null}
             onConfirm={(id) => confirmPayout.mutate(id)}
             onUnconfirm={(id) => unconfirmPayout.mutate(id)}
             onCheckout={(id, paymentMethod) => checkoutBooking.mutate({ bookingId: id, paymentMethod })}

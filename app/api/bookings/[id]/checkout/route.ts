@@ -26,7 +26,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (user.role === "PROPERTY_OWNER") return apiError("Forbidden", 403);
 
   const existing = await prisma.booking.findUnique({ where: { id: params.id } });
-  if (!existing || existing.workspaceId !== user.workspaceId) {
+  if (!existing || existing.workspaceId !== user.workspaceId || existing.deletedAt) {
     return apiError("Not found", 404);
   }
   if (!existing.roomId) {

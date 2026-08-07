@@ -1,6 +1,7 @@
 "use client";
 
 import { Eye } from "lucide-react";
+import { useEffect } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { C } from "@/lib/colors";
 import { useAppStore } from "@/store/use-app-store";
@@ -48,12 +49,32 @@ export function AppShell({
   const sidebarOpen = useAppStore((s) => s.sidebarOpen);
   const setSidebarOpen = useAppStore((s) => s.setSidebarOpen);
   const activePropertyId = useAppStore((s) => s.activePropertyId);
+  const setActivePropertyId = useAppStore((s) => s.setActivePropertyId);
   const previewUser = useAppStore((s) => s.previewUser);
   const exitPreview = useAppStore((s) => s.exitPreview);
   // Reactive so the accent theme color updates the moment a property is
   // created/recolored/deleted, not just after a page reload — same fix as
   // TopBar/TabsSidebar (lib/queries/properties.ts useProperties doc comment).
   const properties = useProperties(initialProperties).data ?? initialProperties;
+
+  // Self-heals a stale persisted activePropertyId (localStorage, Architecture
+  // Decision 57) that no longer matches any property this user can see — a
+  // deleted/recreated property, or a value carried over from another
+  // account on the same browser. Left unguarded, this silently filtered
+  // Bookings/Dashboard/Financials/Issues down to zero results everywhere,
+  // with no error shown anywhere: the property switcher's own label falls
+  // back to "All properties" for an unmatched id (components/property-
+  // switcher.tsx), so the UI looked completely normal while every list was
+  // empty. Real incident, 2026-08-07: a manager saw zero bookings in a
+  // workspace that actually had several. Runs once properties have loaded;
+  // does nothing while the list is still empty (initial fetch) so it can't
+  // race a legitimate "all" state to a false reset.
+  useEffect(() => {
+    if (activePropertyId === "all") return;
+    if (properties.length === 0) return;
+    if (properties.some((p) => p.id === activePropertyId)) return;
+    setActivePropertyId("all");
+  }, [activePropertyId, properties, setActivePropertyId]);
 
   const realCanEdit = realUser.role === "ACCOUNT_OWNER" || realUser.role === "CO_MANAGER";
   const effectiveUser: User = previewUser ?? realUser;

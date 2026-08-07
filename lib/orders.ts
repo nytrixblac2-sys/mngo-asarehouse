@@ -97,7 +97,7 @@ export async function createGuestOrder(params: {
   items: { menuItemId: string; quantity: number }[];
 }) {
   const booking = await prisma.booking.findUnique({ where: { id: params.bookingId } });
-  if (!booking || booking.workspaceId !== params.workspaceId) {
+  if (!booking || booking.workspaceId !== params.workspaceId || booking.deletedAt) {
     throw new OrderError("Booking not found");
   }
   if (booking.checkedOutAt) {

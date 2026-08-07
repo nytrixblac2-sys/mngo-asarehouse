@@ -55,7 +55,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (!parsed.success) return apiError(parsed.error.message, 400);
 
   const existing = await prisma.booking.findUnique({ where: { id: params.id } });
-  if (!existing || existing.workspaceId !== user.workspaceId) {
+  if (!existing || existing.workspaceId !== user.workspaceId || existing.deletedAt) {
     return apiError("Not found", 404);
   }
 

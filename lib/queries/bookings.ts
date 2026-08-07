@@ -27,10 +27,21 @@ export interface HostelBookingInput {
 
 export type BookingInput = RentalBookingInput | HostelBookingInput;
 
+/** Excludes soft-deleted bookings — see useDeletedBookings() for those. */
 export function useBookings() {
   return useQuery({
     queryKey: ["bookings"],
     queryFn: () => fetchJson<Booking[]>("/api/bookings"),
+  });
+}
+
+/** Owner-only "deleted bookings" log (Architecture Decision 93) — the
+ * server rejects this for anyone but ACCOUNT_OWNER. */
+export function useDeletedBookings(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: ["bookings", "deleted"],
+    queryFn: () => fetchJson<Booking[]>("/api/bookings?deletedOnly=true"),
+    enabled: options?.enabled ?? true,
   });
 }
 
@@ -60,11 +71,35 @@ export function useUpdateBooking() {
   });
 }
 
+/** Soft-deletes a booking (Architecture Decision 93) — CO_MANAGER needs
+ * the workspace PIN, ACCOUNT_OWNER doesn't. A reason is always required,
+ * for the audit trail (see useDeletedBookings). Restorable — see
+ * useRestoreBooking. */
 export function useDeleteBooking() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => fetchJson<{ id: string }>(`/api/bookings/${id}`, { method: "DELETE" }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["bookings"] }),
+    mutationFn: ({ id, reason, pin }: { id: string; reason: string; pin?: string }) =>
+      fetchJson<Booking>(`/api/bookings/${id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason, pin }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bookings"] });
+    },
+  });
+}
+
+/** Restores a soft-deleted booking — owner only, no PIN needed (the PIN
+ * gate makes deleting harder, not undoing a delete). Rejected server-side
+ * if a HOSTEL room is now booked by someone else for the same dates. */
+export function useRestoreBooking() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => fetchJson<Booking>(`/api/bookings/${id}/restore`, { method: "POST" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bookings"] });
+    },
   });
 }
 
