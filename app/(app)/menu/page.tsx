@@ -11,21 +11,51 @@ import { C } from "@/lib/colors";
 import { fmtCurrency } from "@/lib/format";
 import type { Currency, MenuItem, MenuStation } from "@/lib/types";
 
-/** Always suggested in the category datalist below, even before any Shop
- * or Experience item exists yet — otherwise "Shop"/"Experience" can only
- * ever appear as a suggestion once something's already filed under them,
- * which is exactly the chicken-and-egg problem that made them hard to
- * discover in the first place (Architecture Decision 95). */
-const CATEGORY_HINTS = ["Shop", "Experience"];
+/** Same Menu/Shop/Experiences split as the guest-facing ordering screens
+ * (app/track/guest-bill-view.tsx, components/guest-order-form.tsx) —
+ * Architecture Decision 97: Shop/Experience items get their own tab here
+ * too, not just their own category, so managing them is a direct jump
+ * rather than scrolling past every food category first. */
+type MenuTab = "MENU" | "SHOP" | "EXPERIENCE";
+const TAB_STATIONS: Record<MenuTab, MenuStation[]> = {
+  MENU: ["KITCHEN", "BAR"],
+  SHOP: ["SHOP"],
+  EXPERIENCE: ["EXPERIENCE"],
+};
+const TAB_LABEL: Record<MenuTab, string> = { MENU: "Menu", SHOP: "Shop", EXPERIENCE: "Experiences" };
+const SECTION_LABEL: Record<MenuTab, { daily: string; constant: string }> = {
+  MENU: { daily: "Today's Lunch & Dinner", constant: "Always on the menu" },
+  SHOP: { daily: "Today's shop specials", constant: "Always in stock" },
+  EXPERIENCE: { daily: "Today's experiences", constant: "Always available" },
+};
+
+/** Suggested in the category datalist even before any item exists in that
+ * category yet — a sensible default name so Shop/Experience's own tabs
+ * always have something to suggest, not just once something's already
+ * filed under it (Architecture Decision 95, tab-scoped by 97). */
+const CATEGORY_HINTS: Record<MenuTab, string[]> = { MENU: [], SHOP: ["Shop"], EXPERIENCE: ["Experience"] };
+
+const STATION_OPTION_LABEL: Record<MenuStation, string> = {
+  KITCHEN: "Kitchen",
+  BAR: "Bar",
+  SHOP: "Shop",
+  EXPERIENCE: "Experiences",
+};
 
 function AddItemForm({
   categories,
   alwaysAvailable,
+  stationOptions,
   onAdd,
   isPending,
 }: {
   categories: string[];
   alwaysAvailable: boolean;
+  /** Which stations this add-form can create an item for — the Menu tab
+   * offers Kitchen/Bar (still needs distinguishing), the Shop/Experiences
+   * tabs each have exactly one, so there's nothing left to pick and the
+   * dropdown doesn't render (Architecture Decision 97). */
+  stationOptions: MenuStation[];
   onAdd: (input: { name: string; category: string; price: number; currency: Currency; station: MenuStation }) => void;
   isPending: boolean;
 }) {
@@ -33,7 +63,7 @@ function AddItemForm({
   const [category, setCategory] = useState("");
   const [price, setPrice] = useState("");
   const [currency, setCurrency] = useState<Currency>("GHS");
-  const [station, setStation] = useState<MenuStation>("KITCHEN");
+  const [station, setStation] = useState<MenuStation>(stationOptions[0]);
   const datalistId = `menu-categories-${alwaysAvailable ? "constant" : "daily"}`;
 
   const parsedPrice = parseFloat(price);
@@ -90,18 +120,19 @@ function AddItemForm({
         <option value="GHS">GHS</option>
         <option value="EUR">EUR</option>
       </select>
-      <select
-        value={station}
-        onChange={(e) => setStation(e.target.value as MenuStation)}
-        className="px-2 py-2.5 rounded-xl text-sm"
-        style={{ border: `1px solid ${C.border}` }}
-        title="Which screen this item's orders show up on"
-      >
-        <option value="KITCHEN">Kitchen</option>
-        <option value="BAR">Bar</option>
-        <option value="SHOP">Shop</option>
-        <option value="EXPERIENCE">Experiences</option>
-      </select>
+      {stationOptions.length > 1 && (
+        <select
+          value={station}
+          onChange={(e) => setStation(e.target.value as MenuStation)}
+          className="px-2 py-2.5 rounded-xl text-sm"
+          style={{ border: `1px solid ${C.border}` }}
+          title="Which screen this item's orders show up on"
+        >
+          {stationOptions.map((s) => (
+            <option key={s} value={s}>{STATION_OPTION_LABEL[s]}</option>
+          ))}
+        </select>
+      )}
       <button
         onClick={handleAdd}
         disabled={!canAdd || isPending}
@@ -111,9 +142,11 @@ function AddItemForm({
         Add
       </button>
     </div>
-      <p className="text-xs" style={{ color: C.muted }}>
-        Selling something in the shop, or offering a bookable experience? Type <strong>Shop</strong> or <strong>Experience</strong> as the category, and set Station above to match — they&apos;ll show up as their own section, tracked on the Shop/Experiences screens exactly like Kitchen and Bar.
-      </p>
+      {stationOptions.length > 1 && (
+        <p className="text-xs" style={{ color: C.muted }}>
+          Food goes under Kitchen, drinks under Bar — set Station above to match.
+        </p>
+      )}
     </div>
   );
 }
@@ -302,6 +335,7 @@ export default function MenuPage() {
   const deleteItem = useDeleteMenuItem();
   const updateItem = useUpdateMenuItem();
   const isOwner = effectiveUser.role === "ACCOUNT_OWNER";
+  const [tab, setTab] = useState<MenuTab>("MENU");
   const [search, setSearch] = useState("");
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const toggleSection = (key: string) =>
@@ -327,7 +361,9 @@ export default function MenuPage() {
 
   const isSearching = search.trim().length > 0;
   const query = search.trim().toLowerCase();
-  const items = (menuQuery.data ?? []).filter((i) => !isSearching || i.name.toLowerCase().includes(query));
+  const items = (menuQuery.data ?? [])
+    .filter((i) => TAB_STATIONS[tab].includes(i.station))
+    .filter((i) => !isSearching || i.name.toLowerCase().includes(query));
   const dailyItems = items.filter((i) => !i.alwaysAvailable);
   const constantItems = items.filter((i) => i.alwaysAvailable);
   const dailyCategories = Array.from(new Set(dailyItems.map((i) => i.category)));
@@ -387,6 +423,19 @@ export default function MenuPage() {
         <p className="text-sm mt-1" style={{ color: C.muted }}>Toggle what&apos;s on today&apos;s rotating menu, and manage the rest of the menu when it changes.</p>
       </div>
 
+      <div className="flex items-center gap-1 rounded-full p-1 w-fit" style={{ background: "#F2F2F2" }}>
+        {(Object.keys(TAB_LABEL) as MenuTab[]).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className="text-sm font-semibold px-4 py-2 rounded-full"
+            style={{ background: tab === t ? "#fff" : "transparent", color: tab === t ? C.text : C.muted }}
+          >
+            {TAB_LABEL[t]}
+          </button>
+        ))}
+      </div>
+
       <div className="relative">
         <Search size={14} style={{ color: C.muted, position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }} />
         <input
@@ -399,10 +448,10 @@ export default function MenuPage() {
       </div>
 
       <div className="flex flex-col gap-3">
-        <p className="text-sm font-semibold" style={{ color: C.text }}>Today&apos;s Lunch &amp; Dinner</p>
+        <p className="text-sm font-semibold" style={{ color: C.text }}>{SECTION_LABEL[tab].daily}</p>
         {dailyItems.length === 0 && (
           <p className="text-sm" style={{ color: C.muted }}>
-            {isSearching ? `No rotating items match "${search.trim()}".` : "No rotating menu items yet — add one below."}
+            {isSearching ? `No rotating items match "${search.trim()}".` : "Nothing rotating here yet — add one below."}
           </p>
         )}
         {dailyCategories.map((cat) => renderCategory("daily", cat, dailyItems.filter((i) => i.category === cat), true))}
@@ -410,8 +459,10 @@ export default function MenuPage() {
           <Card>
             <p className="text-sm font-bold mb-3" style={{ color: C.text }}>+ Add item</p>
             <AddItemForm
-              categories={Array.from(new Set([...dailyCategories, ...CATEGORY_HINTS]))}
+              key={`daily-${tab}`}
+              categories={Array.from(new Set([...dailyCategories, ...CATEGORY_HINTS[tab]]))}
               alwaysAvailable={false}
+              stationOptions={TAB_STATIONS[tab]}
               isPending={createItem.isPending}
               onAdd={(input) => createItem.mutate({ ...input, alwaysAvailable: false })}
             />
@@ -421,12 +472,14 @@ export default function MenuPage() {
 
       <div className="flex flex-col gap-3 pt-6" style={{ borderTop: `1px solid ${C.border}` }}>
         <div>
-          <p className="text-sm font-semibold" style={{ color: C.text }}>Always on the menu</p>
-          <p className="text-xs mt-0.5" style={{ color: C.muted }}>Breakfast, drinks, the all-day menu — orderable every day, no daily toggle needed.</p>
+          <p className="text-sm font-semibold" style={{ color: C.text }}>{SECTION_LABEL[tab].constant}</p>
+          {tab === "MENU" && (
+            <p className="text-xs mt-0.5" style={{ color: C.muted }}>Breakfast, drinks, the all-day menu — orderable every day, no daily toggle needed.</p>
+          )}
         </div>
         {constantItems.length === 0 && (
           <p className="text-sm" style={{ color: C.muted }}>
-            {isSearching ? `No standing items match "${search.trim()}".` : "No standing menu items yet — add one below."}
+            {isSearching ? `No standing items match "${search.trim()}".` : "Nothing here yet — add one below."}
           </p>
         )}
         {constantCategories.map((cat) => renderCategory("constant", cat, constantItems.filter((i) => i.category === cat), false))}
@@ -434,8 +487,10 @@ export default function MenuPage() {
           <Card>
             <p className="text-sm font-bold mb-3" style={{ color: C.text }}>+ Add item</p>
             <AddItemForm
-              categories={Array.from(new Set([...constantCategories, ...CATEGORY_HINTS]))}
+              key={`constant-${tab}`}
+              categories={Array.from(new Set([...constantCategories, ...CATEGORY_HINTS[tab]]))}
               alwaysAvailable
+              stationOptions={TAB_STATIONS[tab]}
               isPending={createItem.isPending}
               onAdd={(input) => createItem.mutate({ ...input, alwaysAvailable: true })}
             />
