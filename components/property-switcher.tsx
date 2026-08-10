@@ -10,7 +10,17 @@ import type { Property } from "@/lib/types";
 import { PropertyForm } from "./property-form";
 import { PropertyProfileModal } from "./property-profile-modal";
 
-/** context/07-mockup.jsx PropertySwitcher. */
+/**
+ * context/07-mockup.jsx PropertySwitcher. Capped at one property per
+ * workspace (Architecture Decision 94, 2026-08-10) — "Add property" only
+ * shows for a brand-new workspace with none yet; "All properties" only
+ * shows if a workspace somehow already has more than one (no current
+ * workspace does — this is a legacy-safety fallback, not a supported
+ * path going forward). The pre-existing last-property delete guard
+ * (`properties.length > 1` below) already prevented deleting your only
+ * property, so together these two together permanently pin every
+ * workspace to exactly the one property it started with.
+ */
 export function PropertySwitcher({ properties, canEdit }: { properties: Property[]; canEdit: boolean }) {
   const [open, setOpen] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -56,21 +66,25 @@ export function PropertySwitcher({ properties, canEdit }: { properties: Property
           className="absolute left-0 top-full mt-1 w-64 rounded-xl p-2 z-30"
           style={{ background: "#fff", border: `1px solid ${C.border}`, boxShadow: "0 8px 24px rgba(0,0,0,0.10)" }}
         >
-          <button
-            onClick={() => {
-              setActivePropertyId("all");
-              setOpen(false);
-            }}
-            className="w-full text-left text-sm px-3 py-2 rounded-lg"
-            style={{
-              color: activePropertyId === "all" ? "var(--accent, #111111)" : C.text,
-              fontWeight: activePropertyId === "all" ? 700 : 500,
-              background: activePropertyId === "all" ? "var(--accent-soft, rgba(0,0,0,0.07))" : "transparent",
-            }}
-          >
-            All properties
-          </button>
-          {properties.length > 0 && <div style={{ borderTop: `1px solid ${C.border}`, margin: "6px 0" }} />}
+          {properties.length > 1 && (
+            <>
+              <button
+                onClick={() => {
+                  setActivePropertyId("all");
+                  setOpen(false);
+                }}
+                className="w-full text-left text-sm px-3 py-2 rounded-lg"
+                style={{
+                  color: activePropertyId === "all" ? "var(--accent, #111111)" : C.text,
+                  fontWeight: activePropertyId === "all" ? 700 : 500,
+                  background: activePropertyId === "all" ? "var(--accent-soft, rgba(0,0,0,0.07))" : "transparent",
+                }}
+              >
+                All properties
+              </button>
+              <div style={{ borderTop: `1px solid ${C.border}`, margin: "6px 0" }} />
+            </>
+          )}
           {properties.map((p) => (
             <div
               key={p.id}
@@ -134,7 +148,7 @@ export function PropertySwitcher({ properties, canEdit }: { properties: Property
               )}
             </div>
           ))}
-          {canEdit && (
+          {canEdit && properties.length === 0 && (
             <>
               <div style={{ borderTop: `1px solid ${C.border}`, margin: "6px 0" }} />
               <button

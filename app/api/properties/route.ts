@@ -16,12 +16,20 @@ export async function GET() {
  * PropertyForm. Everything else defaults and is set afterward via the
  * Property profile modal. Clean slate per Architecture Decision 31:
  * prevBalance always starts at { owners: 0, management: 0 }, no
- * opening-balance input. Managers only.
+ * opening-balance input. Managers only. Capped at one property per
+ * workspace (Architecture Decision 94) — every real workspace so far has
+ * exactly one; this rejects a second regardless of what the UI shows,
+ * since a hidden button alone isn't a real boundary.
  */
 export async function POST(req: Request) {
   const user = await getCurrentUser();
   if (!user) return apiError("Unauthorized", 401);
   if (user.role === "PROPERTY_OWNER") return apiError("Forbidden", 403);
+
+  const existingCount = await prisma.property.count({ where: { workspaceId: user.workspaceId } });
+  if (existingCount > 0) {
+    return apiError("This workspace already has a property — additional properties aren't supported.", 400);
+  }
 
   const parsed = createPropertySchema.safeParse(await req.json());
   if (!parsed.success) return apiError(parsed.error.message, 400);

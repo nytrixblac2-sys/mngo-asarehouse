@@ -57,21 +57,36 @@ export function AppShell({
   // TopBar/TabsSidebar (lib/queries/properties.ts useProperties doc comment).
   const properties = useProperties(initialProperties).data ?? initialProperties;
 
-  // Self-heals a stale persisted activePropertyId (localStorage, Architecture
-  // Decision 57) that no longer matches any property this user can see — a
-  // deleted/recreated property, or a value carried over from another
-  // account on the same browser. Left unguarded, this silently filtered
-  // Bookings/Dashboard/Financials/Issues down to zero results everywhere,
-  // with no error shown anywhere: the property switcher's own label falls
-  // back to "All properties" for an unmatched id (components/property-
-  // switcher.tsx), so the UI looked completely normal while every list was
-  // empty. Real incident, 2026-08-07: a manager saw zero bookings in a
-  // workspace that actually had several. Runs once properties have loaded;
-  // does nothing while the list is still empty (initial fetch) so it can't
-  // race a legitimate "all" state to a false reset.
+  // Self-heals activePropertyId in two cases, both localStorage-persisted
+  // (Architecture Decision 57) so both can go stale across a reload:
+  //
+  // 1. Exactly one property (every real workspace, since Architecture
+  //    Decision 94 capped "Add property" at one per workspace) — always
+  //    pin activePropertyId to that property's id, never "all" and never
+  //    a stale id. There's nothing to switch between, so there's nothing
+  //    for the user to have to notice or fix.
+  // 2. More than one property (no current workspace, but not assumed
+  //    impossible) — only correct a genuinely stale id (one that matches
+  //    no visible property) back to "all"; a real "all" selection is left
+  //    alone. Case 1 above didn't exist yet the day this was first
+  //    written — a stale id silently filtered Bookings/Dashboard/
+  //    Financials/Issues down to zero results everywhere, with no error
+  //    shown anywhere, since the property switcher's own label falls back
+  //    to "All properties" for an unmatched id (components/property-
+  //    switcher.tsx) even though every other consumer was reading the
+  //    raw stale value. Real incident, 2026-08-07: a manager saw zero
+  //    bookings in a workspace that actually had several.
+  //
+  // Runs once properties have loaded; does nothing while the list is
+  // still empty (initial fetch, or a genuinely brand-new workspace) so it
+  // can't race a legitimate state to a false reset.
   useEffect(() => {
-    if (activePropertyId === "all") return;
     if (properties.length === 0) return;
+    if (properties.length === 1) {
+      if (activePropertyId !== properties[0].id) setActivePropertyId(properties[0].id);
+      return;
+    }
+    if (activePropertyId === "all") return;
     if (properties.some((p) => p.id === activePropertyId)) return;
     setActivePropertyId("all");
   }, [activePropertyId, properties, setActivePropertyId]);
