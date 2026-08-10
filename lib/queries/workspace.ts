@@ -12,10 +12,19 @@ export interface WorkspaceInfo {
   hasPin: boolean;
 }
 
-export function useWorkspace() {
+/** `initialData` lets a caller that already has the server-fetched
+ * workspace (the AppShell layout prop, threaded through TopBar/
+ * TabsSidebar) seed the query so there's no loading flash before the
+ * first client fetch resolves — same reasoning as useProperties'
+ * initialData (lib/queries/properties.ts). Real incident, 2026-08-10:
+ * on every refresh of a HOSTEL workspace, the nav briefly rendered the
+ * RENTAL shape (getNavItems' default when workspace.type is still
+ * unknown) before flipping to the correct one once this query resolved. */
+export function useWorkspace(initialData?: WorkspaceInfo) {
   return useQuery({
     queryKey: ["workspace"],
     queryFn: () => fetchJson<WorkspaceInfo>("/api/workspace"),
+    initialData,
   });
 }
 

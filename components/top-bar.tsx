@@ -8,7 +8,7 @@ import { C } from "@/lib/colors";
 import { getNavItems } from "@/lib/nav";
 import { useAppStore } from "@/store/use-app-store";
 import { useProperties } from "@/lib/queries/properties";
-import { useWorkspace } from "@/lib/queries/workspace";
+import { useWorkspace, type WorkspaceInfo } from "@/lib/queries/workspace";
 import type { Property, User } from "@/lib/types";
 import { signOut } from "@/app/(app)/actions";
 import { PropertySwitcher } from "./property-switcher";
@@ -23,6 +23,7 @@ import { GenerateReportModal } from "./generate-report-modal";
  */
 export function TopBar({
   properties: initialProperties,
+  workspace: initialWorkspace,
   effectiveUser,
   effectiveCanEdit,
   realUser,
@@ -31,6 +32,7 @@ export function TopBar({
   setSidebarOpen,
 }: {
   properties: Property[];
+  workspace: WorkspaceInfo;
   effectiveUser: User;
   effectiveCanEdit: boolean;
   realUser: User;
@@ -44,7 +46,10 @@ export function TopBar({
   const exitPreview = useAppStore((s) => s.exitPreview);
   const pathname = usePathname();
   const router = useRouter();
-  const workspace = useWorkspace().data;
+  // Seeded with the server-rendered prop so the nav never briefly renders
+  // the wrong workspace-type shape on refresh — see useWorkspace's doc
+  // comment (Architecture Decision 96).
+  const workspace = useWorkspace(initialWorkspace).data ?? initialWorkspace;
   const allNavItems = getNavItems(workspace?.type);
   // Same HOSTEL owner-only inversion as tabs-sidebar.tsx — see its comment
   // and Architecture Decision 87.

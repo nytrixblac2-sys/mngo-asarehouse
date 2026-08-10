@@ -27,7 +27,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 
   const workspace = await prisma.workspace.findUniqueOrThrow({
     where: { id: user.workspaceId },
-    select: { status: true },
+    select: { id: true, name: true, slug: true, type: true, status: true, actionPinHash: true },
   });
   if (workspace.status !== "ACTIVE") {
     return <WorkspaceGateScreen status={workspace.status} />;
@@ -35,8 +35,16 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 
   const properties = await getVisibleProperties(user);
 
+  // Passed down as TopBar/TabsSidebar's initial workspace data (Architecture
+  // Decision 96) — same reasoning as `properties` below: without this, the
+  // nav briefly renders the wrong workspace-type shape on every refresh,
+  // while useWorkspace()'s client fetch is still in flight.
   return (
-    <AppShell properties={properties} realUser={user}>
+    <AppShell
+      properties={properties}
+      workspace={{ id: workspace.id, name: workspace.name, slug: workspace.slug, type: workspace.type, hasPin: !!workspace.actionPinHash }}
+      realUser={user}
+    >
       {children}
     </AppShell>
   );

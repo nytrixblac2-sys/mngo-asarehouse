@@ -6,6 +6,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { C } from "@/lib/colors";
 import { useAppStore } from "@/store/use-app-store";
 import { useProperties } from "@/lib/queries/properties";
+import type { WorkspaceInfo } from "@/lib/queries/workspace";
 import type { Property, User } from "@/lib/types";
 import { TopBar } from "./top-bar";
 import { TabsSidebar } from "./tabs-sidebar";
@@ -39,10 +40,12 @@ function withAlpha(hex: string, alpha: number) {
  */
 export function AppShell({
   properties: initialProperties,
+  workspace,
   realUser,
   children,
 }: {
   properties: Property[];
+  workspace: WorkspaceInfo;
   realUser: User;
   children: ReactNode;
 }) {
@@ -130,6 +133,7 @@ export function AppShell({
       )}
       <TopBar
         properties={properties}
+        workspace={workspace}
         effectiveUser={effectiveUser}
         effectiveCanEdit={effectiveCanEdit}
         realUser={realUser}
@@ -145,6 +149,7 @@ export function AppShell({
             realUser={realUser}
             realCanEdit={realCanEdit}
             properties={properties}
+            workspace={workspace}
           />
         )}
         <div className="flex-1 p-8 overflow-y-auto">

@@ -8,7 +8,7 @@ import { C } from "@/lib/colors";
 import { getNavItems } from "@/lib/nav";
 import { useAppStore } from "@/store/use-app-store";
 import { useProperties } from "@/lib/queries/properties";
-import { useWorkspace } from "@/lib/queries/workspace";
+import { useWorkspace, type WorkspaceInfo } from "@/lib/queries/workspace";
 import type { Property, User } from "@/lib/types";
 import { signOut } from "@/app/(app)/actions";
 import { ProfileModal } from "./profile-modal";
@@ -22,18 +22,23 @@ export function TabsSidebar({
   realUser,
   realCanEdit,
   properties: initialProperties,
+  workspace: initialWorkspace,
 }: {
   effectiveUser: User;
   effectiveCanEdit: boolean;
   realUser: User;
   realCanEdit: boolean;
   properties: Property[];
+  workspace: WorkspaceInfo;
 }) {
   const [showProfile, setShowProfile] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const exitPreview = useAppStore((s) => s.exitPreview);
   const pathname = usePathname();
-  const workspace = useWorkspace().data;
+  // Seeded with the server-rendered prop so the nav never briefly renders
+  // the wrong workspace-type shape on refresh — see useWorkspace's doc
+  // comment (Architecture Decision 96).
+  const workspace = useWorkspace(initialWorkspace).data ?? initialWorkspace;
   const allNavItems = getNavItems(workspace?.type);
   // Team is hidden from the Property Owner nav (RENTAL). Financials is
   // hidden from anyone but the ACCOUNT_OWNER on a HOSTEL workspace — the
