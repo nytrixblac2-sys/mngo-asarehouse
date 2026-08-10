@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Trash2, Pencil, ChevronRight, Search } from "lucide-react";
+import { Card } from "@/components/primitives";
 import { useEffectiveUser } from "@/components/effective-user-context";
 import { useCreateMenuItem, useDeleteMenuItem, useMenuItems, useToggleMenuItemAvailability, useUpdateMenuItem } from "@/lib/queries/menu";
 import type { MenuItemInput } from "@/lib/queries/menu";
@@ -9,6 +10,13 @@ import { useWorkspace } from "@/lib/queries/workspace";
 import { C } from "@/lib/colors";
 import { fmtCurrency } from "@/lib/format";
 import type { Currency, MenuItem, MenuStation } from "@/lib/types";
+
+/** Always suggested in the category datalist below, even before any Shop
+ * or Experience item exists yet — otherwise "Shop"/"Experience" can only
+ * ever appear as a suggestion once something's already filed under them,
+ * which is exactly the chicken-and-egg problem that made them hard to
+ * discover in the first place (Architecture Decision 95). */
+const CATEGORY_HINTS = ["Shop", "Experience"];
 
 function AddItemForm({
   categories,
@@ -41,6 +49,7 @@ function AddItemForm({
   };
 
   return (
+    <div className="flex flex-col gap-2">
     <div className="flex gap-2 flex-wrap">
       <input
         value={name}
@@ -101,6 +110,10 @@ function AddItemForm({
       >
         Add
       </button>
+    </div>
+      <p className="text-xs" style={{ color: C.muted }}>
+        Selling something in the shop, or offering a bookable experience? Type <strong>Shop</strong> or <strong>Experience</strong> as the category, and set Station above to match — they&apos;ll show up as their own section, tracked on the Shop/Experiences screens exactly like Kitchen and Bar.
+      </p>
     </div>
   );
 }
@@ -320,25 +333,33 @@ export default function MenuPage() {
   const dailyCategories = Array.from(new Set(dailyItems.map((i) => i.category)));
   const constantCategories = Array.from(new Set(constantItems.map((i) => i.category)));
 
+  // Bento-card treatment, matching PerStayView's per-booking cards
+  // (Architecture Decision 95) — one Card per category, click to expand,
+  // scroll within a bounded height rather than pushing the whole page
+  // down (some categories run past 100 items). Interaction unchanged from
+  // before: click header to expand/collapse, edit/toggle/add inside.
   const renderCategory = (sectionKey: string, cat: string, catItems: MenuItem[], showToggle: boolean) => {
     const key = `${sectionKey}:${cat}`;
     const isOpen = isSearching || expandedSections.has(key);
     return (
-      <div key={key}>
+      <Card key={key}>
         <button
           onClick={() => toggleSection(key)}
-          className="w-full flex items-center justify-between py-2"
+          className="w-full flex items-center justify-between"
           disabled={isSearching}
         >
-          <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: C.muted }}>
-            {cat} <span style={{ color: C.muted, opacity: 0.7 }}>({catItems.length})</span>
+          <p className="text-sm font-bold" style={{ color: C.text }}>
+            {cat} <span style={{ color: C.muted, fontWeight: 500 }}>({catItems.length})</span>
           </p>
           {!isSearching && (
-            <ChevronRight size={14} style={{ color: C.muted, transform: isOpen ? "rotate(90deg)" : "none", transition: "transform 0.15s" }} />
+            <ChevronRight size={16} style={{ color: C.muted, transform: isOpen ? "rotate(90deg)" : "none", transition: "transform 0.15s" }} />
           )}
         </button>
         {isOpen && (
-          <div className="flex flex-col gap-2 mt-2">
+          <div
+            className="flex flex-col gap-2 mt-4 overflow-y-auto"
+            style={{ paddingTop: 16, borderTop: `1px solid ${C.border}`, maxHeight: 420 }}
+          >
             {catItems.map((item) => (
               <ItemRow
                 key={item.id}
@@ -355,7 +376,7 @@ export default function MenuPage() {
             ))}
           </div>
         )}
-      </div>
+      </Card>
     );
   };
 
@@ -377,7 +398,7 @@ export default function MenuPage() {
         />
       </div>
 
-      <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-3">
         <p className="text-sm font-semibold" style={{ color: C.text }}>Today&apos;s Lunch &amp; Dinner</p>
         {dailyItems.length === 0 && (
           <p className="text-sm" style={{ color: C.muted }}>
@@ -386,16 +407,19 @@ export default function MenuPage() {
         )}
         {dailyCategories.map((cat) => renderCategory("daily", cat, dailyItems.filter((i) => i.category === cat), true))}
         {effectiveCanEdit && !isSearching && (
-          <AddItemForm
-            categories={dailyCategories}
-            alwaysAvailable={false}
-            isPending={createItem.isPending}
-            onAdd={(input) => createItem.mutate({ ...input, alwaysAvailable: false })}
-          />
+          <Card>
+            <p className="text-sm font-bold mb-3" style={{ color: C.text }}>+ Add item</p>
+            <AddItemForm
+              categories={Array.from(new Set([...dailyCategories, ...CATEGORY_HINTS]))}
+              alwaysAvailable={false}
+              isPending={createItem.isPending}
+              onAdd={(input) => createItem.mutate({ ...input, alwaysAvailable: false })}
+            />
+          </Card>
         )}
       </div>
 
-      <div className="flex flex-col gap-5 pt-6" style={{ borderTop: `1px solid ${C.border}` }}>
+      <div className="flex flex-col gap-3 pt-6" style={{ borderTop: `1px solid ${C.border}` }}>
         <div>
           <p className="text-sm font-semibold" style={{ color: C.text }}>Always on the menu</p>
           <p className="text-xs mt-0.5" style={{ color: C.muted }}>Breakfast, drinks, the all-day menu — orderable every day, no daily toggle needed.</p>
@@ -407,12 +431,15 @@ export default function MenuPage() {
         )}
         {constantCategories.map((cat) => renderCategory("constant", cat, constantItems.filter((i) => i.category === cat), false))}
         {effectiveCanEdit && !isSearching && (
-          <AddItemForm
-            categories={constantCategories}
-            alwaysAvailable
-            isPending={createItem.isPending}
-            onAdd={(input) => createItem.mutate({ ...input, alwaysAvailable: true })}
-          />
+          <Card>
+            <p className="text-sm font-bold mb-3" style={{ color: C.text }}>+ Add item</p>
+            <AddItemForm
+              categories={Array.from(new Set([...constantCategories, ...CATEGORY_HINTS]))}
+              alwaysAvailable
+              isPending={createItem.isPending}
+              onAdd={(input) => createItem.mutate({ ...input, alwaysAvailable: true })}
+            />
+          </Card>
         )}
       </div>
     </div>

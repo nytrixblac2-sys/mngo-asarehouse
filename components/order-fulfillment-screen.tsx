@@ -74,6 +74,13 @@ export function OrderFulfillmentScreen({ station, title }: { station: MenuStatio
       const items = o.items.filter((i) => i.station === station);
       return { order: o, booking, room, items, status: o[statusField] as IssueStatus };
     })
+    // Once a guest checks out, their tickets stop cluttering the active
+    // board on every station — user request, 2026-08-10: "when the guest
+    // checks out that data will stop displaying." Nothing is lost: the
+    // booking's own order history (BookingDetailModal) still shows every
+    // order regardless of checkout, this only hides it from the
+    // fulfillment screens, which are about what's still in flight right now.
+    .filter(({ booking }) => !booking?.checkedOutAt)
     .sort((a, b) => {
       const rank = (s: IssueStatus) => (s === "OPEN" ? 0 : s === "IN_PROGRESS" ? 1 : 2);
       if (rank(a.status) !== rank(b.status)) return rank(a.status) - rank(b.status);
