@@ -93,10 +93,12 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 }
 
 /**
- * Soft-deletes a booking (Architecture Decision 93) — CO_MANAGER needs the
- * workspace PIN and a reason; ACCOUNT_OWNER needs just a reason. See
- * lib/bookings.ts deleteBooking for the full rule. Restorable — see
- * POST /api/bookings/[id]/restore.
+ * Deletes a booking, or requests its deletion (Architecture Decision 99)
+ * — ACCOUNT_OWNER deletes immediately; anyone else's delete becomes a
+ * pending request the owner approves or rejects (see
+ * POST /api/bookings/[id]/approve-delete and reject-delete). See
+ * lib/bookings.ts deleteBooking for the full rule. Restorable once
+ * actually deleted — see POST /api/bookings/[id]/restore.
  */
 export async function DELETE(req: Request, { params }: { params: { id: string } }) {
   const user = await getCurrentUser();
@@ -113,11 +115,10 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
       actorRole: user.role,
       actorName: user.name,
       reason: parsed.data.reason,
-      pin: parsed.data.pin,
     });
     return apiSuccess(serializeBooking(booking));
   } catch (err) {
-    if (err instanceof BookingError) return apiError(err.message, err.message === "Incorrect PIN" ? 403 : 409);
+    if (err instanceof BookingError) return apiError(err.message, 409);
     throw err;
   }
 }

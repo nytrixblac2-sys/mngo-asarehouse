@@ -9,11 +9,13 @@ import { CurrencyToggle } from "@/components/currency-toggle";
 import { DeltaStat } from "@/components/delta-stat";
 import { useEffectiveUser } from "@/components/effective-user-context";
 import { useAppStore } from "@/store/use-app-store";
-import { useBookings, useConfirmBookingPayout, useUnconfirmBookingPayout } from "@/lib/queries/bookings";
+import { useApproveBookingDeletion, useBookings, useConfirmBookingPayout, useRejectBookingDeletion, useUnconfirmBookingPayout } from "@/lib/queries/bookings";
+import { useApproveOrderDeletion, useOrders, useRejectOrderDeletion } from "@/lib/queries/orders";
 import { useExpenses } from "@/lib/queries/expenses";
 import { useSchedules } from "@/lib/queries/schedules";
 import { useIssues } from "@/lib/queries/issues";
 import { useProperties } from "@/lib/queries/properties";
+import { useWorkspace } from "@/lib/queries/workspace";
 import { C } from "@/lib/colors";
 import { applyMomo, confirmedBookings } from "@/lib/financials";
 import { fmtCurrency, fmtGHS, fmtEUR } from "@/lib/format";
@@ -52,13 +54,25 @@ export default function DashboardPage() {
   const setPeriodKey = (k: PeriodKey) => setDashboardView({ periodKey: k });
   const setChartCurrency = (c: Currency) => setDashboardView({ chartCurrency: c });
 
+  const isOwner = effectiveUser.role === "ACCOUNT_OWNER";
+  const workspace = useWorkspace().data;
+
   const bookingsQuery = useBookings();
   const expensesQuery = useExpenses();
   const schedulesQuery = useSchedules();
   const issuesQuery = useIssues();
   const propertiesQuery = useProperties();
+  // Only fetched for the owner, and only where orders even exist — same
+  // enabled-gating pattern used elsewhere (Architecture Decision 99's
+  // pending-approvals banner needs order deletion requests too, not just
+  // booking ones).
+  const ordersQuery = useOrders(undefined, { enabled: isOwner && workspace?.type === "HOSTEL" });
   const confirmPayout = useConfirmBookingPayout();
   const unconfirmPayout = useUnconfirmBookingPayout();
+  const approveBookingDeletion = useApproveBookingDeletion();
+  const rejectBookingDeletion = useRejectBookingDeletion();
+  const approveOrderDeletion = useApproveOrderDeletion();
+  const rejectOrderDeletion = useRejectOrderDeletion();
 
   const isLoading =
     bookingsQuery.isLoading || expensesQuery.isLoading || schedulesQuery.isLoading || issuesQuery.isLoading;
@@ -72,6 +86,16 @@ export default function DashboardPage() {
 
   const today = todayISO();
   const openIssues = issues.filter((i) => i.status === "OPEN" || i.status === "IN_PROGRESS");
+  // Owner-only pending delete requests (Architecture Decision 99) — a
+  // CO_MANAGER's delete no longer needs a shared PIN, it becomes a
+  // request here instead. Order requests are cross-referenced against
+  // this same property-filtered bookings list so the banner respects the
+  // active property switcher automatically, without orders having their
+  // own propertyId to filter by directly.
+  const pendingBookingRequests = isOwner ? bookings.filter((b) => b.deleteRequestedAt) : [];
+  const pendingOrderRequests = isOwner
+    ? (ordersQuery.data ?? []).filter((o) => o.deleteRequestedAt && bookings.some((b) => b.id === o.bookingId))
+    : [];
   const upcomingStays = [...bookings]
     .filter((b) => b.checkOut >= today)
     .sort((a, b) => (a.checkIn < b.checkIn ? -1 : 1))
@@ -179,6 +203,81 @@ export default function DashboardPage() {
                 </div>
               </button>
             ))}
+          </div>
+        </Card>
+      )}
+
+      {isOwner && (pendingBookingRequests.length > 0 || pendingOrderRequests.length > 0) && (
+        <Card style={{ background: "#FFFBEB", border: "1px solid #F59E0B" }}>
+          <p className="text-sm font-semibold mb-2" style={{ color: "#92400E" }}>
+            Pending delete requests ({pendingBookingRequests.length + pendingOrderRequests.length})
+          </p>
+          <div className="flex flex-col gap-1.5">
+            {pendingBookingRequests.map((b) => (
+              <div
+                key={b.id}
+                className="w-full flex items-center justify-between py-2 px-3 rounded-xl"
+                style={{ background: "rgba(255,255,255,0.6)" }}
+              >
+                <div>
+                  <p className="text-sm font-semibold" style={{ color: C.text }}>Stay — {b.guest}</p>
+                  <p className="text-xs mt-0.5" style={{ color: C.muted }}>
+                    Requested by {b.deleteRequestedBy}{b.deleteReason ? ` — "${b.deleteReason}"` : ""}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 flex-shrink-0 ml-3">
+                  <button
+                    onClick={() => approveBookingDeletion.mutate(b.id)}
+                    className="text-xs font-semibold"
+                    style={{ color: "#92400E" }}
+                  >
+                    Approve
+                  </button>
+                  <button
+                    onClick={() => rejectBookingDeletion.mutate(b.id)}
+                    className="text-xs font-semibold"
+                    style={{ color: C.muted }}
+                  >
+                    Reject
+                  </button>
+                </div>
+              </div>
+            ))}
+            {pendingOrderRequests.map((o) => {
+              const guest = bookings.find((b) => b.id === o.bookingId)?.guest ?? "Unknown guest";
+              const itemSummary = o.items.map((i) => `${i.quantity}× ${i.name}`).join(", ");
+              return (
+                <div
+                  key={o.id}
+                  className="w-full flex items-center justify-between py-2 px-3 rounded-xl"
+                  style={{ background: "rgba(255,255,255,0.6)" }}
+                >
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: C.text }}>Order — {guest}</p>
+                    <p className="text-xs mt-0.5" style={{ color: C.muted }}>{itemSummary}</p>
+                    <p className="text-xs mt-0.5" style={{ color: C.muted }}>
+                      Requested by {o.deleteRequestedBy}{o.deleteReason ? ` — "${o.deleteReason}"` : ""}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 flex-shrink-0 ml-3">
+                    <button
+                      onClick={() => approveOrderDeletion.mutate(o.id)}
+                      className="text-xs font-semibold"
+                      style={{ color: "#92400E" }}
+                    >
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => rejectOrderDeletion.mutate(o.id)}
+                      className="text-xs font-semibold"
+                      style={{ color: C.muted }}
+                    >
+                      Reject
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </Card>
       )}

@@ -161,6 +161,10 @@ export interface Order {
   deletedAt: string | null;
   deletedBy: string | null;
   deleteReason: string | null;
+  /** Same pending-request/approval mechanism as Booking (Architecture
+   * Decision 99) — see its doc comment. */
+  deleteRequestedAt: string | null;
+  deleteRequestedBy: string | null;
   items: OrderItem[];
 }
 
@@ -194,6 +198,11 @@ export interface Booking {
   deletedAt: string | null;
   deletedBy: string | null;
   deleteReason: string | null;
+  /** A CO_MANAGER's delete request, pending ACCOUNT_OWNER approval
+   * (Architecture Decision 99) — the booking stays fully active/visible
+   * everywhere while this is set; deletedAt only gets set once approved. */
+  deleteRequestedAt: string | null;
+  deleteRequestedBy: string | null;
 }
 
 export interface Expense {

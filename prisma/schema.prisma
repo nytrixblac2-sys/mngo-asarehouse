@@ -144,12 +144,14 @@ model Workspace {
   /// Manual paid/unpaid flag, admin-toggled from /admin — no payment
   /// processor integration for V1 (billing handled outside MNGO).
   paid           Boolean         @default(false)
-  /// bcrypt hash of the owner-set PIN gating sensitive actions (deleting a
-  /// booking or order, changing a menu item's price) — never the
-  /// plaintext, never sent to the client. Null until the owner sets one
-  /// via ProfileModal's Security section, available for every workspace
-  /// type since Architecture Decision 93 (originally HOSTEL-only, per
-  /// Architecture Decision 79). See lib/workspace-pin.ts.
+  /// bcrypt hash of the owner-set PIN gating a menu item's price change —
+  /// never the plaintext, never sent to the client. Null until the owner
+  /// sets one via ProfileModal's Security section, available for every
+  /// workspace type since Architecture Decision 93 (originally
+  /// HOSTEL-only, per Architecture Decision 79). Booking/order deletion
+  /// used to require this too, but moved to a pending-request/approval
+  /// flow instead (Architecture Decision 99) — see Booking/Order's
+  /// deleteRequestedAt/deleteRequestedBy doc comments. See lib/workspace-pin.ts.
   actionPinHash  String?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
@@ -271,15 +273,25 @@ model Booking {
   paymentMethod  PaymentMethod?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
-  /// Soft-deletable, PIN-gated — same pattern as Order (Architecture
-  /// Decision 79), now applied to every workspace (RENTAL and HOSTEL
-  /// alike), not just HOSTEL orders (Architecture Decision 93). Deleting
-  /// clears nothing — the row stays exactly as it was, just hidden from
-  /// normal views and excluded from every calculation, so it can be
-  /// restored intact.
+  /// Soft-deletable — same pattern as Order, applied to every workspace
+  /// (Architecture Decision 93). Deleting clears nothing — the row stays
+  /// exactly as it was, just hidden from normal views and excluded from
+  /// every calculation, so it can be restored intact.
   deletedAt      DateTime?
   deletedBy      String?
   deleteReason   String?
+  /// Replaces PIN-gating for deletion (Architecture Decision 99) — a
+  /// CO_MANAGER's delete no longer needs a shared PIN, it becomes a
+  /// pending request here instead: deletedAt stays null, these two are
+  /// set, and the booking stays fully active/visible everywhere until the
+  /// ACCOUNT_OWNER approves it (which finalizes deletedAt/deletedBy from
+  /// these, then clears them) or rejects it (just clears them, no delete).
+  /// ACCOUNT_OWNER's own deletes are still immediate — they're already
+  /// the approver, there's no one else to ask. deleteReason above is
+  /// shared by both the pending request and the final deletion, since
+  /// there's only ever one reason per request cycle.
+  deleteRequestedAt DateTime?
+  deleteRequestedBy String?
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   property  Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
@@ -358,19 +370,24 @@ model MenuItem {
 /// experienceStatus alongside the original kitchenStatus/barStatus).
 /// Soft-deletable (deletedAt/deletedBy/deleteReason) — a deleted order
 /// drops out of the guest's bill and the fulfillment screens but stays
-/// queryable for the owner (app/api/orders/[id]/route.ts DELETE, PIN-gated).
+/// queryable for the owner (app/api/orders/[id]/route.ts DELETE). A
+/// CO_MANAGER's delete is a pending request (deleteRequestedAt/By set,
+/// deletedAt still null) until the ACCOUNT_OWNER approves or rejects it —
+/// same mechanism as Booking, see its doc comment (Architecture Decision 99).
 model Order {
-  id               String       @id @default(uuid()) @db.Uuid
-  workspaceId      String       @db.Uuid
-  bookingId        String       @db.Uuid
-  kitchenStatus    IssueStatus?
-  barStatus        IssueStatus?
-  shopStatus       IssueStatus?
-  experienceStatus IssueStatus?
-  deletedAt        DateTime?
-  deletedBy        String?
-  deleteReason     String?
-  createdAt        DateTime     @default(now())
+  id                String       @id @default(uuid()) @db.Uuid
+  workspaceId       String       @db.Uuid
+  bookingId         String       @db.Uuid
+  kitchenStatus     IssueStatus?
+  barStatus         IssueStatus?
+  shopStatus        IssueStatus?
+  experienceStatus  IssueStatus?
+  deletedAt         DateTime?
+  deletedBy         String?
+  deleteReason      String?
+  deleteRequestedAt DateTime?
+  deleteRequestedBy String?
+  createdAt         DateTime     @default(now())
 
   workspace Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   booking   Booking     @relation(fields: [bookingId], references: [id], onDelete: Cascade)

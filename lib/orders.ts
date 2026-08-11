@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { prisma } from "./prisma";
 import { isMenuItemOrderable } from "./menu";
-import { verifyWorkspacePin } from "./workspace-pin";
 import { STATION_STATUS_FIELD } from "./labels";
 import type { MenuStation, Order } from "./types";
 
@@ -24,9 +23,6 @@ export const orderStatusInputSchema = z.object({
 
 export const orderDeleteInputSchema = z.object({
   reason: z.string().min(1),
-  /** Required for a CO_MANAGER-initiated delete, ignored for
-   * ACCOUNT_OWNER — see deleteOrder. */
-  pin: z.string().optional(),
 });
 
 export class OrderError extends Error {}
@@ -43,6 +39,8 @@ type OrderRow = {
   deletedAt: Date | null;
   deletedBy: string | null;
   deleteReason: string | null;
+  deleteRequestedAt: Date | null;
+  deleteRequestedBy: string | null;
   items: {
     id: string;
     menuItemId: string | null;
@@ -67,6 +65,8 @@ export function serializeOrder(o: OrderRow): Order {
     deletedAt: o.deletedAt ? o.deletedAt.toISOString() : null,
     deletedBy: o.deletedBy,
     deleteReason: o.deleteReason,
+    deleteRequestedAt: o.deleteRequestedAt ? o.deleteRequestedAt.toISOString() : null,
+    deleteRequestedBy: o.deleteRequestedBy,
     items: o.items.map((i) => ({
       id: i.id,
       menuItemId: i.menuItemId,
@@ -178,12 +178,16 @@ export async function setOrderStationStatus(params: {
 }
 
 /**
- * Soft-deletes an order — it disappears from the guest's bill/receipt and
- * from the Kitchen/Bar screens, but stays queryable forever for the owner
- * (Architecture Decision 79's "deleted orders" log). A manager-initiated
- * delete (actorRole !== ACCOUNT_OWNER) requires the workspace PIN; the
- * owner (who sets the PIN) can delete without it. A reason is always
- * required either way, for the audit trail.
+ * Deletes an order, or requests its deletion (Architecture Decision 99,
+ * same mechanism as lib/bookings.ts deleteBooking — see its doc comment).
+ * ACCOUNT_OWNER deletes immediately: it disappears from the guest's bill/
+ * receipt and the fulfillment screens, but stays queryable forever in the
+ * owner-only "deleted orders" log (Architecture Decision 79). Anyone
+ * else's delete becomes a pending request instead — the order keeps
+ * showing everywhere as normal until approveOrderDeletion or
+ * rejectOrderDeletion resolves it. Replaces the previous PIN-gate for
+ * deletion specifically (menu price changes still use the PIN). A reason
+ * is always required, for the audit trail either way.
  */
 export async function deleteOrder(params: {
   workspaceId: string;
@@ -191,7 +195,6 @@ export async function deleteOrder(params: {
   actorRole: "ACCOUNT_OWNER" | "CO_MANAGER" | "PROPERTY_OWNER";
   actorName: string;
   reason: string;
-  pin?: string;
 }) {
   const order = await prisma.order.findUnique({ where: { id: params.orderId } });
   if (!order || order.workspaceId !== params.workspaceId) {
@@ -200,16 +203,62 @@ export async function deleteOrder(params: {
   if (order.deletedAt) {
     throw new OrderError("This order was already deleted");
   }
+  if (order.deleteRequestedAt) {
+    throw new OrderError("A deletion request is already pending for this order");
+  }
 
-  if (params.actorRole !== "ACCOUNT_OWNER") {
-    if (!params.pin || !(await verifyWorkspacePin(params.workspaceId, params.pin))) {
-      throw new OrderError("Incorrect PIN");
-    }
+  if (params.actorRole === "ACCOUNT_OWNER") {
+    return prisma.order.update({
+      where: { id: params.orderId },
+      data: { deletedAt: new Date(), deletedBy: params.actorName, deleteReason: params.reason.trim() },
+      include: { items: true },
+    });
   }
 
   return prisma.order.update({
     where: { id: params.orderId },
-    data: { deletedAt: new Date(), deletedBy: params.actorName, deleteReason: params.reason.trim() },
+    data: { deleteRequestedAt: new Date(), deleteRequestedBy: params.actorName, deleteReason: params.reason.trim() },
+    include: { items: true },
+  });
+}
+
+/** Owner approves a pending delete request, finalizing it into an actual
+ * soft-delete. `deletedBy` credits whoever originally requested it. */
+export async function approveOrderDeletion(params: { workspaceId: string; orderId: string }) {
+  const order = await prisma.order.findUnique({ where: { id: params.orderId } });
+  if (!order || order.workspaceId !== params.workspaceId) {
+    throw new OrderError("Order not found");
+  }
+  if (!order.deleteRequestedAt) {
+    throw new OrderError("No pending deletion request for this order");
+  }
+
+  return prisma.order.update({
+    where: { id: params.orderId },
+    data: {
+      deletedAt: new Date(),
+      deletedBy: order.deleteRequestedBy,
+      deleteRequestedAt: null,
+      deleteRequestedBy: null,
+    },
+    include: { items: true },
+  });
+}
+
+/** Owner rejects a pending delete request — nothing is deleted, the
+ * request (and its reason) is just cleared. */
+export async function rejectOrderDeletion(params: { workspaceId: string; orderId: string }) {
+  const order = await prisma.order.findUnique({ where: { id: params.orderId } });
+  if (!order || order.workspaceId !== params.workspaceId) {
+    throw new OrderError("Order not found");
+  }
+  if (!order.deleteRequestedAt) {
+    throw new OrderError("No pending deletion request for this order");
+  }
+
+  return prisma.order.update({
+    where: { id: params.orderId },
+    data: { deleteRequestedAt: null, deleteRequestedBy: null, deleteReason: null },
     include: { items: true },
   });
 }

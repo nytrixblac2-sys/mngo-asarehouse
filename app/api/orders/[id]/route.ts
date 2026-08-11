@@ -3,8 +3,10 @@ import { apiSuccess, apiError } from "@/lib/api-response";
 import { orderDeleteInputSchema, deleteOrder, OrderError, serializeOrder } from "@/lib/orders";
 
 /**
- * Soft-deletes an order (Architecture Decision 79) — CO_MANAGER needs the
- * workspace PIN and a reason; ACCOUNT_OWNER needs just a reason. See
+ * Deletes an order, or requests its deletion (Architecture Decision 99)
+ * — ACCOUNT_OWNER deletes immediately; anyone else's delete becomes a
+ * pending request the owner approves or rejects (see
+ * POST /api/orders/[id]/approve-delete and reject-delete). See
  * lib/orders.ts deleteOrder for the full rule.
  */
 export async function DELETE(req: Request, { params }: { params: { id: string } }) {
@@ -22,11 +24,10 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
       actorRole: user.role,
       actorName: user.name,
       reason: parsed.data.reason,
-      pin: parsed.data.pin,
     });
     return apiSuccess(serializeOrder(order));
   } catch (err) {
-    if (err instanceof OrderError) return apiError(err.message, err.message === "Incorrect PIN" ? 403 : 409);
+    if (err instanceof OrderError) return apiError(err.message, 409);
     throw err;
   }
 }

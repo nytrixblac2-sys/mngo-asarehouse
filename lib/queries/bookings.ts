@@ -71,18 +71,20 @@ export function useUpdateBooking() {
   });
 }
 
-/** Soft-deletes a booking (Architecture Decision 93) — CO_MANAGER needs
- * the workspace PIN, ACCOUNT_OWNER doesn't. A reason is always required,
- * for the audit trail (see useDeletedBookings). Restorable — see
- * useRestoreBooking. */
+/** Deletes a booking, or requests its deletion (Architecture Decision 99)
+ * — ACCOUNT_OWNER deletes immediately, anyone else's delete becomes a
+ * pending request the owner approves or rejects (see
+ * useApproveBookingDeletion/useRejectBookingDeletion). A reason is always
+ * required, for the audit trail (see useDeletedBookings). Restorable once
+ * actually deleted — see useRestoreBooking. */
 export function useDeleteBooking() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, reason, pin }: { id: string; reason: string; pin?: string }) =>
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
       fetchJson<Booking>(`/api/bookings/${id}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason, pin }),
+        body: JSON.stringify({ reason }),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
@@ -90,9 +92,32 @@ export function useDeleteBooking() {
   });
 }
 
-/** Restores a soft-deleted booking — owner only, no PIN needed (the PIN
- * gate makes deleting harder, not undoing a delete). Rejected server-side
- * if a HOSTEL room is now booked by someone else for the same dates. */
+/** Owner approves a pending delete request, finalizing it into an actual
+ * soft-delete (Architecture Decision 99). */
+export function useApproveBookingDeletion() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => fetchJson<Booking>(`/api/bookings/${id}/approve-delete`, { method: "POST" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bookings"] });
+    },
+  });
+}
+
+/** Owner rejects a pending delete request — nothing is deleted, the
+ * request is cleared (Architecture Decision 99). */
+export function useRejectBookingDeletion() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => fetchJson<Booking>(`/api/bookings/${id}/reject-delete`, { method: "POST" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bookings"] });
+    },
+  });
+}
+
+/** Restores a soft-deleted booking — owner only. Rejected server-side if
+ * a HOSTEL room is now booked by someone else for the same dates. */
 export function useRestoreBooking() {
   const queryClient = useQueryClient();
   return useMutation({

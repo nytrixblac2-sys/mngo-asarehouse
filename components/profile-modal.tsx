@@ -168,8 +168,8 @@ export function ProfileModal({
               </p>
               <p className="text-xs mb-2" style={{ color: C.muted }}>
                 {workspace?.hasPin
-                  ? "Required from managers to delete a booking or order, or change a menu price."
-                  : "Not set yet — managers can't delete bookings or orders, or change menu prices, until you set one."}
+                  ? "Required from managers to change a menu price. Deleting a booking or order no longer needs the PIN — it goes to you for approval on the Dashboard instead."
+                  : "Not set yet — managers can't change menu prices until you set one. (Deleting a booking or order doesn't need this — it goes to you for approval on the Dashboard.)"}
               </p>
               <div className="flex flex-col gap-2">
                 {workspace?.hasPin && (

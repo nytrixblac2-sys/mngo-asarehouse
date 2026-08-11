@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { prisma } from "./prisma";
-import { verifyWorkspacePin } from "./workspace-pin";
 import { findOverlappingBooking } from "./rooms";
 import type { Booking } from "./types";
 
@@ -26,6 +25,8 @@ type BookingRow = {
   deletedAt: Date | null;
   deletedBy: string | null;
   deleteReason: string | null;
+  deleteRequestedAt: Date | null;
+  deleteRequestedBy: string | null;
 };
 
 export function serializeBooking(b: BookingRow): Booking {
@@ -51,6 +52,8 @@ export function serializeBooking(b: BookingRow): Booking {
     deletedAt: b.deletedAt ? b.deletedAt.toISOString() : null,
     deletedBy: b.deletedBy,
     deleteReason: b.deleteReason,
+    deleteRequestedAt: b.deleteRequestedAt ? b.deleteRequestedAt.toISOString() : null,
+    deleteRequestedBy: b.deleteRequestedBy,
   };
 }
 
@@ -97,19 +100,20 @@ export const checkoutInputSchema = z.object({
 
 export const bookingDeleteInputSchema = z.object({
   reason: z.string().min(1),
-  /** Required for a CO_MANAGER-initiated delete, ignored for
-   * ACCOUNT_OWNER — see deleteBooking. */
-  pin: z.string().optional(),
 });
 
 export class BookingError extends Error {}
 
 /**
- * Soft-deletes a booking (Architecture Decision 93) — same rule as
- * deleteOrder (lib/orders.ts, Architecture Decision 79): CO_MANAGER needs
- * the workspace PIN, the ACCOUNT_OWNER (who sets the PIN) can delete
- * without it. A reason is always required either way, for the audit trail.
- * Unlike orders, a deleted booking can be restored — see restoreBooking.
+ * Deletes a booking, or requests its deletion (Architecture Decision 99).
+ * ACCOUNT_OWNER deletes immediately, exactly as before — they're already
+ * the approver, there's no one else to ask. Anyone else's delete becomes
+ * a pending request instead: deletedAt stays null, deleteRequestedAt/By
+ * are set, and the booking stays fully active/visible everywhere until
+ * approveBookingDeletion or rejectBookingDeletion resolves it. Replaces
+ * the previous PIN-gate for deletion specifically (menu price changes
+ * still use the PIN, see lib/workspace-pin.ts). A reason is always
+ * required, for the audit trail either way.
  */
 export async function deleteBooking(params: {
   workspaceId: string;
@@ -117,7 +121,6 @@ export async function deleteBooking(params: {
   actorRole: "ACCOUNT_OWNER" | "CO_MANAGER" | "PROPERTY_OWNER";
   actorName: string;
   reason: string;
-  pin?: string;
 }) {
   const booking = await prisma.booking.findUnique({ where: { id: params.bookingId } });
   if (!booking || booking.workspaceId !== params.workspaceId) {
@@ -126,16 +129,62 @@ export async function deleteBooking(params: {
   if (booking.deletedAt) {
     throw new BookingError("This booking was already deleted");
   }
+  if (booking.deleteRequestedAt) {
+    throw new BookingError("A deletion request is already pending for this booking");
+  }
 
-  if (params.actorRole !== "ACCOUNT_OWNER") {
-    if (!params.pin || !(await verifyWorkspacePin(params.workspaceId, params.pin))) {
-      throw new BookingError("Incorrect PIN");
-    }
+  if (params.actorRole === "ACCOUNT_OWNER") {
+    return prisma.booking.update({
+      where: { id: params.bookingId },
+      data: { deletedAt: new Date(), deletedBy: params.actorName, deleteReason: params.reason.trim() },
+    });
   }
 
   return prisma.booking.update({
     where: { id: params.bookingId },
-    data: { deletedAt: new Date(), deletedBy: params.actorName, deleteReason: params.reason.trim() },
+    data: { deleteRequestedAt: new Date(), deleteRequestedBy: params.actorName, deleteReason: params.reason.trim() },
+  });
+}
+
+/** Owner approves a pending delete request, finalizing it into an actual
+ * soft-delete. `deletedBy` credits whoever originally requested it, not
+ * the approving owner — matches the deleted-log's existing "who caused
+ * this" semantics. */
+export async function approveBookingDeletion(params: { workspaceId: string; bookingId: string }) {
+  const booking = await prisma.booking.findUnique({ where: { id: params.bookingId } });
+  if (!booking || booking.workspaceId !== params.workspaceId) {
+    throw new BookingError("Booking not found");
+  }
+  if (!booking.deleteRequestedAt) {
+    throw new BookingError("No pending deletion request for this booking");
+  }
+
+  return prisma.booking.update({
+    where: { id: params.bookingId },
+    data: {
+      deletedAt: new Date(),
+      deletedBy: booking.deleteRequestedBy,
+      deleteRequestedAt: null,
+      deleteRequestedBy: null,
+    },
+  });
+}
+
+/** Owner rejects a pending delete request — nothing is deleted, the
+ * request (and its reason) is just cleared, leaving the booking exactly
+ * as it was before it was asked. */
+export async function rejectBookingDeletion(params: { workspaceId: string; bookingId: string }) {
+  const booking = await prisma.booking.findUnique({ where: { id: params.bookingId } });
+  if (!booking || booking.workspaceId !== params.workspaceId) {
+    throw new BookingError("Booking not found");
+  }
+  if (!booking.deleteRequestedAt) {
+    throw new BookingError("No pending deletion request for this booking");
+  }
+
+  return prisma.booking.update({
+    where: { id: params.bookingId },
+    data: { deleteRequestedAt: null, deleteRequestedBy: null, deleteReason: null },
   });
 }
 

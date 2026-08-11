@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight, Plus, AlertTriangle, ClipboardList, Upload }
 import { useEffectiveUser } from "@/components/effective-user-context";
 import { DeletedBookingsLog } from "@/components/deleted-bookings-log";
 import { useAppStore } from "@/store/use-app-store";
-import { useBookings, useCheckoutBooking, useConfirmBookingPayout, useCreateBooking, useDeleteBooking, useUnconfirmBookingPayout, useUpdateBooking } from "@/lib/queries/bookings";
+import { useApproveBookingDeletion, useBookings, useCheckoutBooking, useConfirmBookingPayout, useCreateBooking, useDeleteBooking, useRejectBookingDeletion, useUnconfirmBookingPayout, useUpdateBooking } from "@/lib/queries/bookings";
 import { useRooms } from "@/lib/queries/rooms";
 import { useCreateSchedule, useSchedules, useUpdateSchedule } from "@/lib/queries/schedules";
 import { useCreateIssue, useIssues, useSetIssueStatus } from "@/lib/queries/issues";
@@ -61,6 +61,8 @@ export default function BookingsPage() {
   const createBooking = useCreateBooking();
   const updateBooking = useUpdateBooking();
   const deleteBooking = useDeleteBooking();
+  const approveBookingDeletion = useApproveBookingDeletion();
+  const rejectBookingDeletion = useRejectBookingDeletion();
   const confirmPayout = useConfirmBookingPayout();
   const unconfirmPayout = useUnconfirmBookingPayout();
   const checkoutBooking = useCheckoutBooking();
@@ -234,9 +236,11 @@ export default function BookingsPage() {
           onSubmitEditBooking={(id, input, opts) => updateBooking.mutate({ id, input }, opts)}
           editBookingIsPending={updateBooking.isPending}
           editBookingError={updateBooking.isError ? (updateBooking.error as Error).message : null}
-          onDeleteBooking={(id, reason, pin) => deleteBooking.mutate({ id, reason, pin })}
+          onDeleteBooking={(id, reason) => deleteBooking.mutate({ id, reason })}
           deleteBookingIsPending={deleteBooking.isPending}
           deleteBookingError={deleteBooking.isError ? (deleteBooking.error as Error).message : null}
+          onApproveBookingDeletion={(id) => approveBookingDeletion.mutate(id)}
+          onRejectBookingDeletion={(id) => rejectBookingDeletion.mutate(id)}
           onSubmitEditSchedule={(id, input) => updateSchedule.mutate({ id, input })}
           onConfirmPayout={(id) => confirmPayout.mutate(id)}
           onUnconfirmPayout={(id) => unconfirmPayout.mutate(id)}
@@ -297,7 +301,7 @@ export default function BookingsPage() {
             onSubmitEdit={(id, input, opts) => updateBooking.mutate({ id, input }, opts)}
             editIsPending={updateBooking.isPending}
             editError={updateBooking.isError ? (updateBooking.error as Error).message : null}
-            onDelete={(id, reason, pin, opts) => deleteBooking.mutate({ id, reason, pin }, opts)}
+            onDelete={(id, reason, opts) => deleteBooking.mutate({ id, reason }, opts)}
             deleteIsPending={deleteBooking.isPending}
             deleteError={deleteBooking.isError ? (deleteBooking.error as Error).message : null}
             onConfirm={(id) => confirmPayout.mutate(id)}

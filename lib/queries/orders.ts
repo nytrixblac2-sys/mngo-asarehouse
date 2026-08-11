@@ -42,18 +42,40 @@ export function useCreateOrder() {
   });
 }
 
-/** Soft-deletes an order — a CO_MANAGER must supply `pin`; ACCOUNT_OWNER
- * doesn't need one (the server enforces this either way). `reason` is
- * always required. */
+/** Deletes an order, or requests its deletion (Architecture Decision 99)
+ * — ACCOUNT_OWNER deletes immediately, anyone else's delete becomes a
+ * pending request the owner approves or rejects (see
+ * useApproveOrderDeletion/useRejectOrderDeletion). `reason` is always
+ * required. */
 export function useDeleteOrder() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ orderId, reason, pin }: { orderId: string; reason: string; pin?: string }) =>
+    mutationFn: ({ orderId, reason }: { orderId: string; reason: string }) =>
       fetchJson<Order>(`/api/orders/${orderId}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason, pin }),
+        body: JSON.stringify({ reason }),
       }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["orders"] }),
+  });
+}
+
+/** Owner approves a pending delete request, finalizing it into an actual
+ * soft-delete (Architecture Decision 99). */
+export function useApproveOrderDeletion() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (orderId: string) => fetchJson<Order>(`/api/orders/${orderId}/approve-delete`, { method: "POST" }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["orders"] }),
+  });
+}
+
+/** Owner rejects a pending delete request — nothing is deleted, the
+ * request is cleared (Architecture Decision 99). */
+export function useRejectOrderDeletion() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (orderId: string) => fetchJson<Order>(`/api/orders/${orderId}/reject-delete`, { method: "POST" }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["orders"] }),
   });
 }

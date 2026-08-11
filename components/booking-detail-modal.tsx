@@ -8,8 +8,8 @@ import { C } from "@/lib/colors";
 import { fmtCurrency } from "@/lib/format";
 import { nightsBetween } from "@/lib/periods";
 import { BOOKING_SOURCE_LABEL, ISSUE_STATUS_TONE, PAYMENT_METHOD_LABEL } from "@/lib/labels";
-import { useDeleteOrder, useOrders } from "@/lib/queries/orders";
-import { useEditPaidAt } from "@/lib/queries/bookings";
+import { useApproveOrderDeletion, useDeleteOrder, useRejectOrderDeletion, useOrders } from "@/lib/queries/orders";
+import { useApproveBookingDeletion, useEditPaidAt, useRejectBookingDeletion } from "@/lib/queries/bookings";
 import { buildGuestReceipt } from "@/lib/guest-receipt";
 import type { Booking, Issue, MenuStation, PaymentMethod, Property, Room, Schedule } from "@/lib/types";
 import { BookingFormRouter } from "./booking-form-router";
@@ -68,13 +68,13 @@ export function BookingDetailModal({
   onSubmitEdit: (id: string, input: BookingInput, opts: { onSuccess: () => void }) => void;
   editIsPending?: boolean;
   editError?: string | null;
-  /** Requires a reason; requires the workspace PIN too unless the actor is
-   * the ACCOUNT_OWNER — same rule as order deletion (Architecture Decision
-   * 93, mirroring 79). `opts.onSuccess` fires only once the delete actually
-   * saves, same reasoning as onSubmitEdit — a wrong PIN keeps the modal
-   * (and the typed reason) open with the error shown, instead of closing
-   * unconditionally. */
-  onDelete: (id: string, reason: string, pin: string | undefined, opts: { onSuccess: () => void }) => void;
+  /** Requires a reason. ACCOUNT_OWNER deletes immediately; anyone else's
+   * delete becomes a pending request the owner approves or rejects
+   * (Architecture Decision 99). `opts.onSuccess` fires only once the
+   * request actually saves, same reasoning as onSubmitEdit — a failure
+   * keeps the modal (and the typed reason) open with the error shown,
+   * instead of closing unconditionally. */
+  onDelete: (id: string, reason: string, opts: { onSuccess: () => void }) => void;
   deleteIsPending?: boolean;
   deleteError?: string | null;
   onConfirm: (id: string) => void;
@@ -94,14 +94,16 @@ export function BookingDetailModal({
   const [isDownloading, setIsDownloading] = useState(false);
   const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
   const [deleteReason, setDeleteReason] = useState("");
-  const [deletePin, setDeletePin] = useState("");
   const [bookingDeleteReason, setBookingDeleteReason] = useState("");
-  const [bookingDeletePin, setBookingDeletePin] = useState("");
   const [isEditingPaidAt, setIsEditingPaidAt] = useState(false);
   const [draftPaidAt, setDraftPaidAt] = useState("");
 
   const { effectiveUser } = useEffectiveUser();
   const deleteOrder = useDeleteOrder();
+  const approveOrderDeletion = useApproveOrderDeletion();
+  const rejectOrderDeletion = useRejectOrderDeletion();
+  const approveBookingDeletion = useApproveBookingDeletion();
+  const rejectBookingDeletion = useRejectBookingDeletion();
   const editPaidAt = useEditPaidAt();
 
   const handleSavePaidAt = () => {
@@ -144,20 +146,22 @@ export function BookingDetailModal({
 
   const isOwner = effectiveUser.role === "ACCOUNT_OWNER";
   const handleDeleteBooking = () => {
-    if (!bookingDeleteReason.trim() || (!isOwner && bookingDeletePin.trim().length === 0)) return;
-    onDelete(booking.id, bookingDeleteReason.trim(), isOwner ? undefined : bookingDeletePin.trim(), {
-      onSuccess: () => onClose(),
+    if (!bookingDeleteReason.trim()) return;
+    onDelete(booking.id, bookingDeleteReason.trim(), {
+      // Owner's delete is immediate — the booking's gone, close the modal.
+      // Anyone else's is just a request — the booking is still here, so
+      // collapse the form back to the pending-request banner instead.
+      onSuccess: () => (isOwner ? onClose() : setConfirmDelete(false)),
     });
   };
   const handleDeleteOrder = (orderId: string) => {
-    if (!deleteReason.trim() || (!isOwner && deletePin.trim().length === 0)) return;
+    if (!deleteReason.trim()) return;
     deleteOrder.mutate(
-      { orderId, reason: deleteReason.trim(), pin: isOwner ? undefined : deletePin.trim() },
+      { orderId, reason: deleteReason.trim() },
       {
         onSuccess: () => {
           setDeletingOrderId(null);
           setDeleteReason("");
-          setDeletePin("");
         },
       }
     );
@@ -184,7 +188,7 @@ export function BookingDetailModal({
                   >
                     Edit
                   </button>
-                  {!confirmDelete && (
+                  {!confirmDelete && !booking.deleteRequestedAt && (
                     <button
                       onClick={() => setConfirmDelete(true)}
                       className="text-xs font-semibold px-3 py-1.5 rounded-full"
@@ -201,23 +205,44 @@ export function BookingDetailModal({
             </div>
           </div>
           <div className="px-6 py-4 overflow-y-auto flex flex-col gap-4">
+            {booking.deleteRequestedAt && (
+              <div className="p-3 rounded-xl flex flex-col gap-2" style={{ background: "#FFFBEB", border: "1px solid #F59E0B" }}>
+                <p className="text-xs font-semibold" style={{ color: "#92400E" }}>
+                  Deletion requested by {booking.deleteRequestedBy}
+                </p>
+                {booking.deleteReason && <p className="text-xs" style={{ color: "#92400E" }}>&quot;{booking.deleteReason}&quot;</p>}
+                {isOwner ? (
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => approveBookingDeletion.mutate(booking.id, { onSuccess: () => onClose() })}
+                      disabled={approveBookingDeletion.isPending || rejectBookingDeletion.isPending}
+                      className="text-xs font-semibold"
+                      style={{ color: "#92400E" }}
+                    >
+                      {approveBookingDeletion.isPending ? "Approving…" : "Approve delete"}
+                    </button>
+                    <button
+                      onClick={() => rejectBookingDeletion.mutate(booking.id)}
+                      disabled={approveBookingDeletion.isPending || rejectBookingDeletion.isPending}
+                      className="text-xs font-semibold"
+                      style={{ color: C.muted }}
+                    >
+                      {rejectBookingDeletion.isPending ? "Rejecting…" : "Reject"}
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-xs" style={{ color: "#92400E" }}>Awaiting owner approval.</p>
+                )}
+              </div>
+            )}
             {confirmDelete && (
               <div className="p-3 rounded-xl flex flex-col gap-2" style={{ background: C.bg, border: `1px solid ${C.border}` }}>
-                <p className="text-xs font-semibold" style={{ color: C.text }}>Delete this stay</p>
-                <p className="text-xs" style={{ color: C.muted }}>
-                  {isOwner ? "Type a reason to delete this stay." : "Ask the owner for the PIN, and type why you're deleting this stay."}
+                <p className="text-xs font-semibold" style={{ color: C.text }}>
+                  {isOwner ? "Delete this stay" : "Request deletion"}
                 </p>
-                {!isOwner && (
-                  <input
-                    value={bookingDeletePin}
-                    onChange={(e) => setBookingDeletePin(e.target.value.replace(/\D/g, ""))}
-                    type="password"
-                    inputMode="numeric"
-                    placeholder="Owner PIN"
-                    className="w-full px-3 py-2 rounded-lg text-sm"
-                    style={{ border: `1px solid ${C.border}` }}
-                  />
-                )}
+                <p className="text-xs" style={{ color: C.muted }}>
+                  {isOwner ? "Type a reason to delete this stay." : "Type why you're requesting this — the owner will need to approve it."}
+                </p>
                 <input
                   value={bookingDeleteReason}
                   onChange={(e) => setBookingDeleteReason(e.target.value)}
@@ -229,14 +254,14 @@ export function BookingDetailModal({
                 <div className="flex items-center gap-3">
                   <button
                     onClick={handleDeleteBooking}
-                    disabled={deleteIsPending || !bookingDeleteReason.trim() || (!isOwner && bookingDeletePin.trim().length === 0)}
+                    disabled={deleteIsPending || !bookingDeleteReason.trim()}
                     className="text-xs font-semibold"
                     style={{ color: "var(--accent, #111111)" }}
                   >
-                    {deleteIsPending ? "Deleting…" : "Confirm delete"}
+                    {deleteIsPending ? (isOwner ? "Deleting…" : "Requesting…") : isOwner ? "Confirm delete" : "Submit request"}
                   </button>
                   <button
-                    onClick={() => { setConfirmDelete(false); setBookingDeleteReason(""); setBookingDeletePin(""); }}
+                    onClick={() => { setConfirmDelete(false); setBookingDeleteReason(""); }}
                     className="text-xs font-semibold"
                     style={{ color: C.muted }}
                   >
@@ -411,7 +436,7 @@ export function BookingDetailModal({
                           </div>
                           <div className="flex items-center justify-between pt-2" style={{ borderTop: `1px solid ${C.border}` }}>
                             <span className="text-xs" style={{ color: C.muted }}>{new Date(order.createdAt).toLocaleString(undefined, { hour: "numeric", minute: "2-digit", month: "short", day: "numeric" })}</span>
-                            {canEdit && (
+                            {canEdit && !order.deleteRequestedAt && (
                               <button
                                 onClick={() => setDeletingOrderId(isDeletingThis ? null : order.id)}
                                 className="text-xs font-semibold flex items-center gap-1"
@@ -421,22 +446,41 @@ export function BookingDetailModal({
                               </button>
                             )}
                           </div>
+                          {order.deleteRequestedAt && (
+                            <div className="mt-2 pt-2 flex flex-col gap-2" style={{ borderTop: `1px solid ${C.border}` }}>
+                              <p className="text-xs font-semibold" style={{ color: "#92400E" }}>
+                                Deletion requested by {order.deleteRequestedBy}
+                              </p>
+                              {order.deleteReason && <p className="text-xs" style={{ color: "#92400E" }}>&quot;{order.deleteReason}&quot;</p>}
+                              {isOwner ? (
+                                <div className="flex items-center gap-3">
+                                  <button
+                                    onClick={() => approveOrderDeletion.mutate(order.id)}
+                                    disabled={approveOrderDeletion.isPending || rejectOrderDeletion.isPending}
+                                    className="text-xs font-semibold"
+                                    style={{ color: "#92400E" }}
+                                  >
+                                    {approveOrderDeletion.isPending ? "Approving…" : "Approve delete"}
+                                  </button>
+                                  <button
+                                    onClick={() => rejectOrderDeletion.mutate(order.id)}
+                                    disabled={approveOrderDeletion.isPending || rejectOrderDeletion.isPending}
+                                    className="text-xs font-semibold"
+                                    style={{ color: C.muted }}
+                                  >
+                                    {rejectOrderDeletion.isPending ? "Rejecting…" : "Reject"}
+                                  </button>
+                                </div>
+                              ) : (
+                                <p className="text-xs" style={{ color: "#92400E" }}>Awaiting owner approval.</p>
+                              )}
+                            </div>
+                          )}
                           {isDeletingThis && (
                             <div className="mt-2 pt-2 flex flex-col gap-2" style={{ borderTop: `1px solid ${C.border}` }}>
                               <p className="text-xs" style={{ color: C.muted }}>
-                                {isOwner ? "Type a reason to delete this order." : "Ask the owner for the PIN, and type why you're deleting this order."}
+                                {isOwner ? "Type a reason to delete this order." : "Type why you're requesting this — the owner will need to approve it."}
                               </p>
-                              {!isOwner && (
-                                <input
-                                  value={deletePin}
-                                  onChange={(e) => setDeletePin(e.target.value.replace(/\D/g, ""))}
-                                  type="password"
-                                  inputMode="numeric"
-                                  placeholder="Owner PIN"
-                                  className="w-full px-3 py-2 rounded-lg text-sm"
-                                  style={{ border: `1px solid ${C.border}` }}
-                                />
-                              )}
                               <input
                                 value={deleteReason}
                                 onChange={(e) => setDeleteReason(e.target.value)}
@@ -448,14 +492,14 @@ export function BookingDetailModal({
                               <div className="flex items-center gap-3">
                                 <button
                                   onClick={() => handleDeleteOrder(order.id)}
-                                  disabled={deleteOrder.isPending || !deleteReason.trim() || (!isOwner && deletePin.trim().length === 0)}
+                                  disabled={deleteOrder.isPending || !deleteReason.trim()}
                                   className="text-xs font-semibold"
                                   style={{ color: "var(--accent, #111111)" }}
                                 >
-                                  {deleteOrder.isPending ? "Deleting…" : "Confirm delete"}
+                                  {deleteOrder.isPending ? (isOwner ? "Deleting…" : "Requesting…") : isOwner ? "Confirm delete" : "Submit request"}
                                 </button>
                                 <button
-                                  onClick={() => { setDeletingOrderId(null); setDeleteReason(""); setDeletePin(""); }}
+                                  onClick={() => { setDeletingOrderId(null); setDeleteReason(""); }}
                                   className="text-xs font-semibold"
                                   style={{ color: C.muted }}
                                 >

@@ -2,10 +2,13 @@ import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
 
 /**
- * The owner-controlled PIN gating sensitive HOSTEL actions (deleting an
- * order, changing a menu item's price) — see Workspace.actionPinHash doc
- * comment. Hashed with bcrypt, never stored or transmitted in plaintext;
- * the PIN itself is never returned from any API route.
+ * The owner-controlled PIN gating a menu item's price change — see
+ * Workspace.actionPinHash doc comment. Deleting a booking or order used
+ * to require this too, but that moved to a pending-request/approval flow
+ * instead (Architecture Decision 99) — see lib/bookings.ts deleteBooking
+ * and lib/orders.ts deleteOrder. Hashed with bcrypt, never stored or
+ * transmitted in plaintext; the PIN itself is never returned from any API
+ * route.
  */
 export async function setWorkspacePin(workspaceId: string, pin: string) {
   const actionPinHash = await bcrypt.hash(pin, 10);
