@@ -21,12 +21,16 @@ const TAB_STATIONS: Record<OrderTab, MenuStation[]> = {
 const TAB_LABEL: Record<OrderTab, string> = { MENU: "Menu", SHOP: "Shop", EXPERIENCE: "Experiences" };
 
 /**
- * Staff-side "order for guest" — Janet picks from orderable menu items on
+ * Staff-side "order for guest" — Janet/Akwesi pick from the full menu on
  * a guest's behalf (e.g. a walk-in guest who isn't using the public
- * self-ordering page): always-available items (breakfast, drinks, the
- * all-day menu) plus whatever's toggled available today. Same rule the
- * server enforces (lib/orders.ts createGuestOrder) so nothing shown here
- * can be rejected.
+ * self-ordering page), across every category including Shop and
+ * Experiences. Shows every item, not just what's toggled available today
+ * — real request, 2026-08-11: Janet couldn't see the full menu here to
+ * take a guest's order, only whatever happened to be toggled on. Items
+ * not currently orderable (lib/orders.ts createGuestOrder enforces the
+ * same isMenuItemOrderable rule server-side) are still shown, just
+ * visibly marked and not addable, so nothing selected here can ever be
+ * rejected on submit.
  */
 export function GuestOrderForm({
   bookingId,
@@ -43,7 +47,7 @@ export function GuestOrderForm({
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState<OrderTab>("MENU");
 
-  const items = (menuQuery.data ?? []).filter(isMenuItemOrderable);
+  const items = menuQuery.data ?? [];
   // The cart spans all three tabs — Janet can add a meal, a shop item, and
   // an experience to the same order for a guest in one go.
   const tabItems = items.filter((i) => TAB_STATIONS[tab].includes(i.station));
@@ -78,7 +82,7 @@ export function GuestOrderForm({
           <p className="text-lg font-bold" style={{ color: C.text }}>Order for {guestName}</p>
           <button onClick={onClose}><X size={20} style={{ color: C.muted }} /></button>
         </div>
-        <p className="text-xs mb-3" style={{ color: C.muted }}>Only today&apos;s available items are shown.</p>
+        <p className="text-xs mb-3" style={{ color: C.muted }}>The full menu is shown — items marked &quot;Not available today&quot; can&apos;t be added until turned on from the Menu screen.</p>
 
         <div className="flex items-center gap-1 rounded-full p-1 mb-3" style={{ background: C.bg }}>
           {(Object.keys(TAB_LABEL) as OrderTab[]).map((t) => (
@@ -107,10 +111,10 @@ export function GuestOrderForm({
         )}
 
         {items.length === 0 && (
-          <p className="text-sm" style={{ color: C.muted }}>No menu items are marked available today — turn some on from the Menu screen first.</p>
+          <p className="text-sm" style={{ color: C.muted }}>No menu items exist yet — add some from the Menu screen first.</p>
         )}
         {items.length > 0 && tabItems.length === 0 && (
-          <p className="text-sm" style={{ color: C.muted }}>Nothing available under {TAB_LABEL[tab]} right now.</p>
+          <p className="text-sm" style={{ color: C.muted }}>Nothing under {TAB_LABEL[tab]} yet.</p>
         )}
         {tabItems.length > 0 && visibleItems.length === 0 && (
           <p className="text-sm" style={{ color: C.muted }}>No items match &quot;{search}&quot;.</p>
@@ -123,26 +127,38 @@ export function GuestOrderForm({
               <div className="flex flex-col gap-2">
                 {visibleItems.filter((i) => i.category === cat).map((item) => {
                   const qty = quantities[item.id] ?? 0;
+                  const orderable = isMenuItemOrderable(item);
                   return (
-                    <div key={item.id} className="flex items-center justify-between py-2 px-3 rounded-xl" style={{ background: C.bg }}>
+                    <div
+                      key={item.id}
+                      className="flex items-center justify-between py-2 px-3 rounded-xl"
+                      style={{ background: C.bg, opacity: orderable ? 1 : 0.55 }}
+                    >
                       <div>
                         <p className="text-sm font-semibold" style={{ color: C.text }}>{item.name}</p>
-                        <p className="text-xs" style={{ color: C.muted }}>{fmtCurrency(item.price, item.currency)}</p>
+                        <p className="text-xs" style={{ color: C.muted }}>
+                          {fmtCurrency(item.price, item.currency)}
+                          {!orderable && " · Not available today"}
+                        </p>
                       </div>
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => setQty(item.id, qty - 1)}
-                          disabled={qty === 0}
+                          disabled={qty === 0 || !orderable}
                           className="w-7 h-7 rounded-full flex items-center justify-center"
-                          style={{ background: qty === 0 ? C.border : "var(--accent-soft, rgba(0,0,0,0.07))", color: qty === 0 ? C.muted : "var(--accent, #111111)" }}
+                          style={{ background: qty === 0 || !orderable ? C.border : "var(--accent-soft, rgba(0,0,0,0.07))", color: qty === 0 || !orderable ? C.muted : "var(--accent, #111111)" }}
                         >
                           <Minus size={12} />
                         </button>
                         <span className="text-sm font-semibold w-4 text-center" style={{ color: C.text }}>{qty}</span>
                         <button
                           onClick={() => setQty(item.id, qty + 1)}
+                          disabled={!orderable}
                           className="w-7 h-7 rounded-full flex items-center justify-center"
-                          style={{ background: "var(--accent-soft, rgba(0,0,0,0.07))", color: "var(--accent, #111111)" }}
+                          style={{
+                            background: orderable ? "var(--accent-soft, rgba(0,0,0,0.07))" : C.border,
+                            color: orderable ? "var(--accent, #111111)" : C.muted,
+                          }}
                         >
                           <Plus size={12} />
                         </button>
