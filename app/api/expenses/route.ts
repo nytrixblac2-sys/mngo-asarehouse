@@ -14,7 +14,7 @@ import { expenseInputSchema, serializeExpense } from "@/lib/expenses";
  * Extended by Architecture Decision 87: on a HOSTEL workspace, MANAGEMENT
  * rows (team payments) are also excluded for anyone but the ACCOUNT_OWNER
  * — Janet manages the Team roster but shouldn't see what staff are paid,
- * only Akwesi should. RENTAL's CO_MANAGER (Cecilia) is unaffected.
+ * only Akwasi should. RENTAL's CO_MANAGER (Cecilia) is unaffected.
  */
 export async function GET() {
   const user = await getCurrentUser();

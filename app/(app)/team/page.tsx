@@ -26,7 +26,7 @@ import type { TeamMember } from "@/lib/types";
  * the ACCOUNT_OWNER only (Architecture Decision 87) — Janet (CO_MANAGER)
  * still manages the team roster (add/remove, see who's on staff) from
  * this same page, she just never sees the amount or history of what
- * anyone's been paid; only Akwesi does. GET /api/expenses already strips
+ * anyone's been paid; only Akwasi does. GET /api/expenses already strips
  * MANAGEMENT-category rows server-side for her, so `payments` below is
  * naturally empty on her session — `canSeePay` only controls whether the
  * (already-empty-for-her) amount/history UI renders at all, not a second

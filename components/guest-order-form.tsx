@@ -21,7 +21,7 @@ const TAB_STATIONS: Record<OrderTab, MenuStation[]> = {
 const TAB_LABEL: Record<OrderTab, string> = { MENU: "Menu", SHOP: "Shop", EXPERIENCE: "Experiences" };
 
 /**
- * Staff-side "order for guest" — Janet/Akwesi pick from the full menu on
+ * Staff-side "order for guest" — Janet/Akwasi pick from the full menu on
  * a guest's behalf (e.g. a walk-in guest who isn't using the public
  * self-ordering page), across every category including Shop and
  * Experiences. Shows every item, not just what's toggled available today
