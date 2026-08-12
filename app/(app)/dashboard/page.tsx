@@ -29,6 +29,20 @@ function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+/** Real bug, 2026-08-12: the greeting was hardcoded "Good afternoon" no
+ * matter the actual time — the user caught it reading "Good afternoon" at
+ * 12am. Boundaries match how people actually describe time of day, not
+ * just morning/afternoon/evening — a 1am greeting shouldn't say
+ * "evening" either. Uses the browser's local hour (client component), so
+ * this always reflects whoever's actually looking at the screen. */
+function timeOfDayGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 12) return "Good morning";
+  if (hour >= 12 && hour < 17) return "Good afternoon";
+  if (hour >= 17 && hour < 21) return "Good evening";
+  return "Good night";
+}
+
 function withPropertyFilter<T extends { propertyId: string }>(
   rows: T[] | undefined,
   activePropertyId: string
@@ -168,7 +182,7 @@ export default function DashboardPage() {
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-bold" style={{ color: C.text }}>
-          Good afternoon, {effectiveUser.name}
+          {timeOfDayGreeting()}, {effectiveUser.name}
         </h1>
         <p className="text-sm mt-1" style={{ color: C.muted }}>
           {dateLabel} — here&apos;s where things stand.
