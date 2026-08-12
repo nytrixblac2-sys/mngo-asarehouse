@@ -23,14 +23,12 @@ const STATION_DESCRIPTION: Record<MenuStation, string> = {
 
 /**
  * Order fulfillment tickets for one station (Kitchen, Bar, Shop, or
- * Experiences) — shared by app/(app)/kitchen/page.tsx,
- * app/(app)/bar/page.tsx, app/(app)/shop/page.tsx, and
- * app/(app)/experiences/page.tsx, since all four screens are identical
- * apart from which of Order.kitchenStatus/barStatus/shopStatus/
- * experienceStatus they read and which of each order's items (by
- * MenuItem.station) they show. See Order model doc comment
- * (prisma/schema.prisma) and Architecture Decisions 79/91 for the
- * independent-per-station design.
+ * Experiences) — rendered by app/(app)/orders/page.tsx, once per station
+ * tab, since all four are identical apart from which of
+ * Order.kitchenStatus/barStatus/shopStatus/experienceStatus they read and
+ * which of each order's items (by MenuItem.station) they show. See Order
+ * model doc comment (prisma/schema.prisma) and Architecture Decisions
+ * 79/91 for the independent-per-station design.
  */
 export function OrderFulfillmentScreen({ station, title }: { station: MenuStation; title: string }) {
   const { effectiveCanEdit } = useEffectiveUser();

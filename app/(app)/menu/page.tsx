@@ -22,7 +22,7 @@ const TAB_STATIONS: Record<MenuTab, MenuStation[]> = {
   SHOP: ["SHOP"],
   EXPERIENCE: ["EXPERIENCE"],
 };
-const TAB_LABEL: Record<MenuTab, string> = { MENU: "Menu", SHOP: "Shop", EXPERIENCE: "Experiences" };
+const TAB_LABEL: Record<MenuTab, string> = { MENU: "Food Menu", SHOP: "Shop", EXPERIENCE: "Experiences" };
 const SECTION_LABEL: Record<MenuTab, { daily: string; constant: string }> = {
   MENU: { daily: "Today's Lunch & Dinner", constant: "Always on the menu" },
   SHOP: { daily: "Today's shop specials", constant: "Always in stock" },
@@ -423,28 +423,30 @@ export default function MenuPage() {
         <p className="text-sm mt-1" style={{ color: C.muted }}>Toggle what&apos;s on today&apos;s rotating menu, and manage the rest of the menu when it changes.</p>
       </div>
 
-      <div className="flex items-center gap-1 rounded-full p-1 w-fit" style={{ background: "#F2F2F2" }}>
-        {(Object.keys(TAB_LABEL) as MenuTab[]).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className="text-sm font-semibold px-4 py-2 rounded-full"
-            style={{ background: tab === t ? "#fff" : "transparent", color: tab === t ? C.text : C.muted }}
-          >
-            {TAB_LABEL[t]}
-          </button>
-        ))}
-      </div>
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-1 rounded-full p-1 w-fit" style={{ background: "#F2F2F2" }}>
+          {(Object.keys(TAB_LABEL) as MenuTab[]).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className="text-sm font-semibold px-4 py-2 rounded-full"
+              style={{ background: tab === t ? "#fff" : "transparent", color: tab === t ? C.text : C.muted }}
+            >
+              {TAB_LABEL[t]}
+            </button>
+          ))}
+        </div>
 
-      <div className="relative">
-        <Search size={14} style={{ color: C.muted, position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }} />
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search for a menu item…"
-          className="w-full pl-8 pr-3 py-2.5 rounded-xl text-sm"
-          style={{ border: `1px solid ${C.border}` }}
-        />
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search size={14} style={{ color: C.muted, position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }} />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search for a menu item…"
+            className="w-full pl-8 pr-3 py-2.5 rounded-xl text-sm"
+            style={{ border: `1px solid ${C.border}` }}
+          />
+        </div>
       </div>
 
       <div className="flex flex-col gap-3">
