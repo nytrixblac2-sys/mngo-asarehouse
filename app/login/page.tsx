@@ -9,6 +9,7 @@ import { LoginForm } from "./login-form";
 const ERROR_MESSAGES: Record<string, string> = {
   invalid: "Enter a valid email and password.",
   credentials: "Incorrect email or password.",
+  ratelimited: "Too many attempts. Try again in a few minutes.",
 };
 
 export default async function LoginPage({

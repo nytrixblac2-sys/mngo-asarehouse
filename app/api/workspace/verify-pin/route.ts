@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { apiSuccess, apiError } from "@/lib/api-response";
-import { verifyWorkspacePin } from "@/lib/workspace-pin";
+import { PinLockedError, verifyWorkspacePin } from "@/lib/workspace-pin";
 
 const verifyPinInputSchema = z.object({ pin: z.string().min(1) });
 
@@ -20,6 +20,11 @@ export async function POST(req: Request) {
   const parsed = verifyPinInputSchema.safeParse(await req.json());
   if (!parsed.success) return apiError(parsed.error.message, 400);
 
-  const valid = await verifyWorkspacePin(user.workspaceId, parsed.data.pin);
-  return apiSuccess({ valid });
+  try {
+    const valid = await verifyWorkspacePin(user.workspaceId, parsed.data.pin);
+    return apiSuccess({ valid });
+  } catch (err) {
+    if (err instanceof PinLockedError) return apiError(err.message, 429);
+    throw err;
+  }
 }

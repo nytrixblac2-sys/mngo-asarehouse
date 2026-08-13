@@ -20,6 +20,16 @@ export type WorkspaceSignupInput = z.infer<typeof workspaceSignupSchema>;
 
 export class WorkspaceSignupError extends Error {}
 
+/** Shown for every "couldn't create your workspace" case, whether the
+ * email is already registered or account creation failed for some other
+ * reason — never confirms or denies that a given email has an account.
+ * This is a public, unauthenticated form; a distinct "already exists"
+ * message here is a user-enumeration oracle (feed in emails, learn which
+ * ones are registered anywhere on the platform), which is exactly the
+ * kind of leak that turns into targeted phishing against a real person. */
+const GENERIC_SIGNUP_FAILURE =
+  "We couldn't create your workspace with those details. If you already have an account, try signing in instead.";
+
 /**
  * Public workspace signup — resolves Open Question 7 / Architecture
  * Decision 14. Creates a real Supabase Auth account + Workspace + Account
@@ -33,9 +43,20 @@ export class WorkspaceSignupError extends Error {}
 export async function signUpWorkspace(input: WorkspaceSignupInput) {
   const admin = createAdminClient();
 
-  const { data: existing } = await admin.auth.admin.listUsers();
+  // perPage: 1000 rather than the 50-user default — this checks across
+  // every workspace on the shared platform (there's no per-workspace
+  // scoping possible at the Auth-user level), so the default page size
+  // would silently miss real duplicates once the platform has more than a
+  // handful of total users.
+  const { data: existing } = await admin.auth.admin.listUsers({ perPage: 1000 });
   if (existing?.users.some((u) => u.email === input.email)) {
-    throw new WorkspaceSignupError("An account with this email already exists.");
+    // Deliberately no early return with a distinct message (see
+    // GENERIC_SIGNUP_FAILURE) — and a matching delay, since skipping the
+    // real createUser call below would otherwise respond conspicuously
+    // faster than the genuine-new-signup path, which is its own
+    // (lower-severity, but real) timing side-channel for the same oracle.
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    throw new WorkspaceSignupError(GENERIC_SIGNUP_FAILURE);
   }
 
   const { data: authData, error: authError } = await admin.auth.admin.createUser({
@@ -45,7 +66,7 @@ export async function signUpWorkspace(input: WorkspaceSignupInput) {
     user_metadata: { name: input.name },
   });
   if (authError || !authData.user) {
-    throw new WorkspaceSignupError(authError?.message ?? "Could not create account.");
+    throw new WorkspaceSignupError(GENERIC_SIGNUP_FAILURE);
   }
 
   try {

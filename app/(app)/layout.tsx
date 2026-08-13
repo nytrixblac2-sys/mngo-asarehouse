@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { getVisibleProperties } from "@/lib/properties";
 import { prisma } from "@/lib/prisma";
@@ -24,6 +25,15 @@ import { WorkspaceGateScreen } from "@/components/workspace-gate-screen";
  */
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const user = await requireUser();
+
+  // A user still on their manager-issued one-time invite password
+  // (app/api/users/route.ts) can't use the app until they set their own —
+  // checked here, ahead of the workspace-status gate below, so it applies
+  // regardless of workspace state. /change-password itself lives outside
+  // this route group, so it's never subject to this redirect.
+  if (user.mustChangePassword) {
+    redirect("/change-password");
+  }
 
   const workspace = await prisma.workspace.findUniqueOrThrow({
     where: { id: user.workspaceId },

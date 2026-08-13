@@ -12,6 +12,7 @@ export function serializeWorkspaceUser(u: {
   name: string;
   email: string;
   role: string;
+  mustChangePassword: boolean;
   properties: { propertyId: string }[];
 }): WorkspaceUser {
   return {
@@ -21,6 +22,7 @@ export function serializeWorkspaceUser(u: {
     name: u.name,
     email: u.email,
     role: u.role as User["role"],
+    mustChangePassword: u.mustChangePassword,
     propertyIds: u.properties.map((p) => p.propertyId),
   };
 }

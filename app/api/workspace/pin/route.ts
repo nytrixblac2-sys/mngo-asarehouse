@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { apiSuccess, apiError } from "@/lib/api-response";
-import { hasWorkspacePin, setWorkspacePin, verifyWorkspacePin } from "@/lib/workspace-pin";
+import { hasWorkspacePin, PinLockedError, setWorkspacePin, verifyWorkspacePin } from "@/lib/workspace-pin";
 
 const setPinInputSchema = z.object({
   newPin: z.string().regex(/^\d{4,8}$/, "PIN must be 4-8 digits"),
@@ -25,8 +25,13 @@ export async function POST(req: Request) {
 
   const alreadySet = await hasWorkspacePin(user.workspaceId);
   if (alreadySet) {
-    if (!parsed.data.currentPin || !(await verifyWorkspacePin(user.workspaceId, parsed.data.currentPin))) {
-      return apiError("Current PIN is incorrect", 403);
+    try {
+      if (!parsed.data.currentPin || !(await verifyWorkspacePin(user.workspaceId, parsed.data.currentPin))) {
+        return apiError("Current PIN is incorrect", 403);
+      }
+    } catch (err) {
+      if (err instanceof PinLockedError) return apiError(err.message, 429);
+      throw err;
     }
   }
 

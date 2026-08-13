@@ -6,13 +6,19 @@ import { prisma } from "./prisma";
  * Signs a lightweight, cookie-carried session for the public /track guest
  * portal — deliberately not a real Supabase Auth account (no password, no
  * email required; guests "log in" with booking code + name per the
- * product decision). Reuses SUPABASE_SERVICE_ROLE_KEY as HMAC key
- * material rather than introducing a brand-new secret that would need to
- * be added to Vercel's env vars before this could deploy — it's already
- * a server-only secret never sent to the client, just being reused for a
- * second, unrelated signing purpose here.
+ * product decision).
+ *
+ * Uses its own GUEST_SESSION_SECRET rather than reusing
+ * SUPABASE_SERVICE_ROLE_KEY (a prior shortcut, taken to avoid adding a new
+ * Vercel env var). Reusing the service-role key coupled two unrelated
+ * trust boundaries: rotating it after a suspected leak would have also
+ * silently invalidated every guest session, and there was no way to
+ * rotate guest-session signing on its own without touching full admin DB
+ * access. Falls back to the service-role key only if the new var isn't
+ * set yet, so this doesn't break deploys that haven't added it — but a
+ * dedicated secret should be set as soon as possible; see .env.example.
  */
-const SECRET = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const SECRET = process.env.GUEST_SESSION_SECRET ?? process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const COOKIE_NAME = "guest_session";
 const MAX_AGE_SECONDS = 60 * 60 * 24 * 30; // 30 days — comfortably covers any stay length
 

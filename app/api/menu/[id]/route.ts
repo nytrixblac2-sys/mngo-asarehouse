@@ -2,7 +2,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { menuItemInputSchema, serializeMenuItem } from "@/lib/menu";
-import { verifyWorkspacePin } from "@/lib/workspace-pin";
+import { PinLockedError, verifyWorkspacePin } from "@/lib/workspace-pin";
 
 /**
  * Edits a menu item's name/category/price/currency/alwaysAvailable/station.
@@ -26,8 +26,13 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
   const priceChanged = parsed.data.price !== Number(existing.price);
   if (priceChanged && user.role !== "ACCOUNT_OWNER") {
-    if (!parsed.data.pin || !(await verifyWorkspacePin(user.workspaceId, parsed.data.pin))) {
-      return apiError("Incorrect PIN", 403);
+    try {
+      if (!parsed.data.pin || !(await verifyWorkspacePin(user.workspaceId, parsed.data.pin))) {
+        return apiError("Incorrect PIN", 403);
+      }
+    } catch (err) {
+      if (err instanceof PinLockedError) return apiError(err.message, 429);
+      throw err;
     }
   }
 

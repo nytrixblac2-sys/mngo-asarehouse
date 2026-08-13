@@ -128,22 +128,22 @@ enum PaymentMethod {
 /// enforces that every workspace has exactly one owner once bootstrap
 /// completes — it is never left null after creation finishes.
 model Workspace {
-  id             String          @id @default(uuid()) @db.Uuid
-  name           String
+  id                String          @id @default(uuid()) @db.Uuid
+  name              String
   /// URL-safe unique handle, e.g. "escape3points" — used for the public
   /// booking page (/book/[slug]). Generated from name at creation time.
-  slug           String          @unique
-  accountOwnerId String?         @unique @db.Uuid
+  slug              String          @unique
+  accountOwnerId    String?         @unique @db.Uuid
   /// See WorkspaceType doc comment — RENTAL (default) vs HOSTEL changes
   /// which nav items/screens render (lib/nav.ts) and whether income-split
   /// financials apply.
-  type           WorkspaceType   @default(RENTAL)
+  type              WorkspaceType   @default(RENTAL)
   /// See WorkspaceStatus doc comment — gates all (app) access until a
   /// platform admin approves the signup.
-  status         WorkspaceStatus @default(PENDING)
+  status            WorkspaceStatus @default(PENDING)
   /// Manual paid/unpaid flag, admin-toggled from /admin — no payment
   /// processor integration for V1 (billing handled outside MNGO).
-  paid           Boolean         @default(false)
+  paid              Boolean         @default(false)
   /// bcrypt hash of the owner-set PIN gating a menu item's price change —
   /// never the plaintext, never sent to the client. Null until the owner
   /// sets one via ProfileModal's Security section, available for every
@@ -152,9 +152,17 @@ model Workspace {
   /// used to require this too, but moved to a pending-request/approval
   /// flow instead (Architecture Decision 99) — see Booking/Order's
   /// deleteRequestedAt/deleteRequestedBy doc comments. See lib/workspace-pin.ts.
-  actionPinHash  String?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  actionPinHash     String?
+  /// Consecutive incorrect PIN attempts since the last success (or last
+  /// lockout) — resets to 0 on a correct guess. Paired with pinLockedUntil
+  /// so a stolen/shared staff session can't script through all 10,000
+  /// 4-digit combinations in minutes; see lib/workspace-pin.ts.
+  pinFailedAttempts Int             @default(0)
+  /// Set once pinFailedAttempts hits the lockout threshold; verifyWorkspacePin
+  /// refuses every attempt (even a correct one) until this passes.
+  pinLockedUntil    DateTime?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
 
   accountOwner User?          @relation("WorkspaceAccountOwner", fields: [accountOwnerId], references: [id])
   users        User[]         @relation("WorkspaceUsers")
@@ -174,14 +182,21 @@ model Workspace {
 /// (auth.users.id) — Supabase Auth owns credentials; this table owns role
 /// and workspace membership.
 model User {
-  id          String   @id @default(uuid()) @db.Uuid
-  authId      String   @unique @db.Uuid
-  workspaceId String   @db.Uuid
-  name        String
-  email       String   @unique
-  role        Role
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                 String   @id @default(uuid()) @db.Uuid
+  authId             String   @unique @db.Uuid
+  workspaceId        String   @db.Uuid
+  name               String
+  email              String   @unique
+  role               Role
+  /// True only for a user still on their manager-issued one-time invite
+  /// password (app/api/users/route.ts) — the (app) layout redirects them to
+  /// /change-password until they set their own, so a handed-over temporary
+  /// password can't linger as someone's permanent credential indefinitely.
+  /// False for the Account Owner (chooses their own password at signup) and
+  /// for everyone once they've changed it.
+  mustChangePassword Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   workspace      Workspace      @relation("WorkspaceUsers", fields: [workspaceId], references: [id], onDelete: Cascade)
   ownedWorkspace Workspace?     @relation("WorkspaceAccountOwner")
@@ -246,40 +261,40 @@ model Property {
 /// reusing this model (rather than a parallel one) keeps the existing
 /// calendar/confirm/paidAt machinery working for room bookings for free.
 model Booking {
-  id             String        @id @default(uuid()) @db.Uuid
-  workspaceId    String        @db.Uuid
-  propertyId     String        @db.Uuid
-  guest          String
-  checkIn        DateTime      @db.Date
-  checkOut       DateTime      @db.Date
-  amount         Decimal       @db.Decimal(10, 2)
-  currency       Currency
-  source         BookingSource
-  status         BookingStatus @default(EXPECTED)
-  paidAt         DateTime?     @db.Date
+  id                String         @id @default(uuid()) @db.Uuid
+  workspaceId       String         @db.Uuid
+  propertyId        String         @db.Uuid
+  guest             String
+  checkIn           DateTime       @db.Date
+  checkOut          DateTime       @db.Date
+  amount            Decimal        @db.Decimal(10, 2)
+  currency          Currency
+  source            BookingSource
+  status            BookingStatus  @default(EXPECTED)
+  paidAt            DateTime?      @db.Date
   /// HOSTEL only, below this line.
-  roomId         String?       @db.Uuid
-  passportNumber String?
-  guestEmail     String?
-  guestPhone     String?
+  roomId            String?        @db.Uuid
+  passportNumber    String?
+  guestEmail        String?
+  guestPhone        String?
   /// Guest-facing lookup code for the public /track page — combined with
   /// guest name, this is the guest's entire "login." Unique so a code alone
   /// unambiguously identifies one booking.
-  bookingCode    String?       @unique
+  bookingCode       String?        @unique
   /// Server-set only when staff mark the guest checked out — same pattern
   /// as paidAt. Gates receipt availability and guest ordering.
-  checkedOutAt   DateTime?
+  checkedOutAt      DateTime?
   /// How the guest paid, selected at checkout. Null until checkout.
-  paymentMethod  PaymentMethod?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  paymentMethod     PaymentMethod?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
   /// Soft-deletable — same pattern as Order, applied to every workspace
   /// (Architecture Decision 93). Deleting clears nothing — the row stays
   /// exactly as it was, just hidden from normal views and excluded from
   /// every calculation, so it can be restored intact.
-  deletedAt      DateTime?
-  deletedBy      String?
-  deleteReason   String?
+  deletedAt         DateTime?
+  deletedBy         String?
+  deleteReason      String?
   /// Replaces PIN-gating for deletion (Architecture Decision 99) — a
   /// CO_MANAGER's delete no longer needs a shared PIN, it becomes a
   /// pending request here instead: deletedAt stays null, these two are
@@ -570,4 +585,18 @@ model TeamMember {
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
+}
+
+// ── Security ─────────────────────────────────────────────────────────────
+
+/// Lightweight IP-scoped throttle for unauthenticated endpoints prone to
+/// abuse (guest /track "login", public workspace /signup) — see
+/// lib/rate-limit.ts. Best-effort under concurrent requests (no row
+/// locking), which is fine for a security throttle, unlike anything
+/// financial. No external rate-limiting service in the stack, so this
+/// reuses the existing Postgres connection instead of adding one.
+model RateLimitBucket {
+  key         String   @id
+  count       Int      @default(0)
+  windowStart DateTime @default(now())
 }

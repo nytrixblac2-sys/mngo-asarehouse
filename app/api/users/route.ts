@@ -56,7 +56,10 @@ export async function POST(req: Request) {
   }
 
   const admin = createAdminClient();
-  const { data: existing } = await admin.auth.admin.listUsers();
+  // perPage: 1000 — the 50-user default silently misses real duplicates
+  // once the platform (shared across every workspace) has more users than
+  // that; same fix as lib/workspace-signup.ts's own listUsers call.
+  const { data: existing } = await admin.auth.admin.listUsers({ perPage: 1000 });
   if (existing?.users.some((u) => u.email === parsed.data.email)) {
     return apiError("An account with this email already exists", 400);
   }
@@ -80,6 +83,7 @@ export async function POST(req: Request) {
         name: parsed.data.name,
         email: parsed.data.email,
         role: parsed.data.role,
+        mustChangePassword: true,
         properties: { createMany: { data: propertyIds.map((propertyId: string) => ({ propertyId })) } },
       },
       include: { properties: { select: { propertyId: true } } },

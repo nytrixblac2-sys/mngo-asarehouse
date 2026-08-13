@@ -26,6 +26,7 @@ export async function getCurrentUser(): Promise<User | null> {
     name: dbUser.name,
     email: dbUser.email,
     role: dbUser.role,
+    mustChangePassword: dbUser.mustChangePassword,
   };
 }
 

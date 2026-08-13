@@ -64,6 +64,11 @@ export interface User {
   name: string;
   email: string;
   role: Role;
+  /** True while this user is still on their manager-issued one-time invite
+   * password — the (app) layout redirects to /change-password until it's
+   * false. Always false for the Account Owner (chooses their own password
+   * at signup). */
+  mustChangePassword: boolean;
   /** Only ever set on a PROPERTY_OWNER row, and only populated when this
    * User is being used as an owner-preview target (store/use-app-store.ts
    * previewUser) — lets useProperties() (lib/queries/properties.ts) scope
