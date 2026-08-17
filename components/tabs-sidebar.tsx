@@ -118,6 +118,7 @@ export function TabsSidebar({
           properties={properties}
           managementLabel={workspaceName}
           isHostel={workspace?.type === "HOSTEL"}
+          isAccountOwner={effectiveUser.role === "ACCOUNT_OWNER"}
           onClose={() => setShowReportModal(false)}
         />
       )}

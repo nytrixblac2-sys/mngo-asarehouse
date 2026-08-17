@@ -6,6 +6,7 @@ import { Check, ChevronRight } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Card, Pill } from "@/components/primitives";
 import { CurrencyToggle } from "@/components/currency-toggle";
+import { SubToggle } from "@/components/sub-toggle";
 import { DeltaStat } from "@/components/delta-stat";
 import { useEffectiveUser } from "@/components/effective-user-context";
 import { useAppStore } from "@/store/use-app-store";
@@ -63,12 +64,19 @@ export default function DashboardPage() {
   const activePropertyId = useAppStore((s) => s.activePropertyId);
   // Persisted across refresh — same reasoning as Bookings/Financials
   // (Architecture Decision 69).
-  const { periodKey, chartCurrency } = useAppStore((s) => s.dashboardView);
+  const { periodKey, chartCurrency, financeView } = useAppStore((s) => s.dashboardView);
   const setDashboardView = useAppStore((s) => s.setDashboardView);
   const setPeriodKey = (k: PeriodKey) => setDashboardView({ periodKey: k });
   const setChartCurrency = (c: Currency) => setDashboardView({ chartCurrency: c });
+  const setFinanceView = (v: "income" | "expenses") => setDashboardView({ financeView: v });
 
   const isOwner = effectiveUser.role === "ACCOUNT_OWNER";
+  // No finance on a Co-Manager's dashboard — user request, 2026-08-19,
+  // generalizing the existing HOSTEL rule (Financials is already
+  // ACCOUNT_OWNER-only there) to the Dashboard's own finance card too,
+  // which previously showed income/expenses to a HOSTEL Co-Manager even
+  // though the dedicated Financials page already blocked them from it.
+  const isCoManager = effectiveUser.role === "CO_MANAGER";
   const workspace = useWorkspace().data;
 
   const bookingsQuery = useBookings();
@@ -130,10 +138,6 @@ export default function DashboardPage() {
   const previousExpenses = expenses
     .filter((e) => e.currency === chartCurrency && inRange(e.date, period.previous))
     .reduce((s, e) => s + applyMomo(e.amount, e.currency), 0);
-  const chartData = [
-    { label: period.previous.label, expenses: Math.round(previousExpenses) },
-    { label: period.current.label, expenses: Math.round(currentExpenses) },
-  ];
 
   const currentBookings = bookings.filter((b) => inRange(b.checkIn, period.current));
   const previousBookings = bookings.filter((b) => inRange(b.checkIn, period.previous));
@@ -156,6 +160,20 @@ export default function DashboardPage() {
   const previousIncomeGHS = sumByCurrency(previousIncomeBookings, "GHS");
   const currentIncomeEUR = sumByCurrency(currentIncomeBookings, "EUR");
   const previousIncomeEUR = sumByCurrency(previousIncomeBookings, "EUR");
+
+  // Finance card's bar chart switches between Expenses and Income (user
+  // request, 2026-08-19) — Income follows the same single-currency
+  // chartCurrency toggle Expenses already used, rather than showing both
+  // currencies mixed into one chart (invariant #2, same reasoning as
+  // Expenses' own chartCurrency filter above).
+  const currentIncomeForChart = chartCurrency === "GHS" ? currentIncomeGHS : currentIncomeEUR;
+  const previousIncomeForChart = chartCurrency === "GHS" ? previousIncomeGHS : previousIncomeEUR;
+  const [currentFinanceValue, previousFinanceValue] =
+    financeView === "expenses" ? [currentExpenses, previousExpenses] : [currentIncomeForChart, previousIncomeForChart];
+  const chartData = [
+    { label: period.previous.label, value: Math.round(previousFinanceValue) },
+    { label: period.current.label, value: Math.round(currentFinanceValue) },
+  ];
 
   const nightsBooked = (list: Booking[]) => list.reduce((s, b) => s + nightsBetween(b.checkIn, b.checkOut), 0);
   const currentOccupancy = Math.min(100, Math.round((nightsBooked(currentBookings) / period.current.days) * 100));
@@ -399,52 +417,64 @@ export default function DashboardPage() {
         </div>
       </Card>
 
-      <Card>
-        <div className="flex items-center justify-between mb-1">
-          <p className="text-sm font-semibold" style={{ color: C.text }}>
-            {period.current.label} vs {period.previous.label}
-          </p>
-          <div className="flex items-center gap-1 rounded-full p-1" style={{ background: "#F2F2F2" }}>
-            {PERIOD_KEYS.map((k) => (
-              <button
-                key={k}
-                onClick={() => setPeriodKey(k)}
-                className="text-xs font-semibold px-3 py-1.5 rounded-full"
-                style={{ background: periodKey === k ? "#fff" : "transparent", color: periodKey === k ? C.text : C.muted }}
-              >
-                {k}
-              </button>
-            ))}
+      {/* No finance on a Co-Manager's dashboard — user request, 2026-08-19,
+          the same rule Financials itself already enforces for a HOSTEL
+          Co-Manager (owner-only), generalized to the role everywhere and
+          applied here too so this card can't leak income/expenses to a
+          Co-Manager who's blocked from the dedicated Financials page. */}
+      {!isCoManager && (
+        <Card>
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-sm font-semibold" style={{ color: C.text }}>
+              {period.current.label} vs {period.previous.label}
+            </p>
+            <div className="flex items-center gap-1 rounded-full p-1" style={{ background: "#F2F2F2" }}>
+              {PERIOD_KEYS.map((k) => (
+                <button
+                  key={k}
+                  onClick={() => setPeriodKey(k)}
+                  className="text-xs font-semibold px-3 py-1.5 rounded-full"
+                  style={{ background: periodKey === k ? "#fff" : "transparent", color: periodKey === k ? C.text : C.muted }}
+                >
+                  {k}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-xs" style={{ color: C.muted }}>
-            Expenses ({chartCurrency === "EUR" ? "€" : "GH₵"})
-          </p>
-          <CurrencyToggle value={chartCurrency} onChange={setChartCurrency} currencies={["GHS", "EUR"]} />
-        </div>
-        <div style={{ height: 160 }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} margin={{ top: 4, right: 8, left: 8, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={C.border} />
-              <XAxis dataKey="label" tick={{ fontSize: 12, fill: C.muted }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: C.muted }} axisLine={false} tickLine={false} width={40} />
-              <Tooltip
-                formatter={(v) => fmtCurrency(Number(v), chartCurrency)}
-                contentStyle={{ borderRadius: 12, border: `1px solid ${C.border}`, fontSize: 12 }}
-              />
-              <Bar dataKey="expenses" fill="var(--accent, #111111)" radius={[6, 6, 0, 0]} barSize={48} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-        <div className="flex flex-col gap-2 mt-3">
-          <DeltaStat label="Occupancy" current={currentOccupancy} previous={previousOccupancy} format={(n) => `${n}%`} />
-          <DeltaStat label="Bookings" current={currentBookings.length} previous={previousBookings.length} />
-          <DeltaStat label="Schedules" current={currentShifts} previous={previousShifts} />
-          <DeltaStat label="Income (GHS)" current={currentIncomeGHS} previous={previousIncomeGHS} format={fmtGHS} />
-          <DeltaStat label="Income (EUR)" current={currentIncomeEUR} previous={previousIncomeEUR} format={fmtEUR} />
-        </div>
-      </Card>
+          <div className="flex items-center justify-between mb-3">
+            <SubToggle
+              value={financeView}
+              onChange={setFinanceView}
+              options={[
+                { key: "expenses", label: "Expenses" },
+                { key: "income", label: "Income" },
+              ]}
+            />
+            <CurrencyToggle value={chartCurrency} onChange={setChartCurrency} currencies={["GHS", "EUR"]} />
+          </div>
+          <div style={{ height: 160 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} margin={{ top: 4, right: 8, left: 8, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={C.border} />
+                <XAxis dataKey="label" tick={{ fontSize: 12, fill: C.muted }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: C.muted }} axisLine={false} tickLine={false} width={40} />
+                <Tooltip
+                  formatter={(v) => fmtCurrency(Number(v), chartCurrency)}
+                  contentStyle={{ borderRadius: 12, border: `1px solid ${C.border}`, fontSize: 12 }}
+                />
+                <Bar dataKey="value" fill="var(--accent, #111111)" radius={[6, 6, 0, 0]} barSize={48} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="flex flex-col gap-2 mt-3">
+            <DeltaStat label="Occupancy" current={currentOccupancy} previous={previousOccupancy} format={(n) => `${n}%`} />
+            <DeltaStat label="Bookings" current={currentBookings.length} previous={previousBookings.length} />
+            <DeltaStat label="Schedules" current={currentShifts} previous={previousShifts} />
+            <DeltaStat label="Income (GHS)" current={currentIncomeGHS} previous={previousIncomeGHS} format={fmtGHS} />
+            <DeltaStat label="Income (EUR)" current={currentIncomeEUR} previous={previousIncomeEUR} format={fmtEUR} />
+          </div>
+        </Card>
+      )}
     </div>
   );
 }

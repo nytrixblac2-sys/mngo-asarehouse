@@ -30,6 +30,7 @@ export function GenerateReportModal({
   defaultMonth,
   managementLabel,
   isHostel,
+  isAccountOwner,
 }: {
   onClose: () => void;
   properties: Property[];
@@ -42,6 +43,15 @@ export function GenerateReportModal({
    * (and the choice itself) is hidden rather than shown permanently
    * unchecked and disabled. */
   isHostel?: boolean;
+  /** RENTAL only (HOSTEL already keeps this whole modal ACCOUNT_OWNER-only
+   * via isHostelNonOwner in tabs-sidebar.tsx/financials/page.tsx) — a
+   * Co-Manager shouldn't be able to see money sent to team, and the
+   * internal-report checkbox was a real loophole around that restriction:
+   * she could still check it here and get the same team-payment figures
+   * in a PDF even with the Financials screen's own Internal tab hidden
+   * from her (user request, 2026-08-19). Hidden rather than disabled, same
+   * pattern as the isHostel case above. */
+  isAccountOwner: boolean;
 }) {
   const today = new Date();
   const [propertyId, setPropertyId] = useState(defaultPropertyId ?? properties[0]?.id ?? "");
@@ -191,10 +201,12 @@ export function GenerateReportModal({
               <input type="checkbox" checked={includeOwner} onChange={(e) => setIncludeOwner(e.target.checked)} />
               Owner Report (Owners + Operations)
             </label>
-            <label className="flex items-center gap-2 text-sm" style={{ color: C.text }}>
-              <input type="checkbox" checked={includeOakco} onChange={(e) => setIncludeOakco(e.target.checked)} />
-              {managementLabel} internal report
-            </label>
+            {isAccountOwner && (
+              <label className="flex items-center gap-2 text-sm" style={{ color: C.text }}>
+                <input type="checkbox" checked={includeOakco} onChange={(e) => setIncludeOakco(e.target.checked)} />
+                {managementLabel} internal report
+              </label>
+            )}
           </div>
         )}
 

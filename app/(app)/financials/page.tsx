@@ -40,7 +40,7 @@ export default function FinancialsPage() {
   // non-default tab, or a non-default currency all used to bounce back to
   // this page's hardcoded defaults.
   const {
-    year: fYear, month: fMonth, tab, ownerCurrency, oakCurrency, ownerSub, oakcoSub,
+    year: storedYear, month: storedMonth, tab, ownerCurrency, oakCurrency, ownerSub, oakcoSub,
   } = useAppStore((s) => s.financialsView);
   const setFinancialsView = useAppStore((s) => s.setFinancialsView);
   const setTab = (t: "owner" | "oakco") => setFinancialsView({ tab: t });
@@ -48,6 +48,18 @@ export default function FinancialsPage() {
   const setOakCurrency = (c: Currency) => setFinancialsView({ oakCurrency: c });
   const setOwnerSub = (s: "income" | "expenses") => setFinancialsView({ ownerSub: s });
   const setOakcoSub = (s: "income" | "expenses") => setFinancialsView({ oakcoSub: s });
+
+  const isAccountOwner = effectiveUser.role === "ACCOUNT_OWNER";
+  // A Co-Manager only ever sees the real current month here, no browsing
+  // history — user request, 2026-08-19. Overrides any persisted
+  // financialsView month/year for her specifically (including one set
+  // before this restriction existed, or carried over from a different
+  // account on a shared browser); ACCOUNT_OWNER/PROPERTY_OWNER keep full
+  // navigation via the persisted state as before.
+  const isCoManager = effectiveUser.role === "CO_MANAGER";
+  const realNow = new Date();
+  const fYear = isCoManager ? realNow.getFullYear() : storedYear;
+  const fMonth = isCoManager ? realNow.getMonth() : storedMonth;
 
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
@@ -117,7 +129,14 @@ export default function FinancialsPage() {
   // permanently-zero split, so they're hidden rather than left to render
   // meaningless 0% cards.
   const isHostel = workspaceQuery.data?.type === "HOSTEL";
-  const effectiveTab = isHostel ? "owner" : tab;
+  // "oakco" (team payments) is ACCOUNT_OWNER-only now (user request,
+  // 2026-08-19: a Co-Manager shouldn't see money sent to team, matching
+  // the HOSTEL rule below). Forced back to "owner" here rather than just
+  // hiding the tab button, so a non-owner can't get stranded on a stale
+  // persisted tab: "oakco" — flipped this way before the restriction
+  // existed, or carried over on a shared browser from a different
+  // account — would otherwise render neither tab's content at all.
+  const effectiveTab = isHostel || !isAccountOwner ? "owner" : tab;
 
   const ownerCur: Currency = propCurrencies.includes(ownerCurrency) ? ownerCurrency : propCurrencies[0];
   const oakCur: Currency = propCurrencies.includes(oakCurrency) ? oakCurrency : propCurrencies[0];
@@ -217,13 +236,17 @@ export default function FinancialsPage() {
       </div>
 
       <div className="flex items-center gap-2">
-        <button onClick={goToPrevMonth} className="p-2 rounded-full" style={{ background: C.card, border: `1px solid ${C.border}` }}>
-          <ChevronLeft size={16} style={{ color: C.text }} />
-        </button>
+        {!isCoManager && (
+          <button onClick={goToPrevMonth} className="p-2 rounded-full" style={{ background: C.card, border: `1px solid ${C.border}` }}>
+            <ChevronLeft size={16} style={{ color: C.text }} />
+          </button>
+        )}
         <span className="text-sm font-semibold w-32 text-center" style={{ color: C.text }}>{monthLabel}</span>
-        <button onClick={goToNextMonth} className="p-2 rounded-full" style={{ background: C.card, border: `1px solid ${C.border}` }}>
-          <ChevronRight size={16} style={{ color: C.text }} />
-        </button>
+        {!isCoManager && (
+          <button onClick={goToNextMonth} className="p-2 rounded-full" style={{ background: C.card, border: `1px solid ${C.border}` }}>
+            <ChevronRight size={16} style={{ color: C.text }} />
+          </button>
+        )}
         {effectiveCanEdit && (
           <button
             onClick={() => setShowReportModal(true)}
@@ -244,7 +267,7 @@ export default function FinancialsPage() {
           >
             Owner Report
           </button>
-          {effectiveCanEdit && (
+          {isAccountOwner && (
             <button
               onClick={() => setTab("oakco")}
               className="text-xs font-semibold px-4 py-2 rounded-full"
@@ -399,7 +422,7 @@ export default function FinancialsPage() {
         </>
       )}
 
-      {effectiveTab === "oakco" && effectiveCanEdit && (
+      {effectiveTab === "oakco" && isAccountOwner && (
         <>
           <Card style={{ background: "var(--accent-soft, rgba(0,0,0,0.07))", border: "1px solid rgba(255,90,95,0.2)" }}>
             <p className="text-xs font-semibold" style={{ color: "var(--accent, #111111)" }}>Internal only — never visible to owners</p>
@@ -565,6 +588,7 @@ export default function FinancialsPage() {
           defaultMonth={fMonth}
           managementLabel={managementLabel}
           isHostel={isHostel}
+          isAccountOwner={isAccountOwner}
           onClose={() => setShowReportModal(false)}
         />
       )}

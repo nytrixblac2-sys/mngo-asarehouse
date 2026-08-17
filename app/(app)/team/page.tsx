@@ -8,7 +8,6 @@ import { TeamMemberDetail } from "@/components/team-member-detail";
 import { useEffectiveUser } from "@/components/effective-user-context";
 import { useCreateTeamMember, useDeleteTeamMember, useTeam } from "@/lib/queries/team";
 import { useExpenses } from "@/lib/queries/expenses";
-import { useWorkspace } from "@/lib/queries/workspace";
 import { C } from "@/lib/colors";
 import { fmtCurrency } from "@/lib/format";
 import { applyMomo } from "@/lib/financials";
@@ -22,20 +21,22 @@ import type { TeamMember } from "@/lib/types";
  * in GET /api/expenses (MANAGEMENT category) and GET /api/team itself
  * (manager-only) — this is UX, not the security gate.
  *
- * On a HOSTEL workspace, staff pay specifically is further restricted to
- * the ACCOUNT_OWNER only (Architecture Decision 87) — Janet (CO_MANAGER)
- * still manages the team roster (add/remove, see who's on staff) from
- * this same page, she just never sees the amount or history of what
- * anyone's been paid; only Akwasi does. GET /api/expenses already strips
- * MANAGEMENT-category rows server-side for her, so `payments` below is
- * naturally empty on her session — `canSeePay` only controls whether the
- * (already-empty-for-her) amount/history UI renders at all, not a second
- * data filter. RENTAL is untouched — Cecilia's CO_MANAGER access at Oak &
- * Co. still sees this page exactly as before.
+ * Staff pay specifically is restricted to the ACCOUNT_OWNER only, on
+ * every workspace type — a CO_MANAGER (Janet on Escape3Points, Cecilia on
+ * Oak & Co.) still manages the team roster (add/remove, see who's on
+ * staff) from this same page, they just never see the amount or history
+ * of what anyone's been paid. Originally HOSTEL-only (Architecture
+ * Decision 87), generalized to RENTAL too per user request, 2026-08-19:
+ * Cecilia shouldn't see money sent to team either. GET /api/expenses
+ * already strips MANAGEMENT-category rows server-side for anyone but the
+ * ACCOUNT_OWNER, so `payments` below is naturally empty for a CO_MANAGER
+ * regardless — `canSeePay` mirrors that same rule so the UI is honest
+ * about it ("Manage who's on staff," not a payment-history affordance
+ * that would silently show zero) rather than just relying on the
+ * already-empty data to look right by accident.
  */
 export default function TeamPage() {
   const { effectiveCanEdit, effectiveUser } = useEffectiveUser();
-  const workspace = useWorkspace().data;
 
   const [selected, setSelected] = useState<TeamMember | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -54,7 +55,7 @@ export default function TeamPage() {
     );
   }
 
-  const canSeePay = !(workspace?.type === "HOSTEL" && effectiveUser.role !== "ACCOUNT_OWNER");
+  const canSeePay = effectiveUser.role === "ACCOUNT_OWNER";
 
   const isLoading = teamQuery.isLoading || expensesQuery.isLoading;
   const isError = teamQuery.isError || expensesQuery.isError;

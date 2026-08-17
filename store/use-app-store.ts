@@ -35,6 +35,12 @@ export interface FinancialsViewState {
 export interface DashboardViewState {
   periodKey: "Week" | "Month" | "Year";
   chartCurrency: Currency;
+  /** Which series the finance card's bar chart shows — user request,
+   * 2026-08-19: owners (ACCOUNT_OWNER/PROPERTY_OWNER) can switch between
+   * Income and Expenses instead of the chart always defaulting to
+   * Expenses. Co-Managers never see this card at all (see
+   * app/(app)/dashboard/page.tsx), so this only ever applies to owners. */
+  financeView: "income" | "expenses";
 }
 
 /**
@@ -109,6 +115,7 @@ export const useAppStore = create<AppStore>()(
       dashboardView: {
         periodKey: "Month",
         chartCurrency: "GHS",
+        financeView: "expenses",
       },
       setDashboardView: (patch) => set((state) => ({ dashboardView: { ...state.dashboardView, ...patch } })),
     }),

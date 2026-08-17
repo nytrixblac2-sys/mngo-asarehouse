@@ -11,22 +11,24 @@ import { expenseInputSchema, serializeExpense } from "@/lib/expenses";
  * This is the actual enforcement point for that invariant; property-scoped
  * too, same as /api/bookings.
  *
- * Extended by Architecture Decision 87: on a HOSTEL workspace, MANAGEMENT
- * rows (team payments) are also excluded for anyone but the ACCOUNT_OWNER
- * — Janet manages the Team roster but shouldn't see what staff are paid,
- * only Akwasi should. RENTAL's CO_MANAGER (Cecilia) is unaffected.
+ * MANAGEMENT rows (team payments) are only ever returned to the
+ * ACCOUNT_OWNER, on every workspace type. Originally a HOSTEL-only rule
+ * (Architecture Decision 87 — "Janet manages the Team roster but
+ * shouldn't see what staff are paid, only Akwasi should"), generalized
+ * here to RENTAL's CO_MANAGER too per user request, 2026-08-19: Cecilia
+ * shouldn't see money sent to team either, matching the HOSTEL rule
+ * exactly rather than leaving RENTAL as a narrower exception. Enforced
+ * here, not just hidden in the Financials UI (`financials/page.tsx`'s
+ * Internal tab) — a client-side-only hide would still leak the raw rows
+ * to anyone checking the network tab.
  */
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return apiError("Unauthorized", 401);
 
-  const workspace = await prisma.workspace.findUnique({ where: { id: user.workspaceId }, select: { type: true } });
-  const isHostelNonOwner = workspace?.type === "HOSTEL" && user.role !== "ACCOUNT_OWNER";
-
   const propertyFilter =
     user.role === "PROPERTY_OWNER" ? { property: { owners: { some: { userId: user.id } } } } : {};
-  const categoryFilter =
-    user.role === "PROPERTY_OWNER" || isHostelNonOwner ? { category: { not: "MANAGEMENT" as const } } : {};
+  const categoryFilter = user.role === "ACCOUNT_OWNER" ? {} : { category: { not: "MANAGEMENT" as const } };
 
   const rows = await prisma.expense.findMany({
     where: { workspaceId: user.workspaceId, ...propertyFilter, ...categoryFilter },
