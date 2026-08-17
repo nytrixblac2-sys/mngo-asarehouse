@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, ChevronLeft, ChevronRight, FileText } from "lucide-react";
+import { Plus, Pencil, ChevronLeft, ChevronRight, FileText } from "lucide-react";
 import { Card, Pill } from "@/components/primitives";
 import { CurrencyToggle } from "@/components/currency-toggle";
 import { SubToggle } from "@/components/sub-toggle";
@@ -13,7 +13,7 @@ import { DeletedOrdersLog } from "@/components/deleted-orders-log";
 import { useEffectiveUser } from "@/components/effective-user-context";
 import { useAppStore } from "@/store/use-app-store";
 import { useBookings } from "@/lib/queries/bookings";
-import { useCreateExpense, useExpenses } from "@/lib/queries/expenses";
+import { useCreateExpense, useExpenses, useUpdateExpense } from "@/lib/queries/expenses";
 import { useCreateManualIncome, useManualIncome } from "@/lib/queries/manual-income";
 import { useOrders } from "@/lib/queries/orders";
 import { useProperties } from "@/lib/queries/properties";
@@ -24,7 +24,7 @@ import { fmtCurrency } from "@/lib/format";
 import { applyMomo, bookingOrderTotal, computeManagementReport, computeOwnersReport, confirmedBookings, outstandingBookings, sumConfirmedIncome, sumConfirmedIncomeHostel } from "@/lib/financials";
 import { EXPENSE_CATEGORY_LABEL, EXPENSE_CATEGORY_TONE } from "@/lib/labels";
 import { MONTH_NAMES, pad2 } from "@/lib/calendar";
-import type { Allocation, Currency, PrevBalance } from "@/lib/types";
+import type { Allocation, Currency, Expense, PrevBalance } from "@/lib/types";
 
 const DEFAULT_ALLOCATION: Allocation = { owners: 60, operations: 15, management: 25 };
 
@@ -50,6 +50,7 @@ export default function FinancialsPage() {
   const setOakcoSub = (s: "income" | "expenses") => setFinancialsView({ oakcoSub: s });
 
   const [showExpenseForm, setShowExpenseForm] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [showIncomeForm, setShowIncomeForm] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
 
@@ -62,6 +63,7 @@ export default function FinancialsPage() {
   const workspaceQuery = useWorkspace();
 
   const createExpense = useCreateExpense();
+  const updateExpense = useUpdateExpense();
   const createManualIncome = useCreateManualIncome();
 
   const isLoading =
@@ -372,6 +374,11 @@ export default function FinancialsPage() {
                     <div className="flex items-center gap-3">
                       <span className="text-xs" style={{ color: C.muted }}>{e.date}</span>
                       <span className="text-sm font-semibold w-24 text-right" style={{ color: C.text }}>{fmtCurrency(applyMomo(e.amount, e.currency), ownerCur)}</span>
+                      {effectiveCanEdit && (
+                        <button onClick={() => setEditingExpense(e)} title="Edit expense">
+                          <Pencil size={13} style={{ color: C.muted }} />
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -459,6 +466,11 @@ export default function FinancialsPage() {
                     <div className="flex items-center gap-3">
                       <span className="text-xs" style={{ color: C.muted }}>{e.date}</span>
                       <span className="text-sm font-semibold w-24 text-right" style={{ color: C.text }}>{fmtCurrency(applyMomo(e.amount, e.currency), oakCur)}</span>
+                      {effectiveCanEdit && (
+                        <button onClick={() => setEditingExpense(e)} title="Edit expense">
+                          <Pencil size={13} style={{ color: C.muted }} />
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -526,6 +538,21 @@ export default function FinancialsPage() {
           hideCategory={isHostel}
           properties={properties}
           defaultPropertyId={defaultPropertyId}
+          team={team}
+          managementLabel={workspaceName}
+        />
+      )}
+      {effectiveCanEdit && editingExpense && (
+        <ExpenseForm
+          expense={editingExpense}
+          onClose={() => setEditingExpense(null)}
+          onSubmit={(input) => { updateExpense.mutate({ id: editingExpense.id, input }); setEditingExpense(null); }}
+          defaultDate={editingExpense.date}
+          defaultCurrency={editingExpense.currency}
+          defaultCategory={editingExpense.category}
+          hideCategory={isHostel}
+          properties={properties}
+          defaultPropertyId={editingExpense.propertyId}
           team={team}
           managementLabel={workspaceName}
         />
