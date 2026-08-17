@@ -104,6 +104,41 @@ export const bookingDeleteInputSchema = z.object({
 
 export class BookingError extends Error {}
 
+/** Marker prefix on a cascade-deleted order's own deleteReason — lets
+ * anyone reading the deleted-orders log tell "this order died because its
+ * booking got deleted" from "this order was deleted on its own", and is
+ * how CASCADE_ORDER_DELETE_REASON_PREFIX-tagged rows could be identified
+ * later if that's ever needed. Not currently used to auto-restore
+ * anything — see deleteOrdersForBooking's doc comment for why. */
+const CASCADE_ORDER_DELETE_REASON_PREFIX = "Booking deleted:";
+
+/** Soft-deletes every still-active order for a booking, in the same
+ * transaction as the booking's own delete — an order with no guest behind
+ * it is meaningless (nothing to fulfill, no bill to bill it to), so it
+ * shouldn't be able to outlive its booking. Before this, deleting a
+ * booking left its orders behind pointing at a bookingId the client's
+ * non-deleted-bookings list would never resolve — they'd show up on the
+ * Kitchen/Bar/Shop/Experiences boards forever as "Unknown guest / No
+ * room" tickets with no way to fulfill or dismiss them (the real-world
+ * bug this fixes: a test order Janet created stayed stuck on the Kitchen
+ * screen after she deleted the test booking it belonged to).
+ *
+ * One-way, deliberately: components/deleted-orders-log.tsx's own doc
+ * comment already establishes deleted orders as permanent, no restore
+ * ("the guest's bill has already moved on") — so restoreBooking does NOT
+ * undo this, even though it does undo the booking's own deletedAt. That
+ * matches the existing rule rather than inventing a new one just for the
+ * cascade case. */
+// Not `async` — $transaction's array form needs the lazy PrismaPromise
+// updateMany() itself returns, not a regular Promise wrapping it (which is
+// what an async function would hand back instead).
+function deleteOrdersForBooking(bookingId: string, deletedBy: string, bookingDeleteReason: string) {
+  return prisma.order.updateMany({
+    where: { bookingId, deletedAt: null },
+    data: { deletedAt: new Date(), deletedBy, deleteReason: `${CASCADE_ORDER_DELETE_REASON_PREFIX} ${bookingDeleteReason}` },
+  });
+}
+
 /**
  * Deletes a booking, or requests its deletion (Architecture Decision 99).
  * ACCOUNT_OWNER deletes immediately, exactly as before — they're already
@@ -114,6 +149,12 @@ export class BookingError extends Error {}
  * the previous PIN-gate for deletion specifically (menu price changes
  * still use the PIN, see lib/workspace-pin.ts). A reason is always
  * required, for the audit trail either way.
+ *
+ * An immediate delete also cascades to the booking's own orders — see
+ * deleteOrdersForBooking. A pending request does not: the booking isn't
+ * actually gone yet (deletedAt stays null while awaiting approval), so
+ * its orders correctly stay active too until/unless the request is
+ * approved.
  */
 export async function deleteBooking(params: {
   workspaceId: string;
@@ -134,10 +175,15 @@ export async function deleteBooking(params: {
   }
 
   if (params.actorRole === "ACCOUNT_OWNER") {
-    return prisma.booking.update({
-      where: { id: params.bookingId },
-      data: { deletedAt: new Date(), deletedBy: params.actorName, deleteReason: params.reason.trim() },
-    });
+    const reason = params.reason.trim();
+    const [updated] = await prisma.$transaction([
+      prisma.booking.update({
+        where: { id: params.bookingId },
+        data: { deletedAt: new Date(), deletedBy: params.actorName, deleteReason: reason },
+      }),
+      deleteOrdersForBooking(params.bookingId, params.actorName, reason),
+    ]);
+    return updated;
   }
 
   return prisma.booking.update({
@@ -147,9 +193,10 @@ export async function deleteBooking(params: {
 }
 
 /** Owner approves a pending delete request, finalizing it into an actual
- * soft-delete. `deletedBy` credits whoever originally requested it, not
- * the approving owner — matches the deleted-log's existing "who caused
- * this" semantics. */
+ * soft-delete — cascading to the booking's own orders too, same as an
+ * immediate owner delete (see deleteOrdersForBooking). `deletedBy` credits
+ * whoever originally requested it, not the approving owner — matches the
+ * deleted-log's existing "who caused this" semantics. */
 export async function approveBookingDeletion(params: { workspaceId: string; bookingId: string }) {
   const booking = await prisma.booking.findUnique({ where: { id: params.bookingId } });
   if (!booking || booking.workspaceId !== params.workspaceId) {
@@ -159,15 +206,19 @@ export async function approveBookingDeletion(params: { workspaceId: string; book
     throw new BookingError("No pending deletion request for this booking");
   }
 
-  return prisma.booking.update({
-    where: { id: params.bookingId },
-    data: {
-      deletedAt: new Date(),
-      deletedBy: booking.deleteRequestedBy,
-      deleteRequestedAt: null,
-      deleteRequestedBy: null,
-    },
-  });
+  const [updated] = await prisma.$transaction([
+    prisma.booking.update({
+      where: { id: params.bookingId },
+      data: {
+        deletedAt: new Date(),
+        deletedBy: booking.deleteRequestedBy,
+        deleteRequestedAt: null,
+        deleteRequestedBy: null,
+      },
+    }),
+    deleteOrdersForBooking(params.bookingId, booking.deleteRequestedBy!, booking.deleteReason ?? ""),
+  ]);
+  return updated;
 }
 
 /** Owner rejects a pending delete request — nothing is deleted, the

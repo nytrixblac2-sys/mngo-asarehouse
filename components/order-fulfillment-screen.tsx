@@ -78,7 +78,15 @@ export function OrderFulfillmentScreen({ station, title }: { station: MenuStatio
     // booking's own order history (BookingDetailModal) still shows every
     // order regardless of checkout, this only hides it from the
     // fulfillment screens, which are about what's still in flight right now.
-    .filter(({ booking }) => !booking?.checkedOutAt)
+    //
+    // A missing `booking` (not just an already-checked-out one) gets the
+    // same treatment — lib/bookings.ts's deleteBooking/approveBookingDeletion
+    // now cascade-delete a booking's own orders, so this is mainly a
+    // safety net for any order that predates that fix, but there's no
+    // real difference between "checked out" and "no guest behind this at
+    // all" from this screen's point of view: neither is something staff
+    // can still fulfill or should keep seeing on the active board.
+    .filter(({ booking }) => booking !== undefined && !booking.checkedOutAt)
     .sort((a, b) => {
       const rank = (s: IssueStatus) => (s === "OPEN" ? 0 : s === "IN_PROGRESS" ? 1 : 2);
       if (rank(a.status) !== rank(b.status)) return rank(a.status) - rank(b.status);
