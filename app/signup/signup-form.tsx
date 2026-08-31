@@ -2,113 +2,157 @@
 
 import { useState } from "react";
 import { Building2, User, Mail, Lock, Eye, EyeOff } from "lucide-react";
-import { C } from "@/lib/colors";
 import { signUp } from "./actions";
+
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  paddingLeft: 36,
+  paddingRight: 12,
+  paddingTop: 10,
+  paddingBottom: 10,
+  borderRadius: 10,
+  fontSize: "0.875rem",
+  border: "1px solid var(--at-border, #CCE8E5)",
+  background: "var(--at-input-bg, #F0FAFB)",
+  color: "var(--at-t1, #0C1A1A)",
+  outline: "none",
+  fontFamily: "inherit",
+  transition: "border-color 0.18s, box-shadow 0.18s",
+};
+
+const labelStyle: React.CSSProperties = {
+  fontSize: "0.8rem",
+  fontWeight: 600,
+  color: "var(--at-t2, #3D6663)",
+  marginBottom: 5,
+  display: "block",
+};
+
+const iconStyle: React.CSSProperties = {
+  position: "absolute",
+  left: 11,
+  top: "50%",
+  transform: "translateY(-50%)",
+  color: "var(--at-t2, #3D6663)",
+  pointerEvents: "none",
+};
 
 export function SignupForm({ errorMessage }: { errorMessage: string | null }) {
   const [showPw, setShowPw] = useState(false);
 
   return (
-    <form action={signUp} className="flex flex-col gap-4">
+    <form action={signUp} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <div>
-        <label className="text-xs font-semibold" style={{ color: C.muted }}>
-          Company / management name
-        </label>
-        <div className="relative mt-1">
-          <Building2 size={15} style={{ position: "absolute", left: 12, top: 12, color: C.muted }} />
+        <label style={labelStyle} htmlFor="sf-company">Company / management name</label>
+        <div style={{ position: "relative" }}>
+          <Building2 size={14} style={iconStyle} />
           <input
+            id="sf-company"
             name="companyName"
             required
-            className="w-full pl-9 pr-3 py-2.5 rounded-xl text-sm"
-            style={{ border: `1px solid ${C.border}` }}
+            style={inputStyle}
             placeholder="e.g. Oak & Co."
           />
         </div>
       </div>
+
       <div>
-        <label className="text-xs font-semibold" style={{ color: C.muted }}>
-          Your name
-        </label>
-        <div className="relative mt-1">
-          <User size={15} style={{ position: "absolute", left: 12, top: 12, color: C.muted }} />
+        <label style={labelStyle} htmlFor="sf-name">Your name</label>
+        <div style={{ position: "relative" }}>
+          <User size={14} style={iconStyle} />
           <input
+            id="sf-name"
             name="name"
             required
-            className="w-full pl-9 pr-3 py-2.5 rounded-xl text-sm"
-            style={{ border: `1px solid ${C.border}` }}
+            style={inputStyle}
             placeholder="e.g. Kwame Asare"
           />
         </div>
       </div>
+
       <div>
-        <label className="text-xs font-semibold" style={{ color: C.muted }}>
-          Email
-        </label>
-        <div className="relative mt-1">
-          <Mail size={15} style={{ position: "absolute", left: 12, top: 12, color: C.muted }} />
+        <label style={labelStyle} htmlFor="sf-email">Email</label>
+        <div style={{ position: "relative" }}>
+          <Mail size={14} style={iconStyle} />
           <input
+            id="sf-email"
             name="email"
             type="email"
             required
             autoComplete="email"
-            className="w-full pl-9 pr-3 py-2.5 rounded-xl text-sm"
-            style={{ border: `1px solid ${C.border}` }}
+            style={inputStyle}
             placeholder="kwame@example.com"
           />
         </div>
       </div>
+
       <div>
-        <label className="text-xs font-semibold" style={{ color: C.muted }}>
-          Password
-        </label>
-        <div className="relative mt-1">
-          <Lock size={15} style={{ position: "absolute", left: 12, top: 12, color: C.muted }} />
+        <label style={labelStyle} htmlFor="sf-password">Password</label>
+        <div style={{ position: "relative" }}>
+          <Lock size={14} style={iconStyle} />
           <input
+            id="sf-password"
             name="password"
             type={showPw ? "text" : "password"}
             required
             minLength={8}
             autoComplete="new-password"
-            className="w-full pl-9 pr-9 py-2.5 rounded-xl text-sm"
-            style={{ border: `1px solid ${C.border}` }}
+            style={{ ...inputStyle, paddingRight: 36 }}
             placeholder="At least 8 characters"
           />
           <button
             type="button"
             onClick={() => setShowPw((v) => !v)}
-            style={{ position: "absolute", right: 12, top: 12, color: C.muted }}
+            style={{ position: "absolute", right: 11, top: "50%", transform: "translateY(-50%)", color: "var(--at-t2, #3D6663)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+            aria-label={showPw ? "Hide password" : "Show password"}
           >
-            {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
+            {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
           </button>
         </div>
       </div>
+
       <div>
-        <label className="text-xs font-semibold" style={{ color: C.muted }}>
-          Confirm password
-        </label>
-        <div className="relative mt-1">
-          <Lock size={15} style={{ position: "absolute", left: 12, top: 12, color: C.muted }} />
+        <label style={labelStyle} htmlFor="sf-confirm">Confirm password</label>
+        <div style={{ position: "relative" }}>
+          <Lock size={14} style={iconStyle} />
           <input
+            id="sf-confirm"
             name="confirmPassword"
             type={showPw ? "text" : "password"}
             required
             minLength={8}
             autoComplete="new-password"
-            className="w-full pl-9 pr-3 py-2.5 rounded-xl text-sm"
-            style={{ border: `1px solid ${C.border}` }}
+            style={inputStyle}
             placeholder="Retype your password"
           />
         </div>
       </div>
-      {errorMessage && <p className="text-xs font-medium text-destructive">{errorMessage}</p>}
+
+      {errorMessage && (
+        <p style={{ fontSize: "0.8rem", fontWeight: 500, color: "#EF4444" }}>{errorMessage}</p>
+      )}
+
       <button
         type="submit"
-        className="w-full text-sm font-semibold py-3 rounded-xl mt-1"
-        style={{ background: C.text, color: "#fff" }}
+        style={{
+          width: "100%",
+          fontSize: "0.875rem",
+          fontWeight: 600,
+          padding: "11px 0",
+          borderRadius: 10,
+          background: "var(--at-teal, #0D9488)",
+          color: "#FFFFFF",
+          border: "none",
+          cursor: "pointer",
+          fontFamily: "inherit",
+          marginTop: 4,
+          transition: "background 0.18s",
+        }}
       >
         Create workspace
       </button>
-      <p className="text-xs text-center" style={{ color: C.muted }}>
+
+      <p style={{ fontSize: "0.78rem", textAlign: "center", color: "var(--at-t2, #3D6663)", lineHeight: 1.55 }}>
         A team member reviews every new workspace before it goes live — you&apos;ll get access as soon as it&apos;s approved.
       </p>
     </form>

@@ -2,67 +2,112 @@
 
 import { useState } from "react";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
-import { C } from "@/lib/colors";
 import { signIn } from "./actions";
+
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  paddingLeft: 36,
+  paddingRight: 12,
+  paddingTop: 10,
+  paddingBottom: 10,
+  borderRadius: 10,
+  fontSize: "0.875rem",
+  border: "1px solid var(--at-border, #CCE8E5)",
+  background: "var(--at-input-bg, #F0FAFB)",
+  color: "var(--at-t1, #0C1A1A)",
+  outline: "none",
+  fontFamily: "inherit",
+  transition: "border-color 0.18s, box-shadow 0.18s",
+};
+
+const labelStyle: React.CSSProperties = {
+  fontSize: "0.8rem",
+  fontWeight: 600,
+  color: "var(--at-t2, #3D6663)",
+  marginBottom: 5,
+  display: "block",
+};
+
+const iconStyle: React.CSSProperties = {
+  position: "absolute",
+  left: 11,
+  top: "50%",
+  transform: "translateY(-50%)",
+  color: "var(--at-t2, #3D6663)",
+  pointerEvents: "none",
+};
 
 export function LoginForm({ errorMessage }: { errorMessage: string | null }) {
   const [showPw, setShowPw] = useState(false);
 
   return (
-    <form action={signIn} className="flex flex-col gap-4">
+    <form action={signIn} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <div>
-        <label className="text-xs font-semibold" style={{ color: C.muted }}>
-          Email
-        </label>
-        <div className="relative mt-1">
-          <Mail size={15} style={{ position: "absolute", left: 12, top: 12, color: C.muted }} />
+        <label style={labelStyle} htmlFor="lf-email">Email</label>
+        <div style={{ position: "relative" }}>
+          <Mail size={14} style={iconStyle} />
           <input
+            id="lf-email"
             name="email"
             type="email"
             required
             autoComplete="email"
-            className="w-full pl-9 pr-3 py-2.5 rounded-xl text-sm"
-            style={{ border: `1px solid ${C.border}` }}
-            placeholder="cecilia@example.com"
+            style={inputStyle}
+            placeholder="you@example.com"
           />
         </div>
       </div>
+
       <div>
-        <label className="text-xs font-semibold" style={{ color: C.muted }}>
-          Password
-        </label>
-        <div className="relative mt-1">
-          <Lock size={15} style={{ position: "absolute", left: 12, top: 12, color: C.muted }} />
+        <label style={labelStyle} htmlFor="lf-password">Password</label>
+        <div style={{ position: "relative" }}>
+          <Lock size={14} style={iconStyle} />
           <input
+            id="lf-password"
             name="password"
             type={showPw ? "text" : "password"}
             required
             autoComplete="current-password"
-            className="w-full pl-9 pr-9 py-2.5 rounded-xl text-sm"
-            style={{ border: `1px solid ${C.border}` }}
+            style={{ ...inputStyle, paddingRight: 36 }}
             placeholder="••••••••"
           />
           <button
             type="button"
             onClick={() => setShowPw((v) => !v)}
-            style={{ position: "absolute", right: 12, top: 12, color: C.muted }}
+            style={{ position: "absolute", right: 11, top: "50%", transform: "translateY(-50%)", color: "var(--at-t2, #3D6663)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+            aria-label={showPw ? "Hide password" : "Show password"}
           >
-            {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
+            {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
           </button>
         </div>
       </div>
-      <div className="flex justify-end">
-        <span className="text-xs font-medium" style={{ color: C.text }}>
+
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <span style={{ fontSize: "0.78rem", fontWeight: 500, color: "var(--at-teal, #0D9488)", cursor: "pointer" }}>
           Forgot password?
         </span>
       </div>
+
       {errorMessage && (
-        <p className="text-xs font-medium text-destructive">{errorMessage}</p>
+        <p style={{ fontSize: "0.8rem", fontWeight: 500, color: "#EF4444" }}>{errorMessage}</p>
       )}
+
       <button
         type="submit"
-        className="w-full text-sm font-semibold py-3 rounded-xl mt-1"
-        style={{ background: C.text, color: "#fff" }}
+        style={{
+          width: "100%",
+          fontSize: "0.875rem",
+          fontWeight: 600,
+          padding: "11px 0",
+          borderRadius: 10,
+          background: "var(--at-teal, #0D9488)",
+          color: "#FFFFFF",
+          border: "none",
+          cursor: "pointer",
+          fontFamily: "inherit",
+          marginTop: 4,
+          transition: "background 0.18s",
+        }}
       >
         Sign in
       </button>

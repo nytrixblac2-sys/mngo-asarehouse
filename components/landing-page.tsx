@@ -15,10 +15,9 @@ export function LandingPage() {
   useEffect(() => {
     let stored: string | null = null;
     try { stored = localStorage.getItem("mngo-theme"); } catch {}
-    const sysDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     const initial = (stored === "dark" || stored === "light")
       ? (stored as "light" | "dark")
-      : sysDark ? "dark" : "light";
+      : "light";
     themeRef.current = initial;
     setTheme(initial);
     document.documentElement.setAttribute("data-theme", initial);
@@ -144,7 +143,7 @@ export function LandingPage() {
               </span>
             </button>
             <a href="/login" className={`${s.btn} ${s.btnOutline}`}>Sign in</a>
-            <a href="/sign-up" className={`${s.btn} ${s.btnPrimary}`}>Get started</a>
+            <a href="/signup" className={`${s.btn} ${s.btnPrimary}`}>Get started</a>
           </div>
         </div>
       </nav>
@@ -166,7 +165,7 @@ export function LandingPage() {
             workspace, built for co-working spaces, hotels, short-lets, event centres, restaurants.
           </p>
           <div className={s.heroCtas}>
-            <a href="/sign-up" className={`${s.btn} ${s.btnPrimary} ${s.btnLg}`}>
+            <a href="/signup" className={`${s.btn} ${s.btnPrimary} ${s.btnLg}`}>
               Start free trial
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
             </a>

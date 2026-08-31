@@ -2,8 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { isPlatformAdmin } from "@/lib/admin";
 import { createClient } from "@/lib/supabase/server";
-import { C } from "@/lib/colors";
-import { Card } from "@/components/primitives";
+import { AuthLayout } from "@/components/auth-layout";
 import { LoginForm } from "./login-form";
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -31,23 +30,18 @@ export default async function LoginPage({
     : null;
 
   return (
-    <div className="flex w-full items-center justify-center" style={{ background: C.bg, minHeight: "100vh" }}>
-      <div className="w-full max-w-sm">
-        <div className="mb-8 flex flex-col items-center">
-          <p className="text-xl font-bold" style={{ color: C.text }}>
-            MNGO
-          </p>
-          <p className="mt-1 text-xs font-medium" style={{ color: C.muted }}>
-            Booking tracking, reporting and owner insights
-          </p>
-        </div>
-        <Card>
-          <LoginForm errorMessage={errorMessage} />
-        </Card>
-        <p className="mt-4 text-center text-xs" style={{ color: C.muted }}>
-          New management company? <a href="/signup" className="font-semibold" style={{ color: C.text }}>Create a workspace</a>
-        </p>
-      </div>
-    </div>
+    <AuthLayout
+      subtitle="Sign in to your workspace"
+      footerContent={
+        <>
+          New management company?{" "}
+          <a href="/signup" style={{ fontWeight: 600, color: "var(--at-teal, #0D9488)", textDecoration: "none" }}>
+            Create a workspace
+          </a>
+        </>
+      }
+    >
+      <LoginForm errorMessage={errorMessage} />
+    </AuthLayout>
   );
 }
