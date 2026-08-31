@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { isPlatformAdmin } from "@/lib/admin";
 import { createClient } from "@/lib/supabase/server";
+import { LandingPage } from "@/components/landing-page";
 
 export default async function Home() {
   const user = await getCurrentUser();
@@ -13,5 +14,5 @@ export default async function Home() {
   } = await supabase.auth.getUser();
   if (isPlatformAdmin(authUser?.email)) redirect("/admin");
 
-  redirect("/login");
+  return <LandingPage />;
 }
