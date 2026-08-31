@@ -158,13 +158,12 @@ export function LandingPage() {
             Management on the Go
           </div>
           <h1 className={s.heroH1}>
-            Run your space.<br />
-            <span className={s.shine}>Not your inbox.</span>
+            Run your property<br />
+            <span className={s.shine}>from anywhere.</span>
           </h1>
           <p className={s.heroSub}>
-            MNGO is the all-in-one property management platform for co-working spaces, hotels,
-            short-lets, event centres, restaurants, and more — bookings, payments, and team
-            operations in one clean dashboard.
+            MNGO brings bookings, financials, team management, and daily operations into one
+            workspace, built for co-working spaces, hotels, short-lets, event centres, restaurants.
           </p>
           <div className={s.heroCtas}>
             <a href="/sign-up" className={`${s.btn} ${s.btnPrimary} ${s.btnLg}`}>
@@ -333,16 +332,16 @@ export function LandingPage() {
             {[
               {
                 name: "Starter",
-                tag: "Perfect for a single-location property just getting started.",
-                price: "99",
-                per: "/ month · billed annually",
+                tag: "Get started at no cost. One property, core tools, no credit card.",
+                price: "Free",
+                per: "forever",
                 pop: false,
                 feats: ["1 property", "Up to 20 rooms / desks", "Booking & payments", "Basic financials", "2 staff accounts", "Email support"],
               },
               {
-                name: "Growth",
+                name: "Pro",
                 tag: "For growing properties that need more control and visibility.",
-                price: "249",
+                price: "29",
                 per: "/ month · billed annually",
                 pop: true,
                 feats: ["Up to 5 properties", "Unlimited rooms / desks", "Full financials & reporting", "Menu & orders module", "10 staff accounts", "Priority support"],
@@ -361,7 +360,7 @@ export function LandingPage() {
                 <div className={s.pName}>{name}</div>
                 <div className={s.pTag}>{tag}</div>
                 <div className={s.pPrice}>
-                  {price !== "Custom" && <span className={s.pCur}>GH₵</span>}
+                  {price !== "Custom" && price !== "Free" && <span className={s.pCur}>$</span>}
                   <span className={s.pAmt}>{price}</span>
                 </div>
                 <div className={s.pPer}>{per}</div>
@@ -380,7 +379,7 @@ export function LandingPage() {
                   href={price === "Custom" ? "#contact" : "/sign-up"}
                   className={`${s.btn} ${pop ? s.btnPrimary : s.btnOutline} ${s.btnFull}`}
                 >
-                  {price === "Custom" ? "Contact sales" : "Get started"}
+                  {price === "Custom" ? "Contact sales" : price === "Free" ? "Start for free" : "Get started"}
                 </a>
               </div>
             ))}
