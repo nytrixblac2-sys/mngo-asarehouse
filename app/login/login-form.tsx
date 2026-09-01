@@ -83,9 +83,9 @@ export function LoginForm({ errorMessage }: { errorMessage: string | null }) {
       </div>
 
       <div style={{ display: "flex", justifyContent: "flex-end" }}>
-        <span style={{ fontSize: "0.78rem", fontWeight: 500, color: "var(--at-teal, #0D9488)", cursor: "pointer" }}>
+        <a href="/forgot-password" style={{ fontSize: "0.78rem", fontWeight: 500, color: "var(--at-teal, #0D9488)", textDecoration: "none" }}>
           Forgot password?
-        </span>
+        </a>
       </div>
 
       {errorMessage && (

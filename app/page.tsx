@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { isPlatformAdmin } from "@/lib/admin";
 import { createClient } from "@/lib/supabase/server";
 import { LandingPage } from "@/components/landing-page";
+import { RecoveryRedirect } from "@/components/recovery-redirect";
 
 export default async function Home() {
   const user = await getCurrentUser();
@@ -14,5 +15,10 @@ export default async function Home() {
   } = await supabase.auth.getUser();
   if (isPlatformAdmin(authUser?.email)) redirect("/admin");
 
-  return <LandingPage />;
+  return (
+    <>
+      <RecoveryRedirect />
+      <LandingPage />
+    </>
+  );
 }
