@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ShoppingCart, Minus, Plus, Check, ChevronLeft, X } from "lucide-react";
+import { ShoppingCart, Minus, Plus, ChevronLeft } from "lucide-react";
 
 interface ShopItem {
   id: string;

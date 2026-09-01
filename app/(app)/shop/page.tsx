@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { QrCode, Package, ShoppingBag, Check, ExternalLink, Plus, X } from "lucide-react";
+import { QrCode, Package, ShoppingBag, Check, ExternalLink, Plus } from "lucide-react";
 import { Card, Pill } from "@/components/primitives";
 import { useEffectiveUser } from "@/components/effective-user-context";
 import { useWorkspace } from "@/lib/queries/workspace";
