@@ -64,7 +64,7 @@ export default function ShopPage() {
 
   const [tab, setTab] = useState<"products" | "orders">("products");
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newItem, setNewItem] = useState({ name: "", price: "", category: "Shop" });
+  const [newItem, setNewItem] = useState({ name: "", price: "", category: "Shop", imageUrl: "" });
   const [addError, setAddError] = useState<string | null>(null);
 
   const shopItems = (menuQuery.data ?? []).filter((m) => m.station === "SHOP");
@@ -93,8 +93,9 @@ export default function ShopPage() {
       currency: "GHS",
       alwaysAvailable: true,
       station: "SHOP",
+      imageUrl: newItem.imageUrl.trim() || null,
     }, {
-      onSuccess: () => { setShowAddForm(false); setNewItem({ name: "", price: "", category: "Shop" }); },
+      onSuccess: () => { setShowAddForm(false); setNewItem({ name: "", price: "", category: "Shop", imageUrl: "" }); },
       onError: (e) => setAddError((e as Error).message),
     });
   };
@@ -204,6 +205,30 @@ export default function ShopPage() {
                         value={newItem.category}
                         onChange={(e) => setNewItem((p) => ({ ...p, category: e.target.value }))}
                         placeholder="Category"
+                        className="flex-1 px-3 py-2.5 rounded-xl text-sm"
+                        style={{ border: `1px solid ${C.border}`, background: C.card, color: C.text }}
+                      />
+                    </div>
+                    <div className="flex gap-3 items-center">
+                      <div
+                        className="rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden text-3xl"
+                        style={{ width: 56, height: 56, background: C.bg, border: `1px solid ${C.border}` }}
+                      >
+                        {newItem.imageUrl ? (
+                          <img
+                            src={newItem.imageUrl}
+                            alt=""
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                          />
+                        ) : (
+                          getEmoji(newItem.name)
+                        )}
+                      </div>
+                      <input
+                        value={newItem.imageUrl}
+                        onChange={(e) => setNewItem((p) => ({ ...p, imageUrl: e.target.value }))}
+                        placeholder="Image URL (optional — paste a link to a photo)"
                         className="flex-1 px-3 py-2.5 rounded-xl text-sm"
                         style={{ border: `1px solid ${C.border}`, background: C.card, color: C.text }}
                       />
