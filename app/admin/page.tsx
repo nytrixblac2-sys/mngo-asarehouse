@@ -57,7 +57,6 @@ export default async function AdminPage() {
   const totalActive     = workspaces.filter((w) => w.status === "ACTIVE").length;
   const totalPending    = workspaces.filter((w) => w.status === "PENDING").length;
   const totalProperties = workspaces.reduce((s, w) => s + w._count.properties, 0);
-  const totalBookings   = workspaces.reduce((s, w) => s + w._count.bookings, 0);
   const totalUsers      = workspaces.reduce((s, w) => s + w.users.length, 0);
 
   return (
