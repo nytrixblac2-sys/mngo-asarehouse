@@ -9,6 +9,7 @@ export interface MenuItemInput {
   currency: Currency;
   alwaysAvailable?: boolean;
   station?: MenuStation;
+  imageUrl?: string | null;
   /** Only relevant to useUpdateMenuItem when the price actually changes —
    * see Architecture Decision 82. Ignored on create. */
   pin?: string;

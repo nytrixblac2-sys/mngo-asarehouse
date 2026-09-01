@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Menu, PanelLeft, ChevronLeft, ChevronRight, FileText } from "lucide-react";
@@ -44,6 +44,7 @@ export function TopBar({
   const [showProfile, setShowProfile] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("light");
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let stored: string | null = null;
@@ -52,6 +53,22 @@ export function TopBar({
     setTheme(initial);
     document.documentElement.setAttribute("data-theme", initial);
   }, []);
+
+  // Close menu when tapping outside (covers both desktop and mobile)
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onOutside(e: MouseEvent | TouchEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onOutside);
+    document.addEventListener("touchstart", onOutside);
+    return () => {
+      document.removeEventListener("mousedown", onOutside);
+      document.removeEventListener("touchstart", onOutside);
+    };
+  }, [menuOpen]);
 
   function toggleTheme() {
     const next = theme === "dark" ? "light" : "dark";
@@ -83,8 +100,13 @@ export function TopBar({
 
   return (
     <div className="flex items-center gap-1 px-4 py-3" style={{ borderBottom: `1px solid ${C.border}` }}>
-      <div className="relative" onMouseEnter={() => setMenuOpen(true)} onMouseLeave={() => setMenuOpen(false)}>
-        <button className="p-2 rounded-lg" style={{ color: C.text }} title="Menu">
+      <div className="relative" ref={menuRef}>
+        <button
+          className="p-2 rounded-lg"
+          style={{ color: C.text }}
+          title="Menu"
+          onClick={() => setMenuOpen((o) => !o)}
+        >
           <Menu size={18} />
         </button>
         {menuOpen && (
@@ -106,7 +128,7 @@ export function TopBar({
                 key={item.key}
                 href={item.href}
                 onClick={() => setMenuOpen(false)}
-                className="block w-full text-left text-sm px-3 py-2 rounded-lg"
+                className="block w-full text-sm px-3 py-2.5 rounded-lg"
                 style={{
                   color: pathname === item.href ? "var(--accent, #111111)" : C.text,
                   fontWeight: pathname === item.href ? 700 : 500,

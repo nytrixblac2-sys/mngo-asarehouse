@@ -23,6 +23,7 @@ export function TabsSidebar({
   realCanEdit,
   properties: initialProperties,
   workspace: initialWorkspace,
+  onClose,
 }: {
   effectiveUser: User;
   effectiveCanEdit: boolean;
@@ -30,6 +31,7 @@ export function TabsSidebar({
   realCanEdit: boolean;
   properties: Property[];
   workspace: WorkspaceInfo;
+  onClose?: () => void;
 }) {
   const [showProfile, setShowProfile] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
@@ -59,12 +61,16 @@ export function TabsSidebar({
   const workspaceName = workspace?.name ?? "Management";
 
   return (
-    <div className="flex-shrink-0 flex flex-col p-3" style={{ width: 200, height: "100%", borderRight: `1px solid ${C.border}` }}>
+    <div
+      className="flex-shrink-0 flex flex-col p-3 fixed md:static inset-y-0 left-0 z-50 md:z-auto overflow-y-auto"
+      style={{ width: 220, background: C.card, borderRight: `1px solid ${C.border}` }}
+    >
       <div className="flex flex-col gap-1">
         {navItems.map((item) => (
           <Link
             key={item.key}
             href={item.href}
+            onClick={onClose}
             className="block w-full text-left text-sm px-3 py-2.5 rounded-xl"
             style={{
               color: pathname === item.href ? "var(--accent, #111111)" : C.text,

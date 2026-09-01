@@ -39,12 +39,13 @@ export function MonthView({
   const firstWeekdayOffset = new Date(year, month, 1).getDay();
 
   return (
-    <div className="flex gap-4 items-start">
-      <Card className="flex-1">
+    <div className="flex flex-col md:flex-row gap-4 items-start">
+      <Card className="flex-1 overflow-x-auto">
+        <div style={{ minWidth: 280 }}>
         <div className="grid grid-cols-7 gap-1 mb-2">
           {WEEKDAY_NAMES.map((d) => (
             <div key={d} className="text-xs font-semibold text-center py-1" style={{ color: C.muted }}>
-              {d}
+              {d.slice(0, 2)}
             </div>
           ))}
         </div>
@@ -96,6 +97,7 @@ export function MonthView({
             );
           })}
         </div>
+        </div>{/* end minWidth wrapper */}
       </Card>
       <DaySummaryPanel
         day={selectedDay}

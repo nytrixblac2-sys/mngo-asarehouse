@@ -84,7 +84,7 @@ export function InviteUserForm({ properties, onClose }: { properties: Property[]
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-6" style={{ background: "rgba(0,0,0,0.35)" }}>
-      <div className="w-full max-w-sm rounded-2xl p-6" style={{ background: "#fff" }}>
+      <div className="w-full max-w-sm rounded-2xl p-6" style={{ background: C.card }}>
         <div className="flex items-center justify-between mb-5">
           <p className="text-lg font-bold" style={{ color: C.text }}>Invite someone</p>
           <button onClick={onClose}><X size={20} style={{ color: C.muted }} /></button>

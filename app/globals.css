@@ -186,6 +186,20 @@
   }
 }
 
+/* Mobile base — prevent the entire page from scrolling sideways and ensure
+   interactive elements have a comfortable minimum touch target size. */
+@media (max-width: 767px) {
+  html, body {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+  /* Modals and drawers that span the viewport need full-height scroll */
+  .modal-scroll {
+    max-height: 90dvh;
+    overflow-y: auto;
+  }
+}
+
 /* Kitchen/Bar ticket printing (Architecture Decision 79) — prints just the
    one ticket the user clicked "Print" on, not the whole screen. The ticket
    markup is always in the DOM (so window.print() has something to render)

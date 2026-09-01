@@ -64,8 +64,8 @@ export function WeekView({
           <ChevronRight size={16} style={{ color: C.text }} />
         </button>
       </div>
-      <Card>
-        <div className="grid grid-cols-7 gap-2">
+      <Card className="overflow-x-auto">
+        <div className="grid grid-cols-7 gap-2" style={{ minWidth: 420 }}>
           {days.map((day) => {
             // Split into check-in / mid-stay / check-out so each gets its
             // own dot color — user request 2026-08-04: check-out days
@@ -162,7 +162,7 @@ export function WeekView({
                       key={i.id}
                       className="text-[10px] font-semibold px-1.5 py-1 rounded-md truncate"
                       style={{
-                        background: i.status === "OPEN" ? "var(--accent-soft, rgba(0,0,0,0.07))" : "#F2F2F2",
+                        background: i.status === "OPEN" ? "var(--accent-soft, rgba(0,0,0,0.07))" : C.border,
                         color: i.status === "OPEN" ? "var(--accent, #111111)" : C.muted,
                       }}
                     >

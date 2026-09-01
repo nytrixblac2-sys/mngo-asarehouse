@@ -113,21 +113,21 @@ export function AppShell({
     <div className="flex flex-col w-full" style={shellStyle}>
       {previewUser && (
         <div
-          className="flex items-center justify-between px-6 py-2.5 flex-shrink-0"
+          className="flex items-center justify-between px-4 py-2 flex-shrink-0"
           style={{ background: "#FEF9C3", borderBottom: "1px solid #FDE68A" }}
         >
           <div className="flex items-center gap-2">
             <Eye size={14} style={{ color: "#92400E" }} />
             <p className="text-xs font-semibold" style={{ color: "#92400E" }}>
-              Previewing as {previewUser.name} — Owner view only
+              Previewing as {previewUser.name}
             </p>
           </div>
           <button
             onClick={exitPreview}
-            className="text-xs font-semibold px-3 py-1.5 rounded-full"
+            className="text-xs font-semibold px-3 py-1.5 rounded-full flex-shrink-0"
             style={{ background: "#92400E", color: "#fff" }}
           >
-            Exit preview
+            Exit
           </button>
         </div>
       )}
@@ -141,7 +141,15 @@ export function AppShell({
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}
       />
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden relative">
+        {/* Mobile backdrop — tapping it closes the sidebar */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 z-40 md:hidden"
+            style={{ background: "rgba(0,0,0,0.45)" }}
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
         {sidebarOpen && (
           <TabsSidebar
             effectiveUser={effectiveUser}
@@ -150,9 +158,10 @@ export function AppShell({
             realCanEdit={realCanEdit}
             properties={properties}
             workspace={workspace}
+            onClose={() => setSidebarOpen(false)}
           />
         )}
-        <div className="flex-1 p-8 overflow-y-auto">
+        <div className="flex-1 p-4 md:p-8 overflow-y-auto min-w-0">
           <EffectiveUserProvider value={{ effectiveUser, effectiveCanEdit }}>{children}</EffectiveUserProvider>
         </div>
       </div>
