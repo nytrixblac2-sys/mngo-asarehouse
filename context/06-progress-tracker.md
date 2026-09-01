@@ -14,7 +14,7 @@ Versioning scheme: `1.0.0.0` → `1.0.0.1` → … → `1.0.0.9` → `1.0.1.0` �
 
 ## Current Goal
 
-- Nothing in active development. The user has signed up for their real workspace and is doing real onboarding (property created, Cecilia invited as Co-Manager as of 2026-08-04, more to follow: invite Prince/Pamela as Owners) — issues get reported live as they're found and fixed same-session. This is now the normal mode of work: expect a stream of small live-usage fixes rather than planned build stages.
+- Nothing in active development. The product is in active live use and the public-facing surface has been completed this session (v1.0.7.8–v1.0.8.1): landing page, redesigned auth pages, and a fully working dark/light mode toggle across all surfaces (landing page, login, signup, and the app itself). Issues get reported live as they're found and fixed same-session. Expect a stream of live-usage fixes and polish rather than planned build stages.
 
 ## Terminology Note
 
