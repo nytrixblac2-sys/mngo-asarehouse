@@ -424,13 +424,13 @@ export default function MenuPage() {
       </div>
 
       <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex items-center gap-1 rounded-full p-1 w-fit" style={{ background: "#F2F2F2" }}>
+        <div className="flex items-center gap-1 rounded-full p-1 w-fit" style={{ background: C.bg }}>
           {(Object.keys(TAB_LABEL) as MenuTab[]).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
               className="text-sm font-semibold px-4 py-2 rounded-full"
-              style={{ background: tab === t ? "#fff" : "transparent", color: tab === t ? C.text : C.muted }}
+              style={{ background: tab === t ? C.card : "transparent", color: tab === t ? C.text : C.muted }}
             >
               {TAB_LABEL[t]}
             </button>

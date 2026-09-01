@@ -259,11 +259,11 @@ export default function FinancialsPage() {
       </div>
 
       {!isHostel && (
-        <div className="flex items-center gap-1 rounded-full p-1 w-fit" style={{ background: "#F2F2F2" }}>
+        <div className="flex items-center gap-1 rounded-full p-1 w-fit" style={{ background: C.bg }}>
           <button
             onClick={() => setTab("owner")}
             className="text-xs font-semibold px-4 py-2 rounded-full"
-            style={{ background: effectiveTab === "owner" ? "#fff" : "transparent", color: effectiveTab === "owner" ? C.text : C.muted }}
+            style={{ background: effectiveTab === "owner" ? C.card : "transparent", color: effectiveTab === "owner" ? C.text : C.muted }}
           >
             Owner Report
           </button>
@@ -271,7 +271,7 @@ export default function FinancialsPage() {
             <button
               onClick={() => setTab("oakco")}
               className="text-xs font-semibold px-4 py-2 rounded-full"
-              style={{ background: effectiveTab === "oakco" ? "#fff" : "transparent", color: effectiveTab === "oakco" ? C.text : C.muted }}
+              style={{ background: effectiveTab === "oakco" ? C.card : "transparent", color: effectiveTab === "oakco" ? C.text : C.muted }}
             >
               {managementLabel} · Internal
             </button>

@@ -154,13 +154,13 @@ export default function ShopPage() {
       )}
 
       {/* Tab bar */}
-      <div className="flex items-center gap-1 rounded-full p-1 w-fit" style={{ background: "#F2F2F2" }}>
+      <div className="flex items-center gap-1 rounded-full p-1 w-fit" style={{ background: C.bg }}>
         {(["products", "orders"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
             className="text-xs font-semibold px-4 py-1.5 rounded-full capitalize"
-            style={{ background: tab === t ? "#fff" : "transparent", color: tab === t ? C.text : C.muted }}
+            style={{ background: tab === t ? C.card : "transparent", color: tab === t ? C.text : C.muted }}
           >
             {t === "products" ? `Products (${shopItems.length})` : `Orders (${shopOrders.filter((o) => o.status !== "RESOLVED").length})`}
           </button>

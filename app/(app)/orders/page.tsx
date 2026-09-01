@@ -41,13 +41,13 @@ export default function OrdersPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-1 rounded-full p-1 w-fit" style={{ background: "#F2F2F2" }}>
+        <div className="flex items-center gap-1 rounded-full p-1 w-fit" style={{ background: C.bg }}>
           {STATION_TABS.map((s) => (
             <button
               key={s}
               onClick={() => setStation(s)}
               className="text-sm font-semibold px-4 py-2 rounded-full"
-              style={{ background: station === s ? "#fff" : "transparent", color: station === s ? C.text : C.muted }}
+              style={{ background: station === s ? C.card : "transparent", color: station === s ? C.text : C.muted }}
             >
               {STATION_LABEL[s]}
             </button>

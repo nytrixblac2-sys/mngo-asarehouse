@@ -218,7 +218,7 @@ export default function DashboardPage() {
                 key={i.id}
                 onClick={() => router.push(`/issues?issueId=${i.id}`)}
                 className="w-full text-left flex items-center justify-between py-2 px-3 rounded-xl"
-                style={{ background: "rgba(255,255,255,0.6)" }}
+                style={{ background: C.bg }}
               >
                 <div>
                   <p className="text-sm font-semibold" style={{ color: C.text }}>
@@ -249,7 +249,7 @@ export default function DashboardPage() {
               <div
                 key={b.id}
                 className="w-full flex items-center justify-between py-2 px-3 rounded-xl"
-                style={{ background: "rgba(255,255,255,0.6)" }}
+                style={{ background: C.bg }}
               >
                 <div>
                   <p className="text-sm font-semibold" style={{ color: C.text }}>Stay — {b.guest}</p>
@@ -282,7 +282,7 @@ export default function DashboardPage() {
                 <div
                   key={o.id}
                   className="w-full flex items-center justify-between py-2 px-3 rounded-xl"
-                  style={{ background: "rgba(255,255,255,0.6)" }}
+                  style={{ background: C.bg }}
                 >
                   <div>
                     <p className="text-sm font-semibold" style={{ color: C.text }}>Order — {guest}</p>
@@ -328,7 +328,7 @@ export default function DashboardPage() {
             <div
               key={s.id}
               className="flex items-center justify-between py-2 px-3 rounded-xl"
-              style={{ background: "rgba(255,255,255,0.6)" }}
+              style={{ background: C.bg }}
             >
               <div>
                 <p className="text-sm font-semibold" style={{ color: C.text }}>
@@ -358,13 +358,13 @@ export default function DashboardPage() {
             <p className="text-sm font-semibold" style={{ color: C.text }}>
               {period.current.label} vs {period.previous.label}
             </p>
-            <div className="flex items-center gap-1 rounded-full p-1" style={{ background: "#F2F2F2" }}>
+            <div className="flex items-center gap-1 rounded-full p-1" style={{ background: C.bg }}>
               {PERIOD_KEYS.map((k) => (
                 <button
                   key={k}
                   onClick={() => setPeriodKey(k)}
                   className="text-xs font-semibold px-3 py-1.5 rounded-full"
-                  style={{ background: periodKey === k ? "#fff" : "transparent", color: periodKey === k ? C.text : C.muted }}
+                  style={{ background: periodKey === k ? C.card : "transparent", color: periodKey === k ? C.text : C.muted }}
                 >
                   {k}
                 </button>

@@ -70,7 +70,7 @@ export function TabsSidebar({
           <Link
             key={item.key}
             href={item.href}
-            onClick={onClose}
+            onClick={() => window.innerWidth < 768 && onClose?.()}
             className="block w-full text-left text-sm px-3 py-2.5 rounded-xl"
             style={{
               color: pathname === item.href ? "var(--accent, #111111)" : C.text,

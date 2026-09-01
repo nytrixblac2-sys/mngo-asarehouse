@@ -187,13 +187,13 @@ export default function BookingsPage() {
         )}
       </div>
 
-      <div className="flex items-center gap-1 rounded-full p-1 w-fit" style={{ background: "#F2F2F2" }}>
+      <div className="flex items-center gap-1 rounded-full p-1 w-fit" style={{ background: C.bg }}>
         {VIEWS.map((v) => (
           <button
             key={v}
             onClick={() => setView(v)}
             className="text-xs font-semibold px-3 py-1.5 rounded-full"
-            style={{ background: view === v ? "#fff" : "transparent", color: view === v ? C.text : C.muted }}
+            style={{ background: view === v ? C.card : "transparent", color: view === v ? C.text : C.muted }}
           >
             {v}
           </button>
