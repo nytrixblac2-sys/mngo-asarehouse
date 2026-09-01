@@ -45,6 +45,9 @@ export const NAV_ITEMS_RENTAL_SHOP = [
 
 export function getNavItems(workspaceType: WorkspaceType | undefined, hasShop?: boolean) {
   if (workspaceType === "HOSTEL") return NAV_ITEMS_HOSTEL;
+  // Show Shop nav for all RENTAL workspaces — hasShop controls the guest-facing
+  // feature, not admin visibility. Owner navigates to /shop to enable it.
+  if (workspaceType === "RENTAL") return NAV_ITEMS_RENTAL_SHOP;
   if (hasShop) return NAV_ITEMS_RENTAL_SHOP;
   return NAV_ITEMS;
 }
