@@ -199,9 +199,12 @@ model User {
   /// password can't linger as someone's permanent credential indefinitely.
   /// False for the Account Owner (chooses their own password at signup) and
   /// for everyone once they've changed it.
-  mustChangePassword Boolean  @default(false)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  mustChangePassword Boolean   @default(false)
+  /// Updated silently on every app page load via POST /api/me/ping so the
+  /// platform admin can see which workspaces are actively in use.
+  lastSeenAt         DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   workspace      Workspace      @relation("WorkspaceUsers", fields: [workspaceId], references: [id], onDelete: Cascade)
   ownedWorkspace Workspace?     @relation("WorkspaceAccountOwner")

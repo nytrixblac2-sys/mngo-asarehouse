@@ -11,6 +11,7 @@ import type { Property, User } from "@/lib/types";
 import { TopBar } from "./top-bar";
 import { TabsSidebar } from "./tabs-sidebar";
 import { EffectiveUserProvider } from "./effective-user-context";
+import { ActivityPing } from "./activity-ping";
 
 /** context/07-mockup.jsx withAlpha. */
 function withAlpha(hex: string, alpha: number) {
@@ -111,6 +112,7 @@ export function AppShell({
 
   return (
     <div className="flex flex-col w-full" style={shellStyle}>
+      <ActivityPing />
       {previewUser && (
         <div
           className="flex items-center justify-between px-4 py-2 flex-shrink-0"
