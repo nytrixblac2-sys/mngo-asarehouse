@@ -37,7 +37,7 @@ async function main() {
   }
 
   // 3. Platform admin — update Supabase Auth user_metadata name to "Kwame (Admin)"
-  const adminEmail = "nytrixblac2@gmail.com";
+  const adminEmail = process.env.PLATFORM_ADMIN_EMAIL!;
   const { data, error } = await supabase.auth.admin.listUsers({ perPage: 1000 });
   if (error) {
     console.error("Could not list users:", error.message);
