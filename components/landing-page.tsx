@@ -184,7 +184,7 @@ export function LandingPage() {
       <div className={s.statsBand}>
         <div className={s.statsGrid}>
           {[
-            { n: "500", u: "+", l: "Properties managed\nacross Africa" },
+            { n: "11", u: "+", l: "Properties managed\nacross Africa" },
             { n: "98", u: "%", l: "Uptime SLA\nguaranteed" },
             { n: "3", u: "min", l: "Average setup time\nper workspace" },
           ].map(({ n, u, l }) => (
@@ -212,7 +212,7 @@ export function LandingPage() {
                   <svg className={s.fIconSvg} viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
                 </div>
                 <h3 className={s.fTitle}>Smart Booking Engine</h3>
-                <p className={s.fDesc}>Real-time availability, custom pricing rules, and instant confirmation — for desks, rooms, event halls, or entire buildings. Handle walk-ins and online reservations from one place.</p>
+                <p className={s.fDesc}>Real-time availability, custom pricing rules, and instant confirmation for desks, rooms, event halls, or entire buildings. Handle walk-ins and online reservations from one place.</p>
               </div>
               <div className={s.bookingPreview}>
                 {[
@@ -239,12 +239,12 @@ export function LandingPage() {
               {
                 icon: <><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></>,
                 title: "Multi-role Team Access",
-                desc: "Grant the right permissions to managers, receptionists, and finance staff. Co-Manager, Analyst, Staff — each role sees exactly what they need.",
+                desc: "Grant the right permissions to managers, receptionists, and finance staff. Co-Manager, Analyst, Staff: each role sees exactly what they need.",
               },
               {
                 icon: <><path d="M3 3h18v18H3zM3 9h18M9 3v18"/></>,
                 title: "Menu & Orders",
-                desc: "Restaurant, bar, kitchen, or shop — manage your product catalogue, take orders, and track fulfilment without switching apps.",
+                desc: "Restaurant, bar, kitchen, or shop. Manage your product catalogue, take orders, and track fulfilment without switching apps.",
               },
               {
                 icon: <><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></>,
@@ -270,14 +270,14 @@ export function LandingPage() {
           <div className={`${s.wsHd} ${s.fu}`}>
             <div className={s.secLabel}>Built for your space</div>
             <h2 className={s.secH2}>One platform, every property type</h2>
-            <p className={s.secSub}>MNGO adapts to how your property actually runs — not the other way around.</p>
+            <p className={s.secSub}>MNGO adapts to how your property actually runs, not the other way around.</p>
           </div>
           <div className={s.wsGrid}>
             {[
               {
                 type: "Hospitality",
                 name: "Hotels & Short-lets",
-                desc: "Front-desk check-in, room assignment, per-night billing, and housekeeping status — all managed without paper.",
+                desc: "Front-desk check-in, room assignment, per-night billing, and housekeeping status. All managed without paper.",
                 checks: ["Room availability calendar", "Per-night & hourly rates", "Guest check-in / check-out", "Housekeeping status board"],
               },
               {
@@ -322,66 +322,14 @@ export function LandingPage() {
       {/* ── PRICING ── */}
       <section id="pricing" className={`${s.sec} ${s.pricingSec}`}>
         <div className={s.secInner}>
-          <div className={`${s.pricingHd} ${s.fu}`}>
+          <div className={`${s.pricingHd} ${s.fu}`} style={{ textAlign: "center", maxWidth: 560, margin: "0 auto", display: "flex", flexDirection: "column", alignItems: "center", gap: 20 }}>
             <div className={s.secLabel}>Pricing</div>
             <h2 className={s.secH2}>Transparent, property-first pricing</h2>
-            <p className={s.secSub}>No per-user fees. Pay for the plan that matches your operation size.</p>
-          </div>
-          <div className={s.pricingGrid}>
-            {[
-              {
-                name: "Starter",
-                tag: "Get started at no cost. One property, core tools, no credit card.",
-                price: "Free",
-                per: "forever",
-                pop: false,
-                feats: ["1 property", "Up to 20 rooms / desks", "Booking & payments", "Basic financials", "2 staff accounts", "Email support"],
-              },
-              {
-                name: "Pro",
-                tag: "For growing properties that need more control and visibility.",
-                price: "29",
-                per: "/ month · billed annually",
-                pop: true,
-                feats: ["Up to 5 properties", "Unlimited rooms / desks", "Full financials & reporting", "Menu & orders module", "10 staff accounts", "Priority support"],
-              },
-              {
-                name: "Enterprise",
-                tag: "Multi-site operations with custom needs and dedicated support.",
-                price: "Custom",
-                per: "Talk to us",
-                pop: false,
-                feats: ["Unlimited properties", "Unlimited staff", "Custom roles & permissions", "API access", "Dedicated account manager", "SLA guarantee"],
-              },
-            ].map(({ name, tag, price, per, pop, feats }) => (
-              <div key={name} className={`${s.pCard} ${pop ? s.pCardPop : ""} ${s.fu}`}>
-                {pop && <div className={s.popBadge}>Most popular</div>}
-                <div className={s.pName}>{name}</div>
-                <div className={s.pTag}>{tag}</div>
-                <div className={s.pPrice}>
-                  {price !== "Custom" && price !== "Free" && <span className={s.pCur}>$</span>}
-                  <span className={s.pAmt}>{price}</span>
-                </div>
-                <div className={s.pPer}>{per}</div>
-                <div className={s.pDiv} />
-                <ul className={s.pFeats}>
-                  {feats.map((f) => (
-                    <li key={f}>
-                      <span className={s.chk}>
-                        <svg className={s.chkSvg} viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-                      </span>
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-                <a
-                  href={price === "Custom" ? "#contact" : "/sign-up"}
-                  className={`${s.btn} ${pop ? s.btnPrimary : s.btnOutline} ${s.btnFull}`}
-                >
-                  {price === "Custom" ? "Contact sales" : price === "Free" ? "Start for free" : "Get started"}
-                </a>
-              </div>
-            ))}
+            <p className={s.secSub}>No per-user fees. Choose the plan that matches your operation — from a single property just getting started, to a multi-site enterprise with custom needs.</p>
+            <a href="/pricing" className={`${s.btn} ${s.btnPrimary} ${s.btnLg}`}>
+              See plans
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </a>
           </div>
         </div>
       </section>
@@ -469,7 +417,7 @@ export function LandingPage() {
             {[
               {
                 heading: "Product",
-                links: [["Features", "#features"], ["Workspaces", "#workspaces"], ["Pricing", "#pricing"], ["Changelog", "/changelog"]],
+                links: [["Features", "#features"], ["Workspaces", "#workspaces"], ["Pricing", "/pricing"], ["Changelog", "/changelog"]],
               },
               {
                 heading: "Company",
@@ -477,7 +425,7 @@ export function LandingPage() {
               },
               {
                 heading: "Account",
-                links: [["Sign in", "/login"], ["Sign up", "/sign-up"], ["Dashboard", "/dashboard"], ["Support", "#contact"]],
+                links: [["Sign in", "/login"], ["Sign up", "/signup"], ["Dashboard", "/dashboard"], ["Support", "#contact"]],
               },
             ].map(({ heading, links }) => (
               <div key={heading}>

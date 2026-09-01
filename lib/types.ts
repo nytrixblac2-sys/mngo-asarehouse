@@ -55,6 +55,27 @@ export interface Workspace {
   slug: string;
   type: WorkspaceType;
   accountOwnerId: string;
+  hasShop: boolean;
+}
+
+export interface ShopOrderItem {
+  id: string;
+  menuItemId: string | null;
+  name: string;
+  quantity: number;
+  unitPrice: string;
+  currency: Currency;
+}
+
+export interface ShopOrder {
+  id: string;
+  workspaceId: string;
+  guestName: string;
+  guestPhone: string | null;
+  notes: string | null;
+  status: IssueStatus;
+  createdAt: string;
+  items: ShopOrderItem[];
 }
 
 export interface User {
@@ -126,6 +147,8 @@ export interface MenuItem {
   /** Which of the Kitchen/Bar/Shop/Experiences screens this item's orders
    * show up on. */
   station: MenuStation;
+  /** Optional image URL for shop items. */
+  imageUrl: string | null;
 }
 
 /** A snapshot of one menu item within an Order — `name`/`unitPrice`/

@@ -200,8 +200,6 @@ export default function BookingsPage() {
         ))}
       </div>
 
-      {effectiveUser.role === "ACCOUNT_OWNER" && <DeletedBookingsLog />}
-
       {view === "Day" && (
         <DayView
           bookings={monthBookings} schedules={monthShifts} issues={monthIssues}
@@ -247,6 +245,10 @@ export default function BookingsPage() {
           onSelectBooking={setSelectedBooking} properties={properties} showPropertyTag={showPropertyTag}
           team={team} canEdit={effectiveCanEdit}
         />
+      )}
+
+      {effectiveUser.role === "ACCOUNT_OWNER" && (
+        <DeletedBookingsLog activeMonth={activeMonth.monthPrefix} />
       )}
 
       {effectiveCanEdit && showCsvImport && (

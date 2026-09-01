@@ -38,6 +38,7 @@ export async function POST(req: Request) {
       alwaysAvailable: parsed.data.alwaysAvailable ?? false,
       isAvailableToday: false,
       station: parsed.data.station ?? "KITCHEN",
+      imageUrl: parsed.data.imageUrl ?? null,
     },
   });
 

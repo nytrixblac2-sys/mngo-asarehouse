@@ -30,7 +30,7 @@ const STATION_DESCRIPTION: Record<MenuStation, string> = {
  * model doc comment (prisma/schema.prisma) and Architecture Decisions
  * 79/91 for the independent-per-station design.
  */
-export function OrderFulfillmentScreen({ station, title }: { station: MenuStation; title: string }) {
+export function OrderFulfillmentScreen({ station, title, activeMonth }: { station: MenuStation; title: string; activeMonth?: string }) {
   const { effectiveCanEdit } = useEffectiveUser();
   const workspace = useWorkspace().data;
   const ordersQuery = useOrders();
@@ -65,7 +65,7 @@ export function OrderFulfillmentScreen({ station, title }: { station: MenuStatio
   const statusField = STATION_STATUS_FIELD[station];
 
   const tickets = (ordersQuery.data ?? [])
-    .filter((o) => o[statusField] !== null && o.deletedAt === null)
+    .filter((o) => o[statusField] !== null && o.deletedAt === null && (!activeMonth || o.createdAt.startsWith(activeMonth)))
     .map((o) => {
       const booking = bookings.find((b) => b.id === o.bookingId);
       const room = booking?.roomId ? rooms.find((r) => r.id === booking.roomId) : undefined;

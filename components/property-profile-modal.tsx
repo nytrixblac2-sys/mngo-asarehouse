@@ -113,7 +113,7 @@ export function PropertyProfileModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-6" style={{ background: "rgba(0,0,0,0.35)" }}>
-      <div className="w-full max-w-md rounded-2xl overflow-hidden flex flex-col" style={{ background: "#fff", maxHeight: "85vh" }}>
+      <div className="w-full max-w-md rounded-2xl overflow-hidden flex flex-col" style={{ background: C.card, maxHeight: "85vh" }}>
         <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: `1px solid ${C.border}` }}>
           <div className="flex items-center gap-2">
             <div className="w-2.5 h-2.5 rounded-full" style={{ background: color }} />
@@ -185,7 +185,7 @@ export function PropertyProfileModal({
                           value={a[key]}
                           onChange={(e) => updateAlloc(cur, key, e.target.value)}
                           className="w-16 text-right px-2 py-1 rounded-lg text-sm font-semibold"
-                          style={{ border: `1px solid ${C.border}`, color: C.text }}
+                          style={{ border: `1px solid ${C.border}`, color: C.text, background: C.card }}
                         />
                         <span className="text-sm" style={{ color: C.muted }}>%</span>
                       </div>
@@ -218,7 +218,7 @@ export function PropertyProfileModal({
                   onChange={(e) => setRoomInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && addRoom()}
                   className="flex-1 px-3 py-2.5 rounded-xl text-sm"
-                  style={{ border: `1px solid ${C.border}` }}
+                  style={{ border: `1px solid ${C.border}`, background: C.card, color: C.text }}
                   placeholder="e.g. Master Bedroom"
                 />
                 <button onClick={addRoom} className="px-4 py-2.5 rounded-xl text-sm font-semibold" style={{ background: C.text, color: "#fff" }}>
@@ -249,7 +249,7 @@ export function PropertyProfileModal({
                 onChange={(e) => setFacilityInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && addFacility()}
                 className="flex-1 px-3 py-2.5 rounded-xl text-sm"
-                style={{ border: `1px solid ${C.border}` }}
+                style={{ border: `1px solid ${C.border}`, background: C.card, color: C.text }}
                 placeholder="e.g. Pool"
               />
               <button onClick={addFacility} className="px-4 py-2.5 rounded-xl text-sm font-semibold" style={{ background: C.text, color: "#fff" }}>

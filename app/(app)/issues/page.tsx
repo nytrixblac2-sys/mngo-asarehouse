@@ -2,7 +2,7 @@
 
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { AlertTriangle, ClipboardList, ChevronRight } from "lucide-react";
+import { AlertTriangle, ClipboardList, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card, Pill } from "@/components/primitives";
 import { useEffectiveUser } from "@/components/effective-user-context";
 import { useAppStore } from "@/store/use-app-store";
@@ -37,6 +37,23 @@ function IssuesAndSchedules() {
   const { effectiveCanEdit } = useEffectiveUser();
   const activePropertyId = useAppStore((s) => s.activePropertyId);
   const deepLinkIssueId = useDeepLinkIssueId();
+
+  const _now = new Date();
+  const [issueYear, setIssueYear] = useState(_now.getFullYear());
+  const [issueMonth, setIssueMonth] = useState(_now.getMonth());
+
+  const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const monthPrefix = `${issueYear}-${String(issueMonth + 1).padStart(2, "0")}`;
+  const monthLabel = `${MONTH_NAMES[issueMonth]} ${issueYear}`;
+
+  const goPrevMonth = () => {
+    if (issueMonth === 0) { setIssueYear((y) => y - 1); setIssueMonth(11); }
+    else setIssueMonth((m) => m - 1);
+  };
+  const goNextMonth = () => {
+    if (issueMonth === 11) { setIssueYear((y) => y + 1); setIssueMonth(0); }
+    else setIssueMonth((m) => m + 1);
+  };
 
   const [tab, setTab] = useState<"issues" | "schedules">("issues");
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(deepLinkIssueId);
@@ -86,10 +103,13 @@ function IssuesAndSchedules() {
   const schedules = withActiveProperty(schedulesQuery.data);
   const bookings = withActiveProperty(bookingsQuery.data);
 
-  const filteredIssues = issues
+  const monthIssues = issues.filter((i) => i.date.startsWith(monthPrefix));
+  const monthSchedules = schedules.filter((s) => s.date.startsWith(monthPrefix));
+
+  const filteredIssues = monthIssues
     .filter((i) => filterStatus === "all" || i.status === filterStatus)
     .sort((a, b) => (a.date < b.date ? 1 : -1));
-  const sortedSchedules = [...schedules].sort((a, b) => (a.date < b.date ? -1 : 1));
+  const sortedSchedules = [...monthSchedules].sort((a, b) => (a.date < b.date ? -1 : 1));
 
   const defaultPropertyId = activePropertyId !== "all" ? activePropertyId : propertiesQuery.data?.[0]?.id ?? "";
   const today = new Date().toISOString().slice(0, 10);
@@ -111,7 +131,7 @@ function IssuesAndSchedules() {
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold" style={{ color: C.text }}>Issues &amp; Schedules</h1>
         {effectiveCanEdit && (
           <div className="flex gap-2">
@@ -131,6 +151,16 @@ function IssuesAndSchedules() {
             </button>
           </div>
         )}
+      </div>
+
+      <div className="flex items-center gap-2">
+        <button onClick={goPrevMonth} className="p-1.5 rounded-full" style={{ background: C.bg, color: C.text }}>
+          <ChevronLeft size={16} />
+        </button>
+        <span className="text-sm font-semibold min-w-[90px] text-center" style={{ color: C.text }}>{monthLabel}</span>
+        <button onClick={goNextMonth} className="p-1.5 rounded-full" style={{ background: C.bg, color: C.text }}>
+          <ChevronRight size={16} />
+        </button>
       </div>
 
       <div className="flex items-center gap-1 rounded-full p-1 w-fit" style={{ background: "#F2F2F2" }}>
@@ -165,7 +195,7 @@ function IssuesAndSchedules() {
             {filteredIssues.length === 0 && (
               <Card>
                 <p className="text-sm" style={{ color: C.muted }}>
-                  No issues {filterStatus !== "all" ? `with status "${ISSUE_STATUS_LABEL[filterStatus]}"` : "logged yet"}.
+                  No issues {filterStatus !== "all" ? `with status "${ISSUE_STATUS_LABEL[filterStatus]}"` : `logged in ${monthLabel}`}.
                 </p>
               </Card>
             )}
@@ -265,7 +295,7 @@ function IssuesAndSchedules() {
       {tab === "schedules" && (
         <div className="flex flex-col gap-3">
           {sortedSchedules.length === 0 && (
-            <Card><p className="text-sm" style={{ color: C.muted }}>No schedules yet.</p></Card>
+            <Card><p className="text-sm" style={{ color: C.muted }}>No schedules in {monthLabel}.</p></Card>
           )}
           {sortedSchedules.map((s) => {
             const isSelected = selectedScheduleId === s.id;

@@ -37,7 +37,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 
   const workspace = await prisma.workspace.findUniqueOrThrow({
     where: { id: user.workspaceId },
-    select: { id: true, name: true, slug: true, type: true, status: true, actionPinHash: true },
+    select: { id: true, name: true, slug: true, type: true, hasShop: true, status: true, actionPinHash: true },
   });
   if (workspace.status !== "ACTIVE") {
     return <WorkspaceGateScreen status={workspace.status} />;
@@ -52,7 +52,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   return (
     <AppShell
       properties={properties}
-      workspace={{ id: workspace.id, name: workspace.name, slug: workspace.slug, type: workspace.type, hasPin: !!workspace.actionPinHash }}
+      workspace={{ id: workspace.id, name: workspace.name, slug: workspace.slug, type: workspace.type, hasPin: !!workspace.actionPinHash, hasShop: workspace.hasShop }}
       realUser={user}
     >
       {children}

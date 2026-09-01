@@ -39,7 +39,7 @@ export function TabsSidebar({
   // the wrong workspace-type shape on refresh — see useWorkspace's doc
   // comment (Architecture Decision 96).
   const workspace = useWorkspace(initialWorkspace).data ?? initialWorkspace;
-  const allNavItems = getNavItems(workspace?.type);
+  const allNavItems = getNavItems(workspace?.type, workspace?.hasShop);
   // Team is hidden from the Property Owner nav (RENTAL). Financials is
   // hidden from anyone but the ACCOUNT_OWNER on a HOSTEL workspace — the
   // manager (Janet) shouldn't see the owner's financial internals, a

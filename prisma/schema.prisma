@@ -161,6 +161,10 @@ model Workspace {
   /// Set once pinFailedAttempts hits the lockout threshold; verifyWorkspacePin
   /// refuses every attempt (even a correct one) until this passes.
   pinLockedUntil    DateTime?
+  /// Optional shop for RENTAL workspaces — guests scan a QR code to browse
+  /// items and place orders (paid at checkout). Not all RENTALs have a shop;
+  /// toggle per-workspace from the Shop admin page.
+  hasShop           Boolean         @default(false)
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
 
@@ -176,6 +180,7 @@ model Workspace {
   rooms        Room[]
   menuItems    MenuItem[]
   orders       Order[]
+  shopOrders   ShopOrder[]
 }
 
 /// App-level user profile. `authId` links to the Supabase Auth user
@@ -365,11 +370,14 @@ model MenuItem {
   isAvailableToday Boolean     @default(false)
   /// Which of the Kitchen/Bar screens this item's orders show up on.
   station          MenuStation @default(KITCHEN)
+  /// Optional placeholder or real image URL for shop items.
+  imageUrl         String?
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
 
-  workspace  Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  orderItems OrderItem[]
+  workspace      Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  orderItems     OrderItem[]
+  shopOrderItems ShopOrderItem[]
 
   @@index([workspaceId])
 }
@@ -599,4 +607,43 @@ model RateLimitBucket {
   key         String   @id
   count       Int      @default(0)
   windowStart DateTime @default(now())
+}
+
+// ── Shop (RENTAL) ────────────────────────────────────────────────────────
+
+/// Public shop order placed by a guest scanning the workspace QR code
+/// (/shop/[slug]). Unlike hostel Order, these are not tied to a Booking —
+/// RENTAL shop guests browse and order independently, paying at checkout.
+/// Status reuses IssueStatus (OPEN = received, IN_PROGRESS = preparing,
+/// RESOLVED = handed over / paid).
+model ShopOrder {
+  id          String        @id @default(uuid()) @db.Uuid
+  workspaceId String        @db.Uuid
+  guestName   String
+  guestPhone  String?
+  notes       String?
+  status      IssueStatus   @default(OPEN)
+  createdAt   DateTime      @default(now())
+
+  workspace Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  items     ShopOrderItem[]
+
+  @@index([workspaceId])
+}
+
+model ShopOrderItem {
+  id         String   @id @default(uuid()) @db.Uuid
+  orderId    String   @db.Uuid
+  menuItemId String?  @db.Uuid
+  name       String
+  quantity   Int
+  unitPrice  Decimal  @db.Decimal(10, 2)
+  currency   Currency
+  createdAt  DateTime @default(now())
+
+  order    ShopOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem MenuItem? @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@index([menuItemId])
 }

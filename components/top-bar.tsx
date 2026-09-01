@@ -66,7 +66,7 @@ export function TopBar({
   // the wrong workspace-type shape on refresh — see useWorkspace's doc
   // comment (Architecture Decision 96).
   const workspace = useWorkspace(initialWorkspace).data ?? initialWorkspace;
-  const allNavItems = getNavItems(workspace?.type);
+  const allNavItems = getNavItems(workspace?.type, workspace?.hasShop);
   // Same HOSTEL owner-only inversion as tabs-sidebar.tsx — see its comment
   // and Architecture Decision 87.
   const isHostelNonOwner = workspace?.type === "HOSTEL" && effectiveUser.role !== "ACCOUNT_OWNER";

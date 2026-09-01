@@ -10,6 +10,8 @@ export interface WorkspaceInfo {
   /** Whether the owner has set the action PIN (Architecture Decision 79)
    * — never the hash or plaintext itself, just presence. */
   hasPin: boolean;
+  /** Optional shop for RENTAL workspaces — guests scan a QR to browse/order. */
+  hasShop: boolean;
 }
 
 /** `initialData` lets a caller that already has the server-fetched

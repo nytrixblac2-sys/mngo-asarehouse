@@ -14,7 +14,7 @@ export async function GET() {
 
   const workspace = await prisma.workspace.findUnique({
     where: { id: user.workspaceId },
-    select: { id: true, name: true, slug: true, type: true, actionPinHash: true },
+    select: { id: true, name: true, slug: true, type: true, hasShop: true, actionPinHash: true },
   });
   if (!workspace) return apiError("Not found", 404);
 

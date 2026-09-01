@@ -11,6 +11,7 @@ type MenuItemRow = {
   alwaysAvailable: boolean;
   isAvailableToday: boolean;
   station: MenuItem["station"];
+  imageUrl?: string | null;
 };
 
 export function serializeMenuItem(m: MenuItemRow): MenuItem {
@@ -24,6 +25,7 @@ export function serializeMenuItem(m: MenuItemRow): MenuItem {
     alwaysAvailable: m.alwaysAvailable,
     isAvailableToday: m.isAvailableToday,
     station: m.station,
+    imageUrl: m.imageUrl ?? null,
   };
 }
 
@@ -40,6 +42,7 @@ export const menuItemInputSchema = z.object({
   currency: z.enum(["GHS", "EUR"]),
   alwaysAvailable: z.boolean().optional(),
   station: z.enum(["KITCHEN", "BAR", "SHOP", "EXPERIENCE"]).optional(),
+  imageUrl: z.string().url().optional().nullable(),
   /** Only checked by PATCH /api/menu/[id] when `price` actually changes
    * and the actor isn't the ACCOUNT_OWNER — see Architecture Decision 82.
    * Ignored on create (POST) and on edits that don't touch price. */

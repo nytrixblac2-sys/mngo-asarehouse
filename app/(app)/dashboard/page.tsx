@@ -347,6 +347,65 @@ export default function DashboardPage() {
         </div>
       </Card>
 
+      {/* No finance on a Co-Manager's dashboard — user request, 2026-08-19,
+          the same rule Financials itself already enforces for a HOSTEL
+          Co-Manager (owner-only), generalized to the role everywhere and
+          applied here too so this card can't leak income/expenses to a
+          Co-Manager who's blocked from the dedicated Financials page. */}
+      {!isCoManager && (
+        <Card>
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-sm font-semibold" style={{ color: C.text }}>
+              {period.current.label} vs {period.previous.label}
+            </p>
+            <div className="flex items-center gap-1 rounded-full p-1" style={{ background: "#F2F2F2" }}>
+              {PERIOD_KEYS.map((k) => (
+                <button
+                  key={k}
+                  onClick={() => setPeriodKey(k)}
+                  className="text-xs font-semibold px-3 py-1.5 rounded-full"
+                  style={{ background: periodKey === k ? "#fff" : "transparent", color: periodKey === k ? C.text : C.muted }}
+                >
+                  {k}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex items-center justify-between mb-3">
+            <SubToggle
+              value={financeView}
+              onChange={setFinanceView}
+              options={[
+                { key: "expenses", label: "Expenses" },
+                { key: "income", label: "Income" },
+              ]}
+            />
+            <CurrencyToggle value={chartCurrency} onChange={setChartCurrency} currencies={["GHS", "EUR"]} />
+          </div>
+          <div style={{ height: 160 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} margin={{ top: 4, right: 8, left: 8, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={C.border} />
+                <XAxis dataKey="label" tick={{ fontSize: 12, fill: C.muted }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: C.muted }} axisLine={false} tickLine={false} width={40} />
+                <Tooltip
+                  formatter={(v) => fmtCurrency(Number(v), chartCurrency)}
+                  contentStyle={{ borderRadius: 12, border: `1px solid ${C.border}`, fontSize: 12 }}
+                />
+                <Bar dataKey="value" fill="var(--accent, #111111)" radius={[6, 6, 0, 0]} barSize={48} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="flex flex-col gap-2 mt-3">
+            <DeltaStat label="Occupancy" current={currentOccupancy} previous={previousOccupancy} format={(n) => `${n}%`} />
+            <DeltaStat label="Bookings" current={currentBookings.length} previous={previousBookings.length} />
+            <DeltaStat label="Schedules" current={currentShifts} previous={previousShifts} />
+            <DeltaStat label="Income (GHS)" current={currentIncomeGHS} previous={previousIncomeGHS} format={fmtGHS} />
+            <DeltaStat label="Income (EUR)" current={currentIncomeEUR} previous={previousIncomeEUR} format={fmtEUR} />
+          </div>
+        </Card>
+      )}
+
       <Card>
         <p className="text-sm font-semibold mb-4" style={{ color: C.text }}>
           Upcoming stays
@@ -416,65 +475,6 @@ export default function DashboardPage() {
           ))}
         </div>
       </Card>
-
-      {/* No finance on a Co-Manager's dashboard — user request, 2026-08-19,
-          the same rule Financials itself already enforces for a HOSTEL
-          Co-Manager (owner-only), generalized to the role everywhere and
-          applied here too so this card can't leak income/expenses to a
-          Co-Manager who's blocked from the dedicated Financials page. */}
-      {!isCoManager && (
-        <Card>
-          <div className="flex items-center justify-between mb-1">
-            <p className="text-sm font-semibold" style={{ color: C.text }}>
-              {period.current.label} vs {period.previous.label}
-            </p>
-            <div className="flex items-center gap-1 rounded-full p-1" style={{ background: "#F2F2F2" }}>
-              {PERIOD_KEYS.map((k) => (
-                <button
-                  key={k}
-                  onClick={() => setPeriodKey(k)}
-                  className="text-xs font-semibold px-3 py-1.5 rounded-full"
-                  style={{ background: periodKey === k ? "#fff" : "transparent", color: periodKey === k ? C.text : C.muted }}
-                >
-                  {k}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="flex items-center justify-between mb-3">
-            <SubToggle
-              value={financeView}
-              onChange={setFinanceView}
-              options={[
-                { key: "expenses", label: "Expenses" },
-                { key: "income", label: "Income" },
-              ]}
-            />
-            <CurrencyToggle value={chartCurrency} onChange={setChartCurrency} currencies={["GHS", "EUR"]} />
-          </div>
-          <div style={{ height: 160 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 4, right: 8, left: 8, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={C.border} />
-                <XAxis dataKey="label" tick={{ fontSize: 12, fill: C.muted }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: C.muted }} axisLine={false} tickLine={false} width={40} />
-                <Tooltip
-                  formatter={(v) => fmtCurrency(Number(v), chartCurrency)}
-                  contentStyle={{ borderRadius: 12, border: `1px solid ${C.border}`, fontSize: 12 }}
-                />
-                <Bar dataKey="value" fill="var(--accent, #111111)" radius={[6, 6, 0, 0]} barSize={48} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="flex flex-col gap-2 mt-3">
-            <DeltaStat label="Occupancy" current={currentOccupancy} previous={previousOccupancy} format={(n) => `${n}%`} />
-            <DeltaStat label="Bookings" current={currentBookings.length} previous={previousBookings.length} />
-            <DeltaStat label="Schedules" current={currentShifts} previous={previousShifts} />
-            <DeltaStat label="Income (GHS)" current={currentIncomeGHS} previous={previousIncomeGHS} format={fmtGHS} />
-            <DeltaStat label="Income (EUR)" current={currentIncomeEUR} previous={previousIncomeEUR} format={fmtEUR} />
-          </div>
-        </Card>
-      )}
     </div>
   );
 }

@@ -34,6 +34,17 @@ export const NAV_ITEMS_HOSTEL = [
   { key: "financials", label: "Financials", href: "/financials" },
 ] as const;
 
-export function getNavItems(workspaceType: WorkspaceType | undefined) {
-  return workspaceType === "HOSTEL" ? NAV_ITEMS_HOSTEL : NAV_ITEMS;
+export const NAV_ITEMS_RENTAL_SHOP = [
+  { key: "dashboard", label: "Dashboard", href: "/dashboard" },
+  { key: "bookings", label: "Bookings", href: "/bookings" },
+  { key: "shop", label: "Shop", href: "/shop" },
+  { key: "issues", label: "Issues & Schedules", href: "/issues" },
+  { key: "team", label: "Team", href: "/team" },
+  { key: "financials", label: "Financials", href: "/financials" },
+] as const;
+
+export function getNavItems(workspaceType: WorkspaceType | undefined, hasShop?: boolean) {
+  if (workspaceType === "HOSTEL") return NAV_ITEMS_HOSTEL;
+  if (hasShop) return NAV_ITEMS_RENTAL_SHOP;
+  return NAV_ITEMS;
 }

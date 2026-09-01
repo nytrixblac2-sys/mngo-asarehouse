@@ -180,7 +180,7 @@ export function ProfileModal({
                     inputMode="numeric"
                     placeholder="Current PIN"
                     className="w-full px-3 py-2.5 rounded-xl text-sm"
-                    style={{ border: `1px solid ${C.border}` }}
+                    style={{ border: `1px solid ${C.border}`, background: C.card, color: C.text }}
                   />
                 )}
                 <input
@@ -190,7 +190,7 @@ export function ProfileModal({
                   inputMode="numeric"
                   placeholder="New 4-8 digit PIN"
                   className="w-full px-3 py-2.5 rounded-xl text-sm"
-                  style={{ border: `1px solid ${C.border}` }}
+                  style={{ border: `1px solid ${C.border}`, background: C.card, color: C.text }}
                 />
                 {setPin.isError && <p className="text-xs text-destructive">{(setPin.error as Error).message}</p>}
                 {pinSaved && <p className="text-xs" style={{ color: C.teal }}>PIN saved.</p>}
