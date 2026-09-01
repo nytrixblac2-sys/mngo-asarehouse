@@ -43,7 +43,7 @@ export function IssueForm({
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end" style={{ background: "rgba(0,0,0,0.3)" }}>
-      <div className="w-full max-w-sm h-full p-6 overflow-y-auto" style={{ background: "#fff" }}>
+      <div className="w-full max-w-sm h-full p-6 overflow-y-auto" style={{ background: C.card }}>
         <div className="flex items-center justify-between mb-6">
           <p className="text-lg font-bold" style={{ color: C.text }}>Log an issue</p>
           <button onClick={onClose}><X size={20} style={{ color: C.muted }} /></button>

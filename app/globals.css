@@ -91,12 +91,25 @@
        "Property Theming Model" and context/03-code-standards.md.
        Only the property accent is a true CSS custom property, since it
        changes per active property at runtime. Static palette values
-       (bg, card, border, text, muted, teal, amber) live in lib/colors.ts
-       as the `C` constants object, per context/05-ui-context.md, to avoid
-       colliding with shadcn/ui's own --border/--muted/--card/--accent
-       tokens above (same names, different semantics). */
+       (bg, card, border, text, muted) live here as --app-* variables so
+       the app can respond to [data-theme="dark"] — see lib/colors.ts.
+       Teal/amber/tealLight/redLight are fixed and stay in lib/colors.ts. */
     --accent: #111111;
     --accent-soft: rgba(17, 17, 17, 0.1);
+
+    --app-bg: #F5F5F5;
+    --app-card: #FFFFFF;
+    --app-border: #E5E5E5;
+    --app-text: #111111;
+    --app-muted: #9B9B9B;
+  }
+
+  [data-theme="dark"] {
+    --app-bg: #0E0E0E;
+    --app-card: #1A1A1A;
+    --app-border: #2D2D2D;
+    --app-text: #F0F0F0;
+    --app-muted: #6B6B6B;
   }
   .dark {
     --background: oklch(0.145 0 0);
@@ -135,9 +148,9 @@
     @apply border-border outline-ring/50;
   }
   body {
-    /* Matches C.bg / C.text in lib/colors.ts */
-    background: #f5f5f5;
-    color: #111111;
+    background: var(--app-bg, #f5f5f5);
+    color: var(--app-text, #111111);
+    transition: background 0.2s ease, color 0.2s ease;
   }
   html {
     @apply font-sans;

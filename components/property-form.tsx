@@ -33,7 +33,7 @@ export function PropertyForm({
   if (isPending) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-6" style={{ background: "rgba(0,0,0,0.35)" }}>
-        <div className="w-full max-w-sm rounded-2xl p-10 flex flex-col items-center gap-3" style={{ background: "#fff" }}>
+        <div className="w-full max-w-sm rounded-2xl p-10 flex flex-col items-center gap-3" style={{ background: C.card }}>
           <Loader2 size={24} className="animate-spin" style={{ color: C.muted }} />
           <p className="text-sm font-semibold" style={{ color: C.text }}>Adding property…</p>
         </div>
@@ -43,7 +43,7 @@ export function PropertyForm({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-6" style={{ background: "rgba(0,0,0,0.35)" }}>
-      <div className="w-full max-w-sm rounded-2xl p-6" style={{ background: "#fff" }}>
+      <div className="w-full max-w-sm rounded-2xl p-6" style={{ background: C.card }}>
         <div className="flex items-center justify-between mb-5">
           <p className="text-lg font-bold" style={{ color: C.text }}>Add property</p>
           <button onClick={onClose}><X size={20} style={{ color: C.muted }} /></button>

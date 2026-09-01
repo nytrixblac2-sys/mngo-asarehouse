@@ -77,7 +77,7 @@ export function GuestOrderForm({
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end" style={{ background: "rgba(0,0,0,0.3)" }}>
-      <div className="w-full max-w-sm h-full p-6 overflow-y-auto flex flex-col" style={{ background: "#fff" }}>
+      <div className="w-full max-w-sm h-full p-6 overflow-y-auto flex flex-col" style={{ background: C.card }}>
         <div className="flex items-center justify-between mb-2">
           <p className="text-lg font-bold" style={{ color: C.text }}>Order for {guestName}</p>
           <button onClick={onClose}><X size={20} style={{ color: C.muted }} /></button>
@@ -90,7 +90,7 @@ export function GuestOrderForm({
               key={t}
               onClick={() => setTab(t)}
               className="flex-1 text-xs font-semibold px-3 py-2 rounded-full"
-              style={{ background: tab === t ? "#fff" : "transparent", color: tab === t ? C.text : C.muted }}
+              style={{ background: tab === t ? C.card : "transparent", color: tab === t ? C.text : C.muted }}
             >
               {TAB_LABEL[t]}
             </button>

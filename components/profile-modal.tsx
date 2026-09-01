@@ -74,7 +74,7 @@ export function ProfileModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-6" style={{ background: "rgba(0,0,0,0.35)" }}>
-      <div className="w-full max-w-sm rounded-2xl overflow-hidden flex flex-col" style={{ background: "#fff", maxHeight: "85vh" }}>
+      <div className="w-full max-w-sm rounded-2xl overflow-hidden flex flex-col" style={{ background: C.card, maxHeight: "85vh" }}>
         <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: `1px solid ${C.border}` }}>
           <p className="text-lg font-bold" style={{ color: C.text }}>Profile</p>
           <button onClick={onClose}><X size={20} style={{ color: C.muted }} /></button>

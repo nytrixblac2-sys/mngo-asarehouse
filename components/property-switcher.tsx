@@ -64,7 +64,7 @@ export function PropertySwitcher({ properties, canEdit }: { properties: Property
       {open && (
         <div
           className="absolute left-0 top-full mt-1 w-64 rounded-xl p-2 z-30"
-          style={{ background: "#fff", border: `1px solid ${C.border}`, boxShadow: "0 8px 24px rgba(0,0,0,0.10)" }}
+          style={{ background: C.card, border: `1px solid ${C.border}`, boxShadow: "0 8px 24px rgba(0,0,0,0.10)" }}
         >
           {properties.length > 1 && (
             <>

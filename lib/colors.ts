@@ -9,12 +9,17 @@
  * with shadcn/ui's own --border / --muted / --card / --accent tokens,
  * which share these names but carry different (oklch, neutral) values.
  */
+// bg/card/border/text/muted reference CSS custom properties defined in
+// globals.css so the app responds to [data-theme="dark"] set by the theme
+// toggle. The fallback value is the original light-mode hex, keeping every
+// component that already uses `style={{ background: C.bg }}` unchanged —
+// the var() call is valid inside an inline style attribute.
 export const C = {
-  bg: "#F5F5F5",
-  card: "#FFFFFF",
-  border: "#E5E5E5",
-  text: "#111111",
-  muted: "#9B9B9B",
+  bg: "var(--app-bg, #F5F5F5)",
+  card: "var(--app-card, #FFFFFF)",
+  border: "var(--app-border, #E5E5E5)",
+  text: "var(--app-text, #111111)",
+  muted: "var(--app-muted, #9B9B9B)",
   teal: "#00A699",
   tealSoft: "rgba(0, 166, 153, 0.10)",
   amber: "#F59E0B",

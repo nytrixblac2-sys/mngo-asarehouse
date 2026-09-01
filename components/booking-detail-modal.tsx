@@ -170,7 +170,7 @@ export function BookingDetailModal({
   return (
     <>
       <div className="fixed inset-0 z-50 flex items-center justify-center p-6" style={{ background: "rgba(0,0,0,0.35)" }}>
-        <div className="w-full max-w-md rounded-2xl overflow-hidden flex flex-col" style={{ background: "#fff", maxHeight: "85vh" }}>
+        <div className="w-full max-w-md rounded-2xl overflow-hidden flex flex-col" style={{ background: C.card, maxHeight: "85vh" }}>
           <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: `1px solid ${C.border}` }}>
             <div className="flex items-center gap-2">
               {showPropertyTag && <div className="w-2.5 h-2.5 rounded-full" style={{ background: propertyColor }} />}

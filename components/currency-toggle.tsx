@@ -22,7 +22,7 @@ export function CurrencyToggle({
           key={cur}
           onClick={() => onChange(cur)}
           className="text-xs font-semibold px-3 py-1.5 rounded-full"
-          style={{ background: value === cur ? "#fff" : "transparent", color: value === cur ? C.text : C.muted }}
+          style={{ background: value === cur ? C.card : "transparent", color: value === cur ? C.text : C.muted }}
         >
           {cur}
         </button>

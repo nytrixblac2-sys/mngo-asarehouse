@@ -143,7 +143,7 @@ export function GenerateReportModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.3)" }}>
-      <div className="w-full max-w-md rounded-2xl p-6" style={{ background: "#fff" }}>
+      <div className="w-full max-w-md rounded-2xl p-6" style={{ background: C.card }}>
         <div className="flex items-center justify-between mb-1">
           <p className="text-lg font-bold" style={{ color: C.text }}>Generate report</p>
           <button onClick={onClose}><X size={20} style={{ color: C.muted }} /></button>

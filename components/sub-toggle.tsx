@@ -19,7 +19,7 @@ export function SubToggle<T extends string>({
           key={o.key}
           onClick={() => onChange(o.key)}
           className="text-xs font-semibold px-4 py-1.5 rounded-full"
-          style={{ background: value === o.key ? "#fff" : "transparent", color: value === o.key ? C.text : C.muted }}
+          style={{ background: value === o.key ? C.card : "transparent", color: value === o.key ? C.text : C.muted }}
         >
           {o.label}
         </button>

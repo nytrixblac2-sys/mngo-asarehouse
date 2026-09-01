@@ -90,7 +90,7 @@ export function TopBar({
         {menuOpen && (
           <div
             className="absolute left-0 top-full w-48 rounded-xl p-2 z-30"
-            style={{ background: "#fff", border: `1px solid ${C.border}`, boxShadow: "0 8px 24px rgba(0,0,0,0.10)" }}
+            style={{ background: C.card, border: `1px solid ${C.border}`, boxShadow: "0 8px 24px rgba(0,0,0,0.10)" }}
           >
             <div className="px-3 py-2">
               <p className="text-sm font-semibold" style={{ color: C.text }}>
