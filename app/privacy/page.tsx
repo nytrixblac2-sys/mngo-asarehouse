@@ -169,7 +169,7 @@ export default function PrivacyPage() {
           <p style={prose}>We retain your data for as long as your workspace is active. If you request account deletion, we will delete your data within 30 days. We may retain anonymised, aggregated usage statistics that cannot identify you or your guests.</p>
 
           <h2 style={h2style}>10. Changes to this policy</h2>
-          <p style={prose}>We may update this Privacy Policy from time to time. Material changes will be communicated by updating the "Last updated" date at the top of this page. Continued use of MNGO after an update constitutes acceptance of the revised policy.</p>
+          <p style={prose}>We may update this Privacy Policy from time to time. Material changes will be communicated by updating the &quot;Last updated&quot; date at the top of this page. Continued use of MNGO after an update constitutes acceptance of the revised policy.</p>
 
           <h2 style={h2style}>11. Contact</h2>
           <p style={prose}>For any privacy-related questions, requests, or concerns, contact us at:</p>
