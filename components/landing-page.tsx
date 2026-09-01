@@ -324,8 +324,8 @@ export function LandingPage() {
         <div className={s.secInner}>
           <div className={`${s.pricingHd} ${s.fu}`} style={{ textAlign: "center", maxWidth: 560, margin: "0 auto", display: "flex", flexDirection: "column", alignItems: "center", gap: 20 }}>
             <div className={s.secLabel}>Pricing</div>
-            <h2 className={s.secH2}>Transparent, property-first pricing</h2>
-            <p className={s.secSub}>No per-user fees. Choose the plan that matches your operation — from a single property just getting started, to a multi-site enterprise with custom needs.</p>
+            <h2 className={s.secH2}>One property? Free forever.</h2>
+            <p className={s.secSub}>Single-property managers pay nothing. When you grow to multiple sites or need advanced team features, upgrade to Pro. No per-user fees, ever.</p>
             <a href="/pricing" className={`${s.btn} ${s.btnPrimary} ${s.btnLg}`}>
               See plans
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
