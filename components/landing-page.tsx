@@ -348,12 +348,12 @@ export function LandingPage() {
                 {
                   icon: <><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></>,
                   title: "Email us",
-                  sub: "hello@mngo.app\nReply within one business day.",
+                  sub: "kwame@dotdwgstudio.com\nReply within one business day.",
                 },
                 {
                   icon: <><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.85 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.77 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.16 6.16l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></>,
                   title: "Call or WhatsApp",
-                  sub: "+233 XX XXX XXXX\nMon – Fri, 8 am – 6 pm GMT",
+                  sub: "0540885406\nMon – Fri, 8 am – 6 pm GMT",
                 },
                 {
                   icon: <><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></>,
@@ -417,15 +417,15 @@ export function LandingPage() {
             {[
               {
                 heading: "Product",
-                links: [["Features", "#features"], ["Workspaces", "#workspaces"], ["Pricing", "/pricing"], ["Changelog", "/changelog"]],
+                links: [["Features", "/#features"], ["Workspaces", "/#workspaces"], ["Pricing", "/pricing"], ["Changelog", "/changelog"]],
               },
               {
                 heading: "Company",
-                links: [["About", "/about"], ["Contact", "#contact"], ["Privacy", "/privacy"], ["Terms", "/terms"]],
+                links: [["About", "/about"], ["Contact", "/contact"], ["Privacy", "/privacy"], ["Terms", "/terms"]],
               },
               {
                 heading: "Account",
-                links: [["Sign in", "/login"], ["Sign up", "/signup"], ["Dashboard", "/dashboard"], ["Support", "#contact"]],
+                links: [["Sign in", "/login"], ["Sign up", "/signup"], ["Dashboard", "/dashboard"], ["Support", "/contact"]],
               },
             ].map(({ heading, links }) => (
               <div key={heading}>
