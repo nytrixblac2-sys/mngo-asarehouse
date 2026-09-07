@@ -20,6 +20,17 @@ const MOON = (
 
 const RELEASES = [
   {
+    version: "v1.0.9.5",
+    date: "September 2026",
+    tag: "Feature",
+    title: "Global search",
+    items: [
+      "New search icon in the top bar, plus a Ctrl/Cmd+K shortcut, opens search from anywhere in the app",
+      "Search across bookings, issues, schedules, team members, and properties at once",
+      "Clicking a result jumps straight to it — opens the booking, issue, or schedule, or switches to that property",
+    ],
+  },
+  {
     version: "v1.0.9.4",
     date: "September 2026",
     tag: "Improvement",

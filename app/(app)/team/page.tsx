@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Plus } from "lucide-react";
 import { Card } from "@/components/primitives";
 import { TeamMemberForm } from "@/components/team-member-form";
@@ -35,8 +36,12 @@ import type { TeamMember } from "@/lib/types";
  * that would silently show zero) rather than just relying on the
  * already-empty data to look right by accident.
  */
-export default function TeamPage() {
+function TeamScreen() {
   const { effectiveCanEdit, effectiveUser } = useEffectiveUser();
+  // Search's `?memberId=` deep-link (components/search-modal.tsx) — only
+  // meaningful for whoever canSeePay below, since that's the only role
+  // this page's own click handler ever opens TeamMemberDetail for.
+  const deepLinkMemberId = useSearchParams().get("memberId");
 
   const [selected, setSelected] = useState<TeamMember | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -47,6 +52,17 @@ export default function TeamPage() {
   const createTeamMember = useCreateTeamMember();
   const deleteTeamMember = useDeleteTeamMember();
 
+  const canSeePay = effectiveUser.role === "ACCOUNT_OWNER";
+  const consumedDeepLink = useRef(false);
+  useEffect(() => {
+    if (consumedDeepLink.current || !deepLinkMemberId || !canSeePay || !teamQuery.data) return;
+    const match = teamQuery.data.find((t) => t.id === deepLinkMemberId);
+    if (match) {
+      setSelected(match);
+      consumedDeepLink.current = true;
+    }
+  }, [deepLinkMemberId, canSeePay, teamQuery.data]);
+
   if (!effectiveCanEdit) {
     return (
       <p className="text-sm" style={{ color: C.muted }}>
@@ -54,8 +70,6 @@ export default function TeamPage() {
       </p>
     );
   }
-
-  const canSeePay = effectiveUser.role === "ACCOUNT_OWNER";
 
   const isLoading = teamQuery.isLoading || expensesQuery.isLoading;
   const isError = teamQuery.isError || expensesQuery.isError;
@@ -146,5 +160,13 @@ export default function TeamPage() {
         />
       )}
     </div>
+  );
+}
+
+export default function TeamPage() {
+  return (
+    <Suspense fallback={<p className="text-sm" style={{ color: C.muted }}>Loading…</p>}>
+      <TeamScreen />
+    </Suspense>
   );
 }

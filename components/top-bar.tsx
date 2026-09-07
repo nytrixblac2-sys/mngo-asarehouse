@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Menu, PanelLeft, ChevronLeft, ChevronRight, FileText } from "lucide-react";
+import { Menu, PanelLeft, ChevronLeft, ChevronRight, FileText, Search } from "lucide-react";
 import { C } from "@/lib/colors";
 import { getNavItems } from "@/lib/nav";
 import { useAppStore } from "@/store/use-app-store";
@@ -14,12 +14,14 @@ import { signOut } from "@/app/(app)/actions";
 import { PropertySwitcher } from "./property-switcher";
 import { ProfileModal } from "./profile-modal";
 import { GenerateReportModal } from "./generate-report-modal";
+import { SearchModal } from "./search-modal";
 
 /**
- * context/07-mockup.jsx TopBar, minus Search — still has nothing real to
- * search over. "Generate report" was originally left out for the same
- * reason PDF export was V2 (context/01-project-overview.md); restored here
- * per user decision 2026-08-03 to build PDF export.
+ * context/07-mockup.jsx TopBar. "Generate report" was originally left out
+ * for the same reason PDF export was V2 (context/01-project-overview.md);
+ * restored here per user decision 2026-08-03 to build PDF export. Search
+ * was left out for the same "nothing real to search over" reason — see
+ * components/search-modal.tsx for what changed.
  */
 export function TopBar({
   properties: initialProperties,
@@ -43,8 +45,23 @@ export function TopBar({
   const [menuOpen, setMenuOpen] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // Cmd/Ctrl+K opens search from anywhere in the app shell, standard
+  // command-palette convention — matches the mockup's dedicated Search
+  // button (below), just adding a keyboard shortcut on top of it.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setShowSearch(true);
+      }
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
 
   useEffect(() => {
     let stored: string | null = null;
@@ -181,6 +198,15 @@ export function TopBar({
         <PanelLeft size={18} />
       </button>
 
+      <button
+        onClick={() => setShowSearch(true)}
+        className="p-2 rounded-lg"
+        style={{ color: C.text }}
+        title="Search (Ctrl/Cmd+K)"
+      >
+        <Search size={18} />
+      </button>
+
       <button onClick={() => router.back()} className="p-2 rounded-lg" style={{ color: C.text }} title="Back">
         <ChevronLeft size={18} />
       </button>
@@ -217,6 +243,8 @@ export function TopBar({
           )}
         </button>
       </div>
+
+      {showSearch && <SearchModal onClose={() => setShowSearch(false)} />}
 
       {showProfile && (
         <ProfileModal

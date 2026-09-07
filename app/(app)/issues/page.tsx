@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AlertTriangle, ClipboardList, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card, Pill } from "@/components/primitives";
@@ -27,16 +27,24 @@ function statusButtonColor(s: IssueStatus): string {
   return C.teal;
 }
 
-/** Reads Dashboard's `?issueId=` deep-link to pre-select the matching card. */
-function useDeepLinkIssueId() {
-  return useSearchParams().get("issueId");
+/** Reads Dashboard's `?issueId=` deep-link, and Search's `?scheduleId=`/
+ * `?tab=` deep-link (components/search-modal.tsx), to pre-select the
+ * matching card and open the right tab. */
+function useDeepLinkParams() {
+  const params = useSearchParams();
+  return {
+    issueId: params.get("issueId"),
+    scheduleId: params.get("scheduleId"),
+    tab: params.get("tab"),
+  };
 }
 
 /** context/07-mockup.jsx IssuesView. */
 function IssuesAndSchedules() {
   const { effectiveCanEdit } = useEffectiveUser();
   const activePropertyId = useAppStore((s) => s.activePropertyId);
-  const deepLinkIssueId = useDeepLinkIssueId();
+  const setActivePropertyId = useAppStore((s) => s.setActivePropertyId);
+  const { issueId: deepLinkIssueId, scheduleId: deepLinkScheduleId, tab: deepLinkTab } = useDeepLinkParams();
 
   const _now = new Date();
   const [issueYear, setIssueYear] = useState(_now.getFullYear());
@@ -55,10 +63,10 @@ function IssuesAndSchedules() {
     else setIssueMonth((m) => m + 1);
   };
 
-  const [tab, setTab] = useState<"issues" | "schedules">("issues");
+  const [tab, setTab] = useState<"issues" | "schedules">(deepLinkTab === "schedules" ? "schedules" : "issues");
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(deepLinkIssueId);
   const [issueNoteDraft, setIssueNoteDraft] = useState("");
-  const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(null);
+  const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(deepLinkScheduleId);
   const [scheduleNoteDraft, setScheduleNoteDraft] = useState("");
   const [filterStatus, setFilterStatus] = useState<IssueStatus | "all">("all");
   const [showIssueForm, setShowIssueForm] = useState(false);
@@ -85,6 +93,29 @@ function IssuesAndSchedules() {
     setSelectedScheduleId((prev) => (prev === id ? null : id));
     setScheduleNoteDraft("");
   };
+
+  // A deep-linked issue/schedule can be logged in a month other than the
+  // one this page defaults to (the real current month), or belong to a
+  // property other than the currently active one — either would silently
+  // filter the card out of view even though selectedIssueId/selectedScheduleId
+  // is set correctly. Jump both to match, once, the first time the target
+  // row shows up in the already-fetched data.
+  const consumedDeepLink = useRef(false);
+  useEffect(() => {
+    if (consumedDeepLink.current) return;
+    const targetId = deepLinkIssueId ?? deepLinkScheduleId;
+    if (!targetId) return;
+    const source = deepLinkIssueId ? issuesQuery.data : schedulesQuery.data;
+    const match = source?.find((row) => row.id === targetId);
+    if (!match) return;
+    const [y, m] = match.date.split("-").map(Number);
+    setIssueYear(y);
+    setIssueMonth(m - 1);
+    if (activePropertyId !== "all" && match.propertyId !== activePropertyId) {
+      setActivePropertyId("all");
+    }
+    consumedDeepLink.current = true;
+  }, [deepLinkIssueId, deepLinkScheduleId, issuesQuery.data, schedulesQuery.data, activePropertyId, setActivePropertyId]);
 
   const isLoading =
     issuesQuery.isLoading || schedulesQuery.isLoading || bookingsQuery.isLoading || propertiesQuery.isLoading;

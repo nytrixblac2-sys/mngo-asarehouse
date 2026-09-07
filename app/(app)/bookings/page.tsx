@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight, Plus, AlertTriangle, ClipboardList, Upload } from "lucide-react";
 import { useEffectiveUser } from "@/components/effective-user-context";
 import { DeletedBookingsLog } from "@/components/deleted-bookings-log";
@@ -30,9 +31,19 @@ import { CopyBookingLinkButton } from "@/components/copy-booking-link-button";
 type ViewKey = "Day" | "Week" | "Month" | "Per stay";
 const VIEWS: ViewKey[] = ["Day", "Week", "Month", "Per stay"];
 
+/** Reads Search's `?bookingId=` deep-link (components/search-modal.tsx) to
+ * open that booking's detail modal directly, regardless of which month/view
+ * is currently active — the modal is resolved from the full bookingsQuery
+ * list below, not the current month/property-filtered one, so this works
+ * even for a booking outside the viewed month. */
+function useDeepLinkBookingId() {
+  return useSearchParams().get("bookingId");
+}
+
 /** context/07-mockup.jsx BookingsView. */
-export default function BookingsPage() {
+function BookingsScreen() {
   const { effectiveUser, effectiveCanEdit } = useEffectiveUser();
+  const deepLinkBookingId = useDeepLinkBookingId();
   const activePropertyId = useAppStore((s) => s.activePropertyId);
   // Persisted across refresh — user feedback, 2026-08-05: refreshing while
   // viewing a past/future month bounced back to the real current month.
@@ -70,6 +81,16 @@ export default function BookingsPage() {
   const updateSchedule = useUpdateSchedule();
   const createIssue = useCreateIssue();
   const setIssueStatus = useSetIssueStatus();
+
+  const consumedDeepLink = useRef(false);
+  useEffect(() => {
+    if (!deepLinkBookingId || consumedDeepLink.current || !bookingsQuery.data) return;
+    const match = bookingsQuery.data.find((b) => b.id === deepLinkBookingId);
+    if (match) {
+      setSelectedBooking(match);
+      consumedDeepLink.current = true;
+    }
+  }, [deepLinkBookingId, bookingsQuery.data]);
 
   const isLoading =
     bookingsQuery.isLoading || schedulesQuery.isLoading || issuesQuery.isLoading || propertiesQuery.isLoading;
@@ -315,5 +336,13 @@ export default function BookingsPage() {
         );
       })()}
     </div>
+  );
+}
+
+export default function BookingsPage() {
+  return (
+    <Suspense fallback={<p className="text-sm" style={{ color: C.muted }}>Loading…</p>}>
+      <BookingsScreen />
+    </Suspense>
   );
 }
