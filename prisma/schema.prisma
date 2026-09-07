@@ -168,6 +168,7 @@ model Workspace {
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
 
+
   accountOwner User?          @relation("WorkspaceAccountOwner", fields: [accountOwnerId], references: [id])
   users        User[]         @relation("WorkspaceUsers")
   properties   Property[]
@@ -245,6 +246,11 @@ model Property {
   allocation     Json
   prevBalanceGhs Json
   prevBalanceEur Json
+  /// Airbnb iCal export URL for this property — set once in the Property
+  /// profile modal. The cron job at /api/cron/sync-airbnb polls every hour
+  /// and auto-creates/cancels bookings. Amount is set to 0 on creation and
+  /// must be filled in manually by the manager (iCal does not include pricing).
+  airbnbICalUrl  String?
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
 
@@ -280,6 +286,13 @@ model Booking {
   source            BookingSource
   status            BookingStatus  @default(EXPECTED)
   paidAt            DateTime?      @db.Date
+  /// Airbnb iCal reservation UID — set when this booking was auto-created
+  /// by /api/cron/sync-airbnb. Null for all manually entered bookings.
+  /// Unique: Airbnb issues one UID per reservation and it never changes,
+  /// so this is the deduplication key for repeated sync runs.
+  /// When icalUid is set and amount = 0, the booking appears in the
+  /// dashboard's "needs pricing" banner.
+  icalUid           String?        @unique
   /// HOSTEL only, below this line.
   roomId            String?        @db.Uuid
   passportNumber    String?

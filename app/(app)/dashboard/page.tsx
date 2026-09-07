@@ -122,6 +122,11 @@ export default function DashboardPage() {
     .filter((b) => b.checkOut >= today)
     .sort((a, b) => (a.checkIn < b.checkIn ? -1 : 1))
     .slice(0, 5);
+  // Airbnb iCal bookings with amount = 0 — need the manager to fill in the price.
+  // Only shown to owners/managers who can edit; property-filter aware.
+  const airbnbNeedsPricing = bookings.filter(
+    (b) => b.icalUid !== null && b.amount === 0 && b.deletedAt === null
+  );
   const upcomingShifts = [...schedules]
     .filter((s) => s.date >= today)
     .sort((a, b) => (a.date < b.date ? -1 : 1))
@@ -312,6 +317,25 @@ export default function DashboardPage() {
             })}
           </div>
         </Card>
+      )}
+
+      {effectiveCanEdit && airbnbNeedsPricing.length > 0 && (
+        <button
+          onClick={() => router.push("/bookings")}
+          className="w-full text-left rounded-2xl px-4 py-3 flex items-center justify-between gap-3"
+          style={{ background: "#FFF7ED", border: "1px solid #FB923C" }}
+        >
+          <div>
+            <p className="text-sm font-semibold" style={{ color: "#9A3412" }}>
+              {airbnbNeedsPricing.length} Airbnb {airbnbNeedsPricing.length === 1 ? "stay" : "stays"} need pricing
+            </p>
+            <p className="text-xs mt-0.5" style={{ color: "#C2410C" }}>
+              {airbnbNeedsPricing.map((b) => b.guest).slice(0, 3).join(", ")}
+              {airbnbNeedsPricing.length > 3 ? ` +${airbnbNeedsPricing.length - 3} more` : ""} — tap to update amounts
+            </p>
+          </div>
+          <ChevronRight size={16} style={{ color: "#C2410C", flexShrink: 0 }} />
+        </button>
       )}
 
       <Card style={{ background: C.tealSoft, border: "1px solid rgba(0,166,153,0.2)" }}>

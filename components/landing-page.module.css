@@ -289,7 +289,7 @@
 .pricingSec { background: var(--lp-surf); transition: background 0.25s ease; }
 .pricingHd { text-align: center; margin-bottom: 56px; }
 .pricingHd .secSub { margin: 0 auto; }
-.pricingGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; align-items: start; }
+.pricingGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; align-items: start; }
 .pCard {
   background: var(--lp-bg); border: 1px solid var(--lp-bdr);
   border-radius: var(--lp-rl); padding: 30px; position: relative;
@@ -373,6 +373,9 @@
 .fuIn { opacity: 1; transform: none; }
 
 /* ── RESPONSIVE ── */
+@media (max-width: 1100px) {
+  .pricingGrid { grid-template-columns: repeat(2, 1fr); }
+}
 @media (max-width: 900px) {
   .sec { padding: 72px 20px; }
   .statsGrid, .featuresGrid, .wsGrid, .pricingGrid { grid-template-columns: 1fr; }

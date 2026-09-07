@@ -13,6 +13,7 @@ export function serializeProperty(p: {
   allocation: unknown;
   prevBalanceGhs: unknown;
   prevBalanceEur: unknown;
+  airbnbICalUrl?: string | null;
 }): Property {
   return {
     id: p.id,
@@ -25,6 +26,7 @@ export function serializeProperty(p: {
     allocation: p.allocation as Property["allocation"],
     prevBalanceGhs: p.prevBalanceGhs as Property["prevBalanceGhs"],
     prevBalanceEur: p.prevBalanceEur as Property["prevBalanceEur"],
+    airbnbICalUrl: p.airbnbICalUrl ?? null,
   };
 }
 

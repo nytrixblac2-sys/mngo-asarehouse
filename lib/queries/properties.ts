@@ -81,3 +81,19 @@ export function useDeleteProperty() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["properties"] }),
   });
 }
+
+/** Saves or clears the Airbnb iCal URL for one property. Uses a dedicated
+ * endpoint so the complex allocation validation in the main PATCH doesn't
+ * run on every iCal URL change. */
+export function useUpdatePropertyIcal() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, airbnbICalUrl }: { id: string; airbnbICalUrl: string | null }) =>
+      fetchJson<{ airbnbICalUrl: string | null }>(`/api/properties/${id}/ical`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ airbnbICalUrl }),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["properties"] }),
+  });
+}

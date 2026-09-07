@@ -5,7 +5,7 @@ import s from "@/components/landing-page.module.css";
 
 const PLANS = [
   {
-    name: "Starter",
+    name: "Free",
     tag: "Get started at no cost. One property, core tools, no credit card required.",
     price: "Free",
     per: "forever",
@@ -14,7 +14,7 @@ const PLANS = [
       "1 property",
       "Up to 20 rooms / desks",
       "Booking management",
-      "Basic financials",
+      "Financials for the current month only",
       "2 staff accounts",
       "Email support",
     ],
@@ -22,13 +22,29 @@ const PLANS = [
     href: "/signup",
   },
   {
-    name: "Pro",
-    tag: "For growing properties that need more control and visibility.",
-    price: "29",
-    per: "/ month · billed annually",
-    pop: true,
+    name: "Starter",
+    tag: "For operators ready to manage more than one property.",
+    price: "19.99",
+    per: "/ month",
+    pop: false,
     feats: [
       "Up to 5 properties",
+      "Unlimited rooms / desks",
+      "Full financials & reporting",
+      "5 staff accounts",
+      "Email support",
+    ],
+    cta: "Get started",
+    href: "/signup",
+  },
+  {
+    name: "Pro",
+    tag: "For growing properties that need more control and visibility.",
+    price: "39.99",
+    per: "/ month",
+    pop: true,
+    feats: [
+      "Up to 20 properties",
       "Unlimited rooms / desks",
       "Full financials & reporting",
       "Menu & orders module",
@@ -166,7 +182,7 @@ export default function PricingPage() {
           <div style={{ maxWidth: 640, margin: "0 auto", display: "flex", flexDirection: "column", gap: 24 }}>
             {[
               { q: "Can I switch plans later?", a: "Yes. Upgrade or downgrade at any time. Changes take effect on your next billing cycle." },
-              { q: "Is there a free trial for the Pro plan?", a: "The Starter plan is free forever and covers most needs for a single property. If you need Pro features, contact us and we can arrange a trial." },
+              { q: "Is there a free trial for paid plans?", a: "The Free plan is free forever and covers a single property, though financials are limited to the current month. If you need full financial history or more properties, contact us and we can arrange a trial." },
               { q: "What counts as a property?", a: "A property is one physical location or managed unit, such as a short-let apartment, hotel branch, or co-working floor. Sub-units like individual rooms do not count." },
               { q: "What is the Enterprise shop module?", a: "RENTAL and short-let properties on the Enterprise plan can enable an optional shop where guests scan a QR code to browse and order items, paying at checkout." },
             ].map(({ q, a }) => (

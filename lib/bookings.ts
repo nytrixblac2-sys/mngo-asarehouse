@@ -27,6 +27,7 @@ type BookingRow = {
   deleteReason: string | null;
   deleteRequestedAt: Date | null;
   deleteRequestedBy: string | null;
+  icalUid: string | null;
 };
 
 export function serializeBooking(b: BookingRow): Booking {
@@ -54,6 +55,7 @@ export function serializeBooking(b: BookingRow): Booking {
     deleteReason: b.deleteReason,
     deleteRequestedAt: b.deleteRequestedAt ? b.deleteRequestedAt.toISOString() : null,
     deleteRequestedBy: b.deleteRequestedBy,
+    icalUid: b.icalUid,
   };
 }
 

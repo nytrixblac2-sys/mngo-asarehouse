@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/sync-airbnb",
+      "schedule": "0 * * * *"
+    }
+  ]
+}

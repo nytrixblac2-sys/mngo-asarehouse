@@ -111,6 +111,8 @@ export interface Property {
   allocation: Partial<Record<Currency, Allocation>>;
   prevBalanceGhs: PrevBalance;
   prevBalanceEur: PrevBalance;
+  /** Airbnb "Export calendar" URL — set once in Property profile. Null until configured. */
+  airbnbICalUrl: string | null;
 }
 
 /** HOSTEL-workspace-only priced room type — see prisma/schema.prisma Room
@@ -231,6 +233,10 @@ export interface Booking {
    * everywhere while this is set; deletedAt only gets set once approved. */
   deleteRequestedAt: string | null;
   deleteRequestedBy: string | null;
+  /** Set when this booking was auto-created by the Airbnb iCal sync cron.
+   * Null for all manually entered bookings. When set and amount === 0,
+   * the dashboard shows a "needs pricing" banner. */
+  icalUid: string | null;
 }
 
 export interface Expense {

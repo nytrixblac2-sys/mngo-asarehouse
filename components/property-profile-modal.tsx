@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Loader2, X } from "lucide-react";
+import { Check, Loader2, X, Link2, Link2Off } from "lucide-react";
 import { C, THEME_COLORS } from "@/lib/colors";
 import type { Allocation, Currency, Property, WorkspaceType } from "@/lib/types";
 import type { UpdatePropertyInput } from "@/lib/queries/properties";
+import { useUpdatePropertyIcal } from "@/lib/queries/properties";
 import { RoomManagerPanel } from "./room-manager";
 
 const DEFAULT_ALLOCATION: Allocation = { owners: 60, operations: 15, management: 25 };
@@ -52,6 +53,9 @@ export function PropertyProfileModal({
   const [roomInput, setRoomInput] = useState("");
   const [facilityInput, setFacilityInput] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [icalInput, setIcalInput] = useState(property.airbnbICalUrl ?? "");
+  const [editingIcal, setEditingIcal] = useState(!property.airbnbICalUrl);
+  const updateIcal = useUpdatePropertyIcal();
 
   const toggleCurrency = (cur: Currency) => {
     const next = currencies.includes(cur) ? currencies.filter((c) => c !== cur) : [...currencies, cur];
@@ -256,6 +260,86 @@ export function PropertyProfileModal({
                 Add
               </button>
             </div>
+          </div>
+
+          {/* Airbnb iCal sync — separate save, separate endpoint */}
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: C.muted }}>Airbnb sync</p>
+              {property.airbnbICalUrl && (
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: C.tealSoft, color: C.teal }}>
+                  Connected
+                </span>
+              )}
+            </div>
+            <p className="text-xs mb-3" style={{ color: C.muted }}>
+              Paste your Airbnb &quot;Export calendar&quot; link once. New bookings appear automatically — you add the price.
+            </p>
+            {property.airbnbICalUrl && !editingIcal ? (
+              <div className="flex items-center justify-between py-2.5 px-3 rounded-xl" style={{ background: C.bg }}>
+                <div className="flex items-center gap-2">
+                  <Link2 size={13} style={{ color: C.teal }} />
+                  <span className="text-xs font-semibold" style={{ color: C.teal }}>Airbnb calendar connected</span>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => { setIcalInput(property.airbnbICalUrl!); setEditingIcal(true); }}
+                    className="text-xs font-semibold"
+                    style={{ color: C.muted }}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => updateIcal.mutate({ id: property.id, airbnbICalUrl: null }, { onSuccess: onClose })}
+                    disabled={updateIcal.isPending}
+                    className="text-xs font-semibold flex items-center gap-1"
+                    style={{ color: C.muted }}
+                  >
+                    <Link2Off size={11} /> Disconnect
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <input
+                  value={icalInput}
+                  onChange={(e) => setIcalInput(e.target.value)}
+                  placeholder="https://www.airbnb.com/calendar/ical/..."
+                  className="w-full px-3 py-2.5 rounded-xl text-sm"
+                  style={{ border: `1px solid ${C.border}`, background: C.card, color: C.text }}
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() =>
+                      updateIcal.mutate(
+                        { id: property.id, airbnbICalUrl: icalInput.trim() || null },
+                        { onSuccess: onClose }
+                      )
+                    }
+                    disabled={!icalInput.trim() || updateIcal.isPending}
+                    className="flex-1 text-sm font-semibold py-2.5 rounded-xl"
+                    style={{
+                      background: icalInput.trim() ? C.teal : C.border,
+                      color: icalInput.trim() ? "#fff" : C.muted,
+                    }}
+                  >
+                    {updateIcal.isPending ? "Connecting…" : "Connect"}
+                  </button>
+                  {property.airbnbICalUrl && (
+                    <button
+                      onClick={() => setEditingIcal(false)}
+                      className="px-4 py-2.5 rounded-xl text-sm font-semibold"
+                      style={{ background: C.bg, color: C.muted }}
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+                {updateIcal.isError && (
+                  <p className="text-xs text-destructive">{(updateIcal.error as Error)?.message}</p>
+                )}
+              </div>
+            )}
           </div>
 
           <button

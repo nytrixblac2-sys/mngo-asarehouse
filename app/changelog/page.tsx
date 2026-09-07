@@ -20,6 +20,19 @@ const MOON = (
 
 const RELEASES = [
   {
+    version: "v1.0.9.4",
+    date: "September 2026",
+    tag: "Improvement",
+    title: "Four pricing tiers",
+    items: [
+      "Pricing restructured to four plans: Free, Starter, Pro, and Enterprise",
+      "Free plan now shows financials for the current month only",
+      "New Starter plan at $19.99/month for up to 5 properties",
+      "Pro plan updated to $39.99/month for up to 20 properties (was $29/month for up to 5 properties)",
+      "Enterprise plan unchanged",
+    ],
+  },
+  {
     version: "v1.0.8.4",
     date: "September 2026",
     tag: "Improvement",
