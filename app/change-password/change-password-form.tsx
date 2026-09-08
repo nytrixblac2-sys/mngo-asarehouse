@@ -1,15 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { Lock, Eye, EyeOff } from "lucide-react";
+import { Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 import { C } from "@/lib/colors";
 import { changePassword } from "./actions";
 
 export function ChangePasswordForm({ errorMessage }: { errorMessage: string | null }) {
   const [showPw, setShowPw] = useState(false);
+  // See app/login/login-form.tsx's identical submitting state for why
+  // this is a plain onSubmit flag rather than useFormStatus.
+  const [submitting, setSubmitting] = useState(false);
 
   return (
-    <form action={changePassword} className="flex flex-col gap-4">
+    <form action={changePassword} onSubmit={() => setSubmitting(true)} className="flex flex-col gap-4">
       <p className="text-xs" style={{ color: C.muted }}>
         You&apos;re signed in with a one-time password. Choose your own to continue.
       </p>
@@ -59,10 +62,12 @@ export function ChangePasswordForm({ errorMessage }: { errorMessage: string | nu
       {errorMessage && <p className="text-xs font-medium text-destructive">{errorMessage}</p>}
       <button
         type="submit"
-        className="w-full text-sm font-semibold py-3 rounded-xl mt-1"
-        style={{ background: C.text, color: "#fff" }}
+        disabled={submitting}
+        className="w-full text-sm font-semibold py-3 rounded-xl mt-1 flex items-center justify-center gap-2"
+        style={{ background: C.text, color: "#fff", cursor: submitting ? "not-allowed" : "pointer", opacity: submitting ? 0.75 : 1 }}
       >
-        Set password
+        {submitting && <Loader2 size={15} className="animate-spin" />}
+        {submitting ? "Setting password…" : "Set password"}
       </button>
     </form>
   );

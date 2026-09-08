@@ -20,6 +20,17 @@ const MOON = (
 
 const RELEASES = [
   {
+    version: "v1.0.9.9",
+    date: "September 2026",
+    tag: "Fix",
+    title: "Dark mode legibility fixes",
+    items: [
+      "Fixed several sidebar labels, buttons, and banners being nearly invisible in dark mode for properties using the default black accent color",
+      "Login, signup, and change-password buttons now show a spinner while submitting instead of appearing unresponsive",
+      "Landing page button changed from \"Start free trial\" to \"Start for free\" — the Free plan has no trial, it's free forever",
+    ],
+  },
+  {
     version: "v1.0.9.8",
     date: "September 2026",
     tag: "Fix",

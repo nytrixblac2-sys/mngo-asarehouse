@@ -23,6 +23,41 @@ function withAlpha(hex: string, alpha: number) {
 }
 
 /**
+ * Several THEME_COLORS swatches (`lib/colors.ts`) — especially the default
+ * black, `#111111` — have almost no contrast against the app's near-black
+ * dark background: every element that reads `var(--accent, ...)` (nav
+ * active state, "Log issue"/"Check-in" pills, the Financials "Balance"
+ * line, etc.) went effectively invisible in dark mode for any property
+ * using that default color. This isn't one broken component — it's the
+ * same root `--accent`/`--accent-soft` value feeding dozens of consumers,
+ * so it's fixed once, here, rather than patched at each call site.
+ *
+ * Blends a too-dark color toward the app's dark-mode text color until it
+ * clears a legibility floor; colors already bright enough (most of the
+ * swatch — teal, coral, sky, green, orange) pass through unchanged, so
+ * this only actually does anything for the handful of swatches that need it.
+ */
+function darkModeSafe(hex: string): string {
+  if (!hex || hex[0] !== "#" || hex.length !== 7) return hex;
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  const FLOOR = 140;
+  if (luminance >= FLOOR) return hex;
+  // Blend toward the dark theme's own text color (#E8F5F4 — see
+  // app/globals.css [data-theme="dark"] --app-text) rather than pure
+  // white, so a lightened accent still feels like part of the same
+  // palette instead of an arbitrary white. Capped at 85% so nothing
+  // washes out completely, keeping some of the original hue.
+  const t = Math.min(1, (FLOOR - luminance) / FLOOR) * 0.85;
+  const [tr, tg, tb] = [0xe8, 0xf5, 0xf4];
+  const mix = (c: number, target: number) => Math.round(c + (target - c) * t);
+  const toHex = (n: number) => n.toString(16).padStart(2, "0");
+  return `#${toHex(mix(r, tr))}${toHex(mix(g, tg))}${toHex(mix(b, tb))}`;
+}
+
+/**
  * The App Shell — top bar + optional pinned sidebar + content. Sets
  * --accent / --accent-soft on this root wrapper from the active property's
  * color, per context/02-architecture-context.md "Property Theming Model":
@@ -100,18 +135,26 @@ export function AppShell({
   const effectiveCanEdit = !previewUser && realCanEdit;
 
   const activeProperty = properties.find((p) => p.id === activePropertyId);
-  const accent = activeProperty?.color ?? "#111111";
-  const accentSoft = withAlpha(accent, 0.1);
+  const accentLight = activeProperty?.color ?? "#111111";
+  const accentDark = darkModeSafe(accentLight);
 
+  // --accent/--accent-soft themselves are set via the app-shell-root CSS
+  // rule below (app/globals.css), not inline here — an inline declaration
+  // for the same custom property would always win over any stylesheet
+  // rule (including a [data-theme="dark"] one), which is exactly what
+  // made the old single-value --accent impossible to theme-swap. These
+  // two raw values are what that rule picks between.
   const shellStyle = {
     background: C.bg,
     height: "100vh",
-    "--accent": accent,
-    "--accent-soft": accentSoft,
+    "--accent-lt": accentLight,
+    "--accent-lt-soft": withAlpha(accentLight, 0.1),
+    "--accent-dk": accentDark,
+    "--accent-dk-soft": withAlpha(accentDark, 0.1),
   } as CSSProperties;
 
   return (
-    <div className="flex flex-col w-full" style={shellStyle}>
+    <div className="app-shell-root flex flex-col w-full" style={shellStyle}>
       <ActivityPing />
       {previewUser && (
         <div

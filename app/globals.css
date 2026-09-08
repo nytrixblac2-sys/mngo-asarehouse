@@ -121,6 +121,23 @@
     --app-teal: #2DD4BF;
     --app-teal-soft: rgba(45, 212, 191, 0.10);
   }
+
+  /* components/app-shell.tsx sets --accent-lt/--accent-dk (and their
+     -soft variants) inline with the active property's raw color per
+     theme — never --accent/--accent-soft directly, since an inline
+     declaration for those would out-rank this rule regardless of
+     selector specificity and make the [data-theme="dark"] override
+     below impossible to apply. Every existing consumer keeps reading
+     var(--accent, ...)/var(--accent-soft, ...) unchanged. */
+  .app-shell-root {
+    --accent: var(--accent-lt, #111111);
+    --accent-soft: var(--accent-lt-soft, rgba(17, 17, 17, 0.1));
+  }
+  [data-theme="dark"] .app-shell-root {
+    --accent: var(--accent-dk, #E8F5F4);
+    --accent-soft: var(--accent-dk-soft, rgba(232, 245, 244, 0.1));
+  }
+
   .dark {
     --background: oklch(0.145 0 0);
     --foreground: oklch(0.985 0 0);

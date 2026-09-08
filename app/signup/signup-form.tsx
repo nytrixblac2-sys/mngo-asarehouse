@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Building2, User, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { Building2, User, Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 import { signUp } from "./actions";
 
 const inputStyle: React.CSSProperties = {
@@ -39,9 +39,16 @@ const iconStyle: React.CSSProperties = {
 
 export function SignupForm({ errorMessage }: { errorMessage: string | null }) {
   const [showPw, setShowPw] = useState(false);
+  // See app/login/login-form.tsx's identical submitting state for why
+  // this is a plain onSubmit flag rather than useFormStatus.
+  const [submitting, setSubmitting] = useState(false);
 
   return (
-    <form action={signUp} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+    <form
+      action={signUp}
+      onSubmit={() => setSubmitting(true)}
+      style={{ display: "flex", flexDirection: "column", gap: 14 }}
+    >
       <div>
         <label style={labelStyle} htmlFor="sf-company">Company / management name</label>
         <div style={{ position: "relative" }}>
@@ -134,6 +141,7 @@ export function SignupForm({ errorMessage }: { errorMessage: string | null }) {
 
       <button
         type="submit"
+        disabled={submitting}
         style={{
           width: "100%",
           fontSize: "0.875rem",
@@ -143,13 +151,19 @@ export function SignupForm({ errorMessage }: { errorMessage: string | null }) {
           background: "var(--at-teal, #0D9488)",
           color: "#FFFFFF",
           border: "none",
-          cursor: "pointer",
+          cursor: submitting ? "not-allowed" : "pointer",
           fontFamily: "inherit",
           marginTop: 4,
-          transition: "background 0.18s",
+          transition: "background 0.18s, opacity 0.18s",
+          opacity: submitting ? 0.75 : 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 8,
         }}
       >
-        Create workspace
+        {submitting && <Loader2 size={15} className="animate-spin" />}
+        {submitting ? "Creating workspace…" : "Create workspace"}
       </button>
 
       <p style={{ fontSize: "0.78rem", textAlign: "center", color: "var(--at-t2, #3D6663)", lineHeight: 1.55 }}>
