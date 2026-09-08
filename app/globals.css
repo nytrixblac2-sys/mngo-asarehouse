@@ -138,6 +138,47 @@
     --accent-soft: var(--accent-dk-soft, rgba(232, 245, 244, 0.1));
   }
 
+  /* components/auth-layout.tsx (login/signup). Previously computed these
+     as literal JS values from a `theme` React state defaulting to
+     "light" on first render — meaning the server-rendered HTML (and the
+     first client paint, before the correcting useEffect ran) was always
+     light regardless of the stored preference, a real flash-of-light-mode
+     bug the app/layout.tsx blocking script (above) couldn't prevent,
+     since that script only sets the data-theme *attribute* and this
+     component wasn't reading it at all — it had its own separate
+     JS-computed L/D palette objects. Moving the actual values here means
+     the browser's CSS engine resolves the correct theme on the very
+     first paint, the same way every other themed surface in this app
+     already works, with zero JS needed for initial correctness. User
+     report, 2026-09-08: "before the sign in screen loads it flashes as
+     light mode before switching to dark mode." */
+  .auth-layout {
+    --at-bg-layers: radial-gradient(ellipse 90% 55% at 50% -5%, rgba(13,148,136,0.09) 0%, transparent 70%), #FFFFFF;
+    --at-card: #FFFFFF;
+    --at-border: #CCE8E5;
+    --at-t1: #0C1A1A;
+    --at-t2: #3D6663;
+    --at-teal: #0D9488;
+    --at-teal-dk: #0F766E;
+    --at-teal-bg: rgba(13,148,136,0.08);
+    --at-teal-ring: rgba(13,148,136,0.22);
+    --at-input-bg: #F0FAFB;
+    --at-shadow: 0 4px 24px rgba(13,70,65,0.10);
+  }
+  [data-theme="dark"] .auth-layout {
+    --at-bg-layers: #030D0C;
+    --at-card: #0D1E1C;
+    --at-border: #123330;
+    --at-t1: #E8F5F4;
+    --at-t2: #6BA8A3;
+    --at-teal: #2DD4BF;
+    --at-teal-dk: #14B8A6;
+    --at-teal-bg: rgba(45,212,191,0.10);
+    --at-teal-ring: rgba(45,212,191,0.25);
+    --at-input-bg: #091412;
+    --at-shadow: 0 4px 24px rgba(0,0,0,0.55);
+  }
+
   .dark {
     --background: oklch(0.145 0 0);
     --foreground: oklch(0.985 0 0);

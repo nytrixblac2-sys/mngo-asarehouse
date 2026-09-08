@@ -20,6 +20,15 @@ const MOON = (
 
 const RELEASES = [
   {
+    version: "v1.0.10.0",
+    date: "September 2026",
+    tag: "Fix",
+    title: "Login/signup dark mode flash",
+    items: [
+      "Fixed the login and signup pages briefly flashing light mode before switching to dark on load",
+    ],
+  },
+  {
     version: "v1.0.9.9",
     date: "September 2026",
     tag: "Fix",
