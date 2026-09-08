@@ -184,7 +184,7 @@ export function LandingPage() {
       <div className={s.statsBand}>
         <div className={s.statsGrid}>
           {[
-            { n: "11", u: "+", l: "Properties managed\nacross Africa" },
+            { n: "2", u: "+", l: "Properties managed\nacross Africa" },
             { n: "98", u: "%", l: "Uptime SLA\nguaranteed" },
             { n: "3", u: "min", l: "Average setup time\nper workspace" },
           ].map(({ n, u, l }) => (

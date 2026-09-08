@@ -95,7 +95,7 @@ export default function PricingPage() {
   return (
     <div className={s.wrapper}>
       {/* NAV */}
-      <nav className={s.nav} style={{ position: "sticky", top: 0 }}>
+      <nav className={s.nav} style={{ position: "sticky", top: 0, background: "var(--lp-nav-bg)", borderBottom: "1px solid var(--lp-nav-bdr)", backdropFilter: "blur(18px)" }}>
         <div className={s.navInner}>
           <a href="/" className={s.logo}>MN<span className={s.logoG}>GO</span></a>
           <div className={s.navLinks}>

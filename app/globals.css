@@ -102,14 +102,24 @@
     --app-border: #E5E5E5;
     --app-text: #111111;
     --app-muted: #9B9B9B;
+    --app-teal: #00A699;
+    --app-teal-soft: rgba(0, 166, 153, 0.10);
   }
 
+  /* Dark palette matches the landing page's own dark theme
+     (components/landing-page.module.css --lp-*) — teal-tinted near-black
+     rather than plain gray, so the app and the marketing site read as the
+     same product instead of two different dark modes. User feedback,
+     2026-09-08: the landing page's dark mode "blends nice" with teal
+     accents; the app's own dark mode didn't match it at all. */
   [data-theme="dark"] {
-    --app-bg: #0E0E0E;
-    --app-card: #1A1A1A;
-    --app-border: #2D2D2D;
-    --app-text: #F0F0F0;
-    --app-muted: #6B6B6B;
+    --app-bg: #030D0C;
+    --app-card: #0D1E1C;
+    --app-border: #123330;
+    --app-text: #E8F5F4;
+    --app-muted: #6BA8A3;
+    --app-teal: #2DD4BF;
+    --app-teal-soft: rgba(45, 212, 191, 0.10);
   }
   .dark {
     --background: oklch(0.145 0 0);

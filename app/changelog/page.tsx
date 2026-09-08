@@ -20,6 +20,17 @@ const MOON = (
 
 const RELEASES = [
   {
+    version: "v1.0.9.7",
+    date: "September 2026",
+    tag: "Fix",
+    title: "Dark mode and pricing page polish",
+    items: [
+      "App dark mode now matches the landing page's teal-accented dark theme instead of a separate plain-gray one",
+      "Fixed the pricing page's menu bar showing page content through it while scrolling",
+      "Landing page stat corrected from 11+ to 2+ properties managed",
+    ],
+  },
+  {
     version: "v1.0.9.6",
     date: "September 2026",
     tag: "Fix",

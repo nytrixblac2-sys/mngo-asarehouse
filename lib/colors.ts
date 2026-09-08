@@ -20,8 +20,11 @@ export const C = {
   border: "var(--app-border, #E5E5E5)",
   text: "var(--app-text, #111111)",
   muted: "var(--app-muted, #9B9B9B)",
-  teal: "#00A699",
-  tealSoft: "rgba(0, 166, 153, 0.10)",
+  // Also theme-aware, matching the landing page's dark-mode teal
+  // (#2DD4BF, brighter against near-black) instead of the light-mode
+  // value going flat on a dark background — see globals.css [data-theme="dark"].
+  teal: "var(--app-teal, #00A699)",
+  tealSoft: "var(--app-teal-soft, rgba(0, 166, 153, 0.10))",
   amber: "#F59E0B",
   amberSoft: "rgba(245, 158, 11, 0.10)",
   /** Check-in/check-out day markers on the Bookings calendar views (Day,
