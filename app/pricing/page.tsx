@@ -137,7 +137,7 @@ export default function PricingPage() {
           <div style={{ textAlign: "center", maxWidth: 560, margin: "0 auto" }}>
             <div className={s.secLabel}>Pricing</div>
             <h1 className={s.secH2} style={{ marginTop: 12 }}>Transparent, property-first pricing</h1>
-            <p className={s.secSub}>No per-user fees. Pay for the plan that matches your operation size.</p>
+            <p className={s.secSub} style={{ margin: "0 auto" }}>No per-user fees. Pay for the plan that matches your operation size.</p>
           </div>
         </div>
       </section>

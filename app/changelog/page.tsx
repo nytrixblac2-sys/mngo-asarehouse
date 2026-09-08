@@ -20,6 +20,15 @@ const MOON = (
 
 const RELEASES = [
   {
+    version: "v1.0.9.8",
+    date: "September 2026",
+    tag: "Fix",
+    title: "Pricing page alignment",
+    items: [
+      "Fixed the pricing page's header subtext appearing off-center",
+    ],
+  },
+  {
     version: "v1.0.9.7",
     date: "September 2026",
     tag: "Fix",
