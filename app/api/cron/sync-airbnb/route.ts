@@ -6,7 +6,14 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Hourly cron job — triggered by Vercel Cron (vercel.json).
+ * Daily cron job (04:00 UTC) — triggered by Vercel Cron (vercel.json).
+ * Originally hourly, but Vercel's Hobby plan only allows cron jobs to run
+ * once per day — an hourly schedule silently failed deployment validation,
+ * so every push after this feature was added never actually went live
+ * (Vercel kept serving the last successful deployment with no error
+ * surfaced anywhere this project could see it). Switched to daily,
+ * 2026-09-08, to match the plan's limit; revisit if the workspace ever
+ * moves to a paid Vercel plan and wants tighter sync latency.
  * Vercel automatically sends `Authorization: Bearer <CRON_SECRET>` so this
  * endpoint is not callable from the browser without that secret.
  *

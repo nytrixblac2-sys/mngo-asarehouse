@@ -20,6 +20,15 @@ const MOON = (
 
 const RELEASES = [
   {
+    version: "v1.0.9.6",
+    date: "September 2026",
+    tag: "Fix",
+    title: "Airbnb sync frequency",
+    items: [
+      "Airbnb calendar sync now runs once a day instead of hourly, to fit within our current Vercel plan's cron limits",
+    ],
+  },
+  {
     version: "v1.0.9.5",
     date: "September 2026",
     tag: "Feature",
