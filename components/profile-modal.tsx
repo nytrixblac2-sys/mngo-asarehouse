@@ -113,47 +113,59 @@ export function ProfileModal({
                 </button>
               </div>
               <div className="flex flex-col gap-2">
-                {usersQuery.data?.map((u) => (
-                  <div key={u.id} className="flex items-center justify-between py-2 px-3 rounded-xl" style={{ background: C.bg }}>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate" style={{ color: C.text }}>{u.name}</p>
-                      <p className="text-xs truncate" style={{ color: C.muted }}>{u.email}</p>
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <Pill tone={u.role === "PROPERTY_OWNER" ? "muted" : "teal"}>
-                        {u.role === "PROPERTY_OWNER" ? "Owner" : "Manager"}
-                      </Pill>
-                      {u.role === "PROPERTY_OWNER" && (
-                        <button
-                          onClick={() => startPreview(u)}
-                          className="text-xs font-semibold px-2 py-1 rounded-lg"
-                          style={{ background: "#FEF9C3", color: "#92400E" }}
-                        >
-                          Preview
-                        </button>
-                      )}
-                      {u.role === "PROPERTY_OWNER" &&
-                        (confirmRemoveId === u.id ? (
-                          <>
-                            <button
-                              onClick={() => { removeAccess.mutate(u.id); setConfirmRemoveId(null); }}
-                              className="text-xs font-semibold"
-                              style={{ color: "var(--accent, #111111)" }}
-                            >
-                              Confirm
-                            </button>
-                            <button onClick={() => setConfirmRemoveId(null)} className="text-xs font-medium" style={{ color: C.muted }}>
-                              Cancel
-                            </button>
-                          </>
-                        ) : (
-                          <button onClick={() => setConfirmRemoveId(u.id)} className="text-xs font-medium" style={{ color: C.muted }}>
-                            Remove
+                {usersQuery.data?.map((u) => {
+                  // Property Owner access can be removed by any manager;
+                  // a Co-Manager's is more sensitive (it's full edit
+                  // access, a peer's not a limited view) so removing one
+                  // is Account-Owner-only, matching the server guard in
+                  // app/api/users/[id]/route.ts. Nobody can remove
+                  // themselves or the Account Owner (never shown here at
+                  // all — there's exactly one, created at signup).
+                  const canRemove =
+                    u.id !== realUser.id &&
+                    (u.role === "PROPERTY_OWNER" || (u.role === "CO_MANAGER" && realUser.role === "ACCOUNT_OWNER"));
+                  return (
+                    <div key={u.id} className="flex items-center justify-between py-2 px-3 rounded-xl" style={{ background: C.bg }}>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate" style={{ color: C.text }}>{u.name}</p>
+                        <p className="text-xs truncate" style={{ color: C.muted }}>{u.email}</p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <Pill tone={u.role === "PROPERTY_OWNER" ? "muted" : "teal"}>
+                          {u.role === "PROPERTY_OWNER" ? "Owner" : "Manager"}
+                        </Pill>
+                        {u.role === "PROPERTY_OWNER" && (
+                          <button
+                            onClick={() => startPreview(u)}
+                            className="text-xs font-semibold px-2 py-1 rounded-lg"
+                            style={{ background: "#FEF9C3", color: "#92400E" }}
+                          >
+                            Preview
                           </button>
-                        ))}
+                        )}
+                        {canRemove &&
+                          (confirmRemoveId === u.id ? (
+                            <>
+                              <button
+                                onClick={() => { removeAccess.mutate(u.id); setConfirmRemoveId(null); }}
+                                className="text-xs font-semibold"
+                                style={{ color: "var(--accent, #111111)" }}
+                              >
+                                Confirm
+                              </button>
+                              <button onClick={() => setConfirmRemoveId(null)} className="text-xs font-medium" style={{ color: C.muted }}>
+                                Cancel
+                              </button>
+                            </>
+                          ) : (
+                            <button onClick={() => setConfirmRemoveId(u.id)} className="text-xs font-medium" style={{ color: C.muted }}>
+                              Remove
+                            </button>
+                          ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
                 {usersQuery.data?.length === 0 && (
                   <p className="text-xs" style={{ color: C.muted }}>No one else has access yet.</p>
                 )}

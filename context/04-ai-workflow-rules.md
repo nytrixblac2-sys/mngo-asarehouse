@@ -1,5 +1,17 @@
 # Development Workflow
 
+## Versioning Scheme
+
+Version format is `MAJOR.MINOR.STAGE.BUILD` (e.g. `1.0.9.3`), each segment a single digit 0–9, tracked in `package.json`'s `version` field and mirrored at the top of `06-progress-tracker.md`. The last segment (BUILD) increments once per completed build/fix.
+
+**Rollover cascades like an odometer.** Every segment maxes out at 9, then resets to 0 and increments the segment to its left — which can itself cascade further left if it was also at 9:
+
+- `1.0.0.0` → `1.0.0.1` → … → `1.0.0.9` → `1.0.1.0` (BUILD rolled into STAGE)
+- `1.0.9.9` → `1.1.0.0` (BUILD rolled into STAGE, which *also* rolled into MINOR — **not** `1.0.10.0`)
+- `1.9.9.9` → `2.0.0.0` (same cascade, all the way to MAJOR)
+
+No segment is ever allowed to exceed 9. Before bumping the version, check whether the segment about to increment is already 9 — if so, that segment resets to 0 and the next one left increments instead, checking the same condition recursively. Real mistake made and corrected 2026-09-08: `1.0.9.9` was bumped to `1.0.10.0` instead of `1.1.0.0`, caught by the user and fixed the same session — see `06-progress-tracker.md`'s Version Log for the corrected entry.
+
 ## Approach
 
 Build MNGO incrementally using a spec-driven workflow. The context files define what to build, how to build it, and the current state of progress. Always implement against these specs — do not infer or invent behavior from scratch. The mockup (`07-mockup.jsx`) is the ground truth for UI behavior. When in doubt about how something should look or behave, the mockup is the reference.

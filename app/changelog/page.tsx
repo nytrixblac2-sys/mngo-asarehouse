@@ -20,7 +20,17 @@ const MOON = (
 
 const RELEASES = [
   {
-    version: "v1.0.10.0",
+    version: "v1.1.0.1",
+    date: "September 2026",
+    tag: "Feature",
+    title: "Remove Co-Manager access",
+    items: [
+      "Account Owners can now remove a Co-Manager's access, not just a Property Owner's",
+      "Nobody can remove their own access this way, to prevent accidental lockout",
+    ],
+  },
+  {
+    version: "v1.1.0.0",
     date: "September 2026",
     tag: "Fix",
     title: "Login/signup dark mode flash",
