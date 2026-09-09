@@ -2,9 +2,28 @@
  * Minimal iCal (RFC 5545) parser for Airbnb calendar feeds.
  *
  * Airbnb exports one VEVENT per booking plus placeholder "Airbnb (Not
- * available)" blocks for owner-blocked dates. Only real guest reservations
- * — where the SUMMARY contains a name inside parentheses that isn't
- * "Not available" — become MNGO bookings.
+ * available)" blocks for owner-blocked dates. A real reservation's
+ * SUMMARY is literally just "Reserved" — Airbnb does not include the
+ * guest's name anywhere in the feed, for privacy reasons. This was
+ * wrong in the original implementation (assumed a "Airbnb (Guest Name)"
+ * SUMMARY format that doesn't actually exist), which meant every real
+ * reservation was silently skipped as if it were a blocked-date
+ * placeholder — the sync ran without errors and simply never created a
+ * single booking. Fixed 2026-09-09 against a real Airbnb export feed.
+ *
+ * A blocked/unavailable placeholder always has a SUMMARY of the form
+ * "Airbnb (...)"; anything else is a real reservation. Since there's no
+ * guest name available, `extractReservationCode` pulls the reservation
+ * code out of the DESCRIPTION field's "Reservation URL" instead, used
+ * as a traceable placeholder guest label (e.g. "Airbnb guest (HM3ANFZ28H)")
+ * so the manager can look the booking up in their own Airbnb host
+ * dashboard once they need the guest's real name.
+ *
+ * There is no STATUS field for cancellations in Airbnb's real feed
+ * either — a cancelled reservation just disappears from the feed
+ * entirely. The cron job already detects this correctly by noticing a
+ * previously-synced UID is no longer present, independent of anything
+ * parsed here.
  */
 
 export interface ICalEvent {
@@ -14,7 +33,13 @@ export interface ICalEvent {
   dtStart: string;
   /** YYYY-MM-DD — check-out date (iCal DTEND is exclusive, matches MNGO's convention) */
   dtEnd: string;
-  status: "CONFIRMED" | "CANCELLED";
+  /** Raw DESCRIPTION text, if present — real reservations carry a
+   * "Reservation URL: .../details/<CODE>" line here; blocked-date
+   * placeholders have none. */
+  description: string | null;
+  /** false for an "Airbnb (...)" owner-blocked placeholder, true for
+   * anything else (in practice, always literally "Reserved"). */
+  isReservation: boolean;
 }
 
 function parseICalDate(value: string): string {
@@ -37,7 +62,7 @@ export function parseICalFeed(icsText: string): ICalEvent[] {
 
   const events: ICalEvent[] = [];
   let inEvent = false;
-  let cur: { uid?: string; summary?: string; dtStart?: string; dtEnd?: string; status?: string } = {};
+  let cur: { uid?: string; summary?: string; dtStart?: string; dtEnd?: string; description?: string } = {};
 
   for (const line of lines) {
     if (line === "BEGIN:VEVENT") {
@@ -48,12 +73,14 @@ export function parseICalFeed(icsText: string): ICalEvent[] {
     if (line === "END:VEVENT") {
       inEvent = false;
       if (cur.uid && cur.dtStart && cur.dtEnd) {
+        const summary = cur.summary ?? "";
         events.push({
           uid: cur.uid,
-          summary: cur.summary ?? "",
+          summary,
           dtStart: cur.dtStart,
           dtEnd: cur.dtEnd,
-          status: cur.status === "CANCELLED" ? "CANCELLED" : "CONFIRMED",
+          description: cur.description ?? null,
+          isReservation: !/^Airbnb \(/i.test(summary.trim()),
         });
       }
       cur = {};
@@ -72,22 +99,21 @@ export function parseICalFeed(icsText: string): ICalEvent[] {
     else if (prop === "DTSTART") cur.dtStart = parseICalDate(val);
     else if (prop === "DTEND") cur.dtEnd = parseICalDate(val);
     else if (prop === "SUMMARY") cur.summary = val;
-    else if (prop === "STATUS") cur.status = val.toUpperCase();
+    else if (prop === "DESCRIPTION") cur.description = val;
   }
 
   return events;
 }
 
 /**
- * Extracts the guest's name from an Airbnb iCal SUMMARY.
- * "Airbnb (John S.)"  → "John S."
- * "Airbnb (Not available)" → null  (owner-blocked date, not a real guest)
- * Any other format         → null
+ * Pulls the reservation code out of a real reservation's DESCRIPTION,
+ * e.g. "Reservation URL: https://www.airbnb.com/hosting/reservations/
+ * details/HM3ANFZ28H\nPhone Number (Last 4 Digits): 1675" → "HM3ANFZ28H".
+ * Returns null if the description is missing or doesn't match (should
+ * only happen if Airbnb changes this format).
  */
-export function extractGuestName(summary: string): string | null {
-  const m = summary.match(/\(([^)]+)\)/);
-  if (!m) return null;
-  const name = m[1].trim();
-  if (name.toLowerCase() === "not available") return null;
-  return name || null;
+export function extractReservationCode(description: string | null): string | null {
+  if (!description) return null;
+  const m = description.match(/reservations\/details\/([A-Za-z0-9]+)/i);
+  return m ? m[1] : null;
 }

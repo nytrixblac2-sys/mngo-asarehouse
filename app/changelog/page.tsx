@@ -20,6 +20,16 @@ const MOON = (
 
 const RELEASES = [
   {
+    version: "v1.1.0.4",
+    date: "September 2026",
+    tag: "Fix",
+    title: "Airbnb sync actually creates bookings now",
+    items: [
+      "Fixed Airbnb calendar sync silently skipping every real reservation since it launched, due to a mismatch between the format we expected and what Airbnb actually sends",
+      "New bookings from Airbnb now appear with a traceable placeholder name (a reservation code) since Airbnb's calendar feed doesn't include the guest's name — rename it once you check Airbnb directly",
+    ],
+  },
+  {
     version: "v1.1.0.3",
     date: "September 2026",
     tag: "Fix",

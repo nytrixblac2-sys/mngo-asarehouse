@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { apiSuccess, apiError } from "@/lib/api-response";
-import { parseICalFeed, extractGuestName } from "@/lib/ical";
+import { parseICalFeed, extractReservationCode } from "@/lib/ical";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,11 +19,16 @@ export const dynamic = "force-dynamic";
  *
  * For each Property that has an airbnbICalUrl set:
  * 1. Fetch the iCal feed from Airbnb
- * 2. Parse events — create MNGO bookings for new confirmed guest reservations
- * 3. Soft-delete bookings whose UID no longer appears (cancelled on Airbnb)
- *    — only for future stays (past stays are kept as historical records)
+ * 2. Parse events — create MNGO bookings for new real reservations
+ * 3. Soft-delete bookings whose UID no longer appears (cancelled on Airbnb
+ *    — Airbnb's feed has no cancelled-status marker, a cancelled
+ *    reservation's VEVENT just disappears entirely) — only for future
+ *    stays (past stays are kept as historical records)
  *
- * Amount is always 0 on creation; manager fills it in. The dashboard
+ * Amount is always 0 on creation; manager fills it in. Guest is a
+ * placeholder ("Airbnb guest (<reservation code>)") since Airbnb's feed
+ * never includes the guest's actual name (see lib/ical.ts) — the manager
+ * renames it once they check Airbnb's own host dashboard. The dashboard
  * shows a "needs pricing" banner for bookings where icalUid IS NOT NULL
  * and amount = 0.
  */
@@ -53,31 +58,28 @@ export async function POST(req: Request) {
       const icsText = await res.text();
       const events = parseICalFeed(icsText);
 
-      const confirmedUids = new Set(
-        events.filter((e) => e.status === "CONFIRMED").map((e) => e.uid)
-      );
-      const cancelledUids = new Set(
-        events.filter((e) => e.status === "CANCELLED").map((e) => e.uid)
+      const reservationUids = new Set(
+        events.filter((e) => e.isReservation).map((e) => e.uid)
       );
 
       // Default to first currency on the property (managers can edit later)
       const defaultCurrency = (property.currencies[0] ?? "GHS") as "GHS" | "EUR";
 
-      // Create bookings for new confirmed events with a real guest name
+      // Create bookings for new reservations not already synced
       for (const event of events) {
-        if (event.status !== "CONFIRMED") continue;
-
-        const guestName = extractGuestName(event.summary);
-        if (!guestName) continue; // Skip "Not available" owner-blocked slots
+        if (!event.isReservation) continue; // Owner-blocked "Airbnb (...)" placeholder
 
         const exists = await prisma.booking.findUnique({ where: { icalUid: event.uid } });
         if (exists) continue;
+
+        const code = extractReservationCode(event.description);
+        const guest = code ? `Airbnb guest (${code})` : "Airbnb guest";
 
         await prisma.booking.create({
           data: {
             workspaceId: property.workspaceId,
             propertyId: property.id,
-            guest: guestName,
+            guest,
             checkIn: new Date(event.dtStart),
             checkOut: new Date(event.dtEnd),
             amount: 0,
@@ -90,7 +92,9 @@ export async function POST(req: Request) {
         created++;
       }
 
-      // Soft-delete future bookings whose UID disappeared from the feed or is explicitly cancelled
+      // Soft-delete future bookings whose UID disappeared from the feed
+      // entirely — Airbnb doesn't mark a cancelled reservation, it just
+      // removes the VEVENT, so "no longer present" is the only signal.
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
@@ -106,7 +110,7 @@ export async function POST(req: Request) {
 
       for (const booking of futureAirbnbBookings) {
         const uid = booking.icalUid!;
-        if (!confirmedUids.has(uid) || cancelledUids.has(uid)) {
+        if (!reservationUids.has(uid)) {
           await prisma.booking.update({
             where: { id: booking.id },
             data: {
