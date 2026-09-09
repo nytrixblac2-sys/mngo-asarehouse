@@ -20,6 +20,16 @@ const MOON = (
 
 const RELEASES = [
   {
+    version: "v1.1.0.3",
+    date: "September 2026",
+    tag: "Fix",
+    title: "Shop photo cropping and loading flash",
+    items: [
+      "Shop product photos now show the full image instead of a cropped close-up",
+      "Fixed the Shop page briefly flashing \"No products yet\" before real products loaded",
+    ],
+  },
+  {
     version: "v1.1.0.2",
     date: "September 2026",
     tag: "Fix",

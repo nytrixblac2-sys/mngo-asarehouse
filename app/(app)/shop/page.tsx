@@ -197,7 +197,7 @@ function ShopItemCard({
             src={item.imageUrl}
             alt={item.name}
             onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            style={{ width: "100%", height: "100%", objectFit: "contain" }}
           />
         ) : (
           getEmoji(item.name)
@@ -248,6 +248,20 @@ export default function ShopPage() {
       <div className="flex flex-col gap-5">
         <h1 className="text-2xl font-bold" style={{ color: C.text }}>Shop</h1>
         <Card><p className="text-sm" style={{ color: C.muted }}>The Shop is only available for RENTAL workspaces.</p></Card>
+      </div>
+    );
+  }
+
+  // Without this, shopItems briefly evaluates to [] while menuQuery is
+  // still loading (menuQuery.data is undefined, `?? []` fills in an empty
+  // array) — the "No products yet" empty state flashed on every load
+  // before the real products arrived, looking like the shop had been
+  // wiped. User report, 2026-09-09.
+  if (menuQuery.isLoading || shopOrdersQuery.isLoading) {
+    return (
+      <div className="flex flex-col gap-5">
+        <h1 className="text-2xl font-bold" style={{ color: C.text }}>Shop</h1>
+        <p className="text-sm" style={{ color: C.muted }}>Loading…</p>
       </div>
     );
   }
@@ -390,7 +404,7 @@ export default function ShopPage() {
                             src={newItem.imageUrl}
                             alt=""
                             onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                            style={{ width: "100%", height: "100%", objectFit: "contain" }}
                           />
                         ) : (
                           getEmoji(newItem.name)

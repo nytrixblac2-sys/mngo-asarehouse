@@ -269,7 +269,7 @@ export default function PublicShopPage({ params }: { params: { slug: string } })
                   <div key={item.id} style={{ background: "#fff", borderRadius: 16, padding: 16, display: "flex", alignItems: "center", gap: 12, border: "1px solid #F0F0F0" }}>
                     <div style={{ fontSize: 32, width: 48, height: 48, display: "flex", alignItems: "center", justifyContent: "center", background: "#F8F9FA", borderRadius: 12, overflow: "hidden" }}>
                       {item.imageUrl ? (
-                        <img src={item.imageUrl} alt={item.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        <img src={item.imageUrl} alt={item.name} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
                       ) : (
                         getEmoji(item.name)
                       )}
@@ -354,7 +354,7 @@ export default function PublicShopPage({ params }: { params: { slug: string } })
                     >
                       <div style={{ height: 100, background: "#F8F9FA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 44 }}>
                         {item.imageUrl ? (
-                          <img src={item.imageUrl} alt={item.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                          <img src={item.imageUrl} alt={item.name} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
                         ) : (
                           getEmoji(item.name)
                         )}
