@@ -267,8 +267,12 @@ export default function PublicShopPage({ params }: { params: { slug: string } })
               <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 24 }}>
                 {cart.map((item) => (
                   <div key={item.id} style={{ background: "#fff", borderRadius: 16, padding: 16, display: "flex", alignItems: "center", gap: 12, border: "1px solid #F0F0F0" }}>
-                    <div style={{ fontSize: 32, width: 48, height: 48, display: "flex", alignItems: "center", justifyContent: "center", background: "#F8F9FA", borderRadius: 12 }}>
-                      {getEmoji(item.name)}
+                    <div style={{ fontSize: 32, width: 48, height: 48, display: "flex", alignItems: "center", justifyContent: "center", background: "#F8F9FA", borderRadius: 12, overflow: "hidden" }}>
+                      {item.imageUrl ? (
+                        <img src={item.imageUrl} alt={item.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      ) : (
+                        getEmoji(item.name)
+                      )}
                     </div>
                     <div style={{ flex: 1 }}>
                       <p style={{ fontSize: 14, fontWeight: 600, color: "#1a1a1a" }}>{item.name}</p>

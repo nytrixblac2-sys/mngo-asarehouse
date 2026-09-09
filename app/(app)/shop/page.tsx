@@ -1,15 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { QrCode, Package, ShoppingBag, Check, ExternalLink, Plus } from "lucide-react";
+import { QrCode, Package, ShoppingBag, Check, ExternalLink, Plus, Pencil } from "lucide-react";
 import { Card, Pill } from "@/components/primitives";
 import { useEffectiveUser } from "@/components/effective-user-context";
 import { useWorkspace } from "@/lib/queries/workspace";
-import { useMenuItems, useCreateMenuItem, useDeleteMenuItem } from "@/lib/queries/menu";
+import { useMenuItems, useCreateMenuItem, useDeleteMenuItem, useUpdateMenuItem } from "@/lib/queries/menu";
+import type { MenuItemInput } from "@/lib/queries/menu";
 import { useShopOrders, useUpdateShopOrderStatus, useToggleShop } from "@/lib/queries/shop";
 import { C } from "@/lib/colors";
 import { fmtCurrency } from "@/lib/format";
-import type { IssueStatus } from "@/lib/types";
+import type { IssueStatus, MenuItem } from "@/lib/types";
 
 const STATUS_LABEL: Record<IssueStatus, string> = {
   OPEN: "Received",
@@ -50,6 +51,175 @@ function getEmoji(name: string): string {
   return "🛍️";
 }
 
+/**
+ * Same edit pattern as `/menu`'s `ItemRow` (PIN required for a real price
+ * change unless the actor is the ACCOUNT_OWNER — Architecture Decision
+ * 82), adapted to Shop's grid-card layout instead of a list row. Shop
+ * items are always `station: "SHOP"` — no station picker here, unlike
+ * the Menu screen's Kitchen/Bar choice, since there's nothing to choose.
+ */
+function ShopItemCard({
+  item,
+  canEdit,
+  isOwner,
+  onDelete,
+  deleteIsPending,
+  onUpdate,
+  updateIsPending,
+  updateError,
+}: {
+  item: MenuItem;
+  canEdit: boolean;
+  isOwner: boolean;
+  onDelete: () => void;
+  deleteIsPending: boolean;
+  onUpdate: (input: MenuItemInput, onSuccess: () => void) => void;
+  updateIsPending: boolean;
+  updateError: string | null;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftName, setDraftName] = useState(item.name);
+  const [draftCategory, setDraftCategory] = useState(item.category);
+  const [draftPrice, setDraftPrice] = useState(String(item.price));
+  const [draftImageUrl, setDraftImageUrl] = useState(item.imageUrl ?? "");
+  const [pin, setPin] = useState("");
+
+  const parsedPrice = parseFloat(draftPrice);
+  const priceChanged = parsedPrice !== item.price;
+  const needsPin = priceChanged && !isOwner;
+  const canSave = draftName.trim().length > 0 && draftCategory.trim().length > 0 && parsedPrice > 0 && (!needsPin || pin.trim().length > 0);
+
+  const startEdit = () => {
+    setDraftName(item.name);
+    setDraftCategory(item.category);
+    setDraftPrice(String(item.price));
+    setDraftImageUrl(item.imageUrl ?? "");
+    setPin("");
+    setIsEditing(true);
+  };
+
+  const handleSave = () => {
+    if (!canSave) return;
+    onUpdate(
+      {
+        name: draftName.trim(),
+        category: draftCategory.trim(),
+        price: parsedPrice,
+        currency: item.currency,
+        station: item.station,
+        alwaysAvailable: item.alwaysAvailable,
+        imageUrl: draftImageUrl.trim() || null,
+        pin: needsPin ? pin.trim() : undefined,
+      },
+      () => setIsEditing(false)
+    );
+  };
+
+  if (isEditing) {
+    return (
+      <div
+        className="rounded-2xl p-4 flex flex-col gap-2"
+        style={{ background: C.card, border: `1px solid ${C.border}` }}
+      >
+        <input
+          value={draftName}
+          onChange={(e) => setDraftName(e.target.value)}
+          placeholder="Name"
+          className="w-full px-2.5 py-2 rounded-lg text-sm"
+          style={{ border: `1px solid ${C.border}` }}
+        />
+        <div className="flex gap-2">
+          <input
+            value={draftPrice}
+            onChange={(e) => setDraftPrice(e.target.value)}
+            placeholder="Price"
+            type="number"
+            min="0"
+            step="0.01"
+            className="w-full px-2.5 py-2 rounded-lg text-sm"
+            style={{ border: `1px solid ${C.border}` }}
+          />
+          <input
+            value={draftCategory}
+            onChange={(e) => setDraftCategory(e.target.value)}
+            placeholder="Category"
+            className="w-full px-2.5 py-2 rounded-lg text-sm"
+            style={{ border: `1px solid ${C.border}` }}
+          />
+        </div>
+        <input
+          value={draftImageUrl}
+          onChange={(e) => setDraftImageUrl(e.target.value)}
+          placeholder="Image URL (optional)"
+          className="w-full px-2.5 py-2 rounded-lg text-sm"
+          style={{ border: `1px solid ${C.border}` }}
+        />
+        {needsPin && (
+          <input
+            value={pin}
+            onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
+            type="password"
+            inputMode="numeric"
+            placeholder="Owner PIN (price changed)"
+            className="w-full px-2.5 py-2 rounded-lg text-sm"
+            style={{ border: `1px solid ${C.border}` }}
+          />
+        )}
+        {updateError && <p className="text-xs text-destructive">{updateError}</p>}
+        <div className="flex items-center gap-3 mt-1">
+          <button
+            onClick={handleSave}
+            disabled={!canSave || updateIsPending}
+            className="text-xs font-semibold px-3 py-1.5 rounded-full"
+            style={{ background: canSave ? C.text : C.border, color: canSave ? "#fff" : C.muted }}
+          >
+            {updateIsPending ? "Saving…" : "Save"}
+          </button>
+          <button onClick={() => setIsEditing(false)} className="text-xs font-semibold" style={{ color: C.muted }}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="rounded-2xl p-4 flex flex-col gap-2"
+      style={{ background: C.card, border: `1px solid ${C.border}` }}
+    >
+      <div
+        className="w-full rounded-xl flex items-center justify-center text-4xl overflow-hidden"
+        style={{ height: 80, background: C.bg }}
+      >
+        {item.imageUrl ? (
+          <img
+            src={item.imageUrl}
+            alt={item.name}
+            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
+        ) : (
+          getEmoji(item.name)
+        )}
+      </div>
+      <p className="text-sm font-semibold" style={{ color: C.text }}>{item.name}</p>
+      <p className="text-xs font-semibold" style={{ color: C.teal }}>{fmtCurrency(item.price, item.currency)}</p>
+      <p className="text-xs" style={{ color: C.muted }}>{item.category}</p>
+      {canEdit && (
+        <div className="flex items-center gap-3 mt-1">
+          <button onClick={startEdit} className="text-xs font-semibold flex items-center gap-1" style={{ color: C.muted }}>
+            <Pencil size={12} /> Edit
+          </button>
+          <button onClick={onDelete} disabled={deleteIsPending} className="text-xs font-semibold" style={{ color: C.muted }}>
+            Remove
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ShopPage() {
   const { effectiveUser, effectiveCanEdit } = useEffectiveUser();
   const workspace = useWorkspace().data;
@@ -57,6 +227,7 @@ export default function ShopPage() {
   const shopOrdersQuery = useShopOrders();
   const createMenuItem = useCreateMenuItem();
   const deleteMenuItem = useDeleteMenuItem();
+  const updateMenuItem = useUpdateMenuItem();
   const updateStatus = useUpdateShopOrderStatus();
   const toggleShop = useToggleShop();
 
@@ -268,31 +439,21 @@ export default function ShopPage() {
 
           <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
             {shopItems.map((item) => (
-              <div
+              <ShopItemCard
                 key={item.id}
-                className="rounded-2xl p-4 flex flex-col gap-2"
-                style={{ background: C.card, border: `1px solid ${C.border}` }}
-              >
-                <div
-                  className="w-full rounded-xl flex items-center justify-center text-4xl"
-                  style={{ height: 80, background: C.bg }}
-                >
-                  {getEmoji(item.name)}
-                </div>
-                <p className="text-sm font-semibold" style={{ color: C.text }}>{item.name}</p>
-                <p className="text-xs font-semibold" style={{ color: C.teal }}>{fmtCurrency(item.price, item.currency)}</p>
-                <p className="text-xs" style={{ color: C.muted }}>{item.category}</p>
-                {effectiveCanEdit && (
-                  <button
-                    onClick={() => deleteMenuItem.mutate(item.id)}
-                    disabled={deleteMenuItem.isPending}
-                    className="text-xs font-semibold mt-1"
-                    style={{ color: C.muted }}
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
+                item={item}
+                canEdit={effectiveCanEdit}
+                isOwner={isOwner}
+                onDelete={() => deleteMenuItem.mutate(item.id)}
+                deleteIsPending={deleteMenuItem.isPending && deleteMenuItem.variables === item.id}
+                onUpdate={(input, onSuccess) => updateMenuItem.mutate({ id: item.id, input }, { onSuccess })}
+                updateIsPending={updateMenuItem.isPending && updateMenuItem.variables?.id === item.id}
+                updateError={
+                  updateMenuItem.isError && updateMenuItem.variables?.id === item.id
+                    ? (updateMenuItem.error as Error).message
+                    : null
+                }
+              />
             ))}
           </div>
         </div>

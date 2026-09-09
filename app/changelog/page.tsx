@@ -20,6 +20,16 @@ const MOON = (
 
 const RELEASES = [
   {
+    version: "v1.1.0.2",
+    date: "September 2026",
+    tag: "Fix",
+    title: "Shop product photos and editing",
+    items: [
+      "Fixed Shop product photos not showing up after adding them",
+      "Shop products can now be edited (name, price, category, photo), not just removed",
+    ],
+  },
+  {
     version: "v1.1.0.1",
     date: "September 2026",
     tag: "Feature",
