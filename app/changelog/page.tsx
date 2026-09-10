@@ -20,6 +20,16 @@ const MOON = (
 
 const RELEASES = [
   {
+    version: "v1.1.0.5",
+    date: "September 2026",
+    tag: "Fix",
+    title: "Airbnb sync duplicate bookings",
+    items: [
+      "Fixed Airbnb sync creating duplicate bookings for stays already entered by hand",
+      "Existing bookings with real guest names and prices are now correctly matched and kept, instead of a second copy being created",
+    ],
+  },
+  {
     version: "v1.1.0.4",
     date: "September 2026",
     tag: "Fix",
