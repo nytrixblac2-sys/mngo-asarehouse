@@ -184,9 +184,9 @@ export function LandingPage() {
       <div className={s.statsBand}>
         <div className={s.statsGrid}>
           {[
-            { n: "2", u: "+", l: "Properties managed\nacross Africa" },
-            { n: "98", u: "%", l: "Uptime SLA\nguaranteed" },
-            { n: "3", u: "min", l: "Average setup time\nper workspace" },
+            { n: "5", u: " property types", l: "Hotels, short-lets, co-working, events, restaurants" },
+            { n: "One", u: " dashboard", l: "Every booking, expense, and report" },
+            { n: "Zero", u: " spreadsheets", l: "Financials done for you" },
           ].map(({ n, u, l }) => (
             <div key={n} className={`${s.statCell} ${s.fu}`}>
               <div className={s.statN}>{n}<span className={s.statU}>{u}</span></div>
