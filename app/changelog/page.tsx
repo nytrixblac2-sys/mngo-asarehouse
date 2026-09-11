@@ -20,6 +20,15 @@ const MOON = (
 
 const RELEASES = [
   {
+    version: "v1.1.0.7",
+    date: "September 2026",
+    tag: "Improvement",
+    title: "Landing page stats numerals",
+    items: [
+      "Landing page stats now use numerals throughout: 5 property types, 1 dashboard, 0 spreadsheets",
+    ],
+  },
+  {
     version: "v1.1.0.6",
     date: "September 2026",
     tag: "Improvement",
