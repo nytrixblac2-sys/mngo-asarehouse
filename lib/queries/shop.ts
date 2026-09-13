@@ -2,10 +2,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchJson } from "@/lib/api-client";
 import type { ShopOrder } from "@/lib/types";
 
-export function useShopOrders() {
+/** `enabled` lets a PROPERTY_OWNER caller skip the request entirely — the
+ * server rejects /api/shop-orders for that role (Owner/Co-Manager only). */
+export function useShopOrders(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["shop-orders"],
     queryFn: () => fetchJson<ShopOrder[]>("/api/shop-orders"),
+    enabled: options?.enabled ?? true,
   });
 }
 

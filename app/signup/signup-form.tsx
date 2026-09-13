@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Building2, User, Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Building2, User, Mail, Lock, Eye, EyeOff, Loader2, Home, Store } from "lucide-react";
 import { signUp } from "./actions";
+
+type WorkspaceType = "RENTAL" | "STORE";
 
 const inputStyle: React.CSSProperties = {
   width: "100%",
@@ -37,8 +39,14 @@ const iconStyle: React.CSSProperties = {
   pointerEvents: "none",
 };
 
+const TYPE_OPTIONS: { value: WorkspaceType; label: string; description: string; icon: typeof Home }[] = [
+  { value: "RENTAL", label: "Rental property", description: "Airbnb, guesthouse, managed units", icon: Home },
+  { value: "STORE", label: "Shop / store", description: "Retail, phones, any storefront business", icon: Store },
+];
+
 export function SignupForm({ errorMessage }: { errorMessage: string | null }) {
   const [showPw, setShowPw] = useState(false);
+  const [workspaceType, setWorkspaceType] = useState<WorkspaceType>("RENTAL");
   // See app/login/login-form.tsx's identical submitting state for why
   // this is a plain onSubmit flag rather than useFormStatus.
   const [submitting, setSubmitting] = useState(false);
@@ -49,6 +57,34 @@ export function SignupForm({ errorMessage }: { errorMessage: string | null }) {
       onSubmit={() => setSubmitting(true)}
       style={{ display: "flex", flexDirection: "column", gap: 14 }}
     >
+      <input type="hidden" name="workspaceType" value={workspaceType} />
+
+      <div>
+        <label style={labelStyle}>What are you managing?</label>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+          {TYPE_OPTIONS.map(({ value, label, description, icon: Icon }) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setWorkspaceType(value)}
+              style={{
+                textAlign: "left",
+                padding: "10px 12px",
+                borderRadius: 10,
+                border: `1px solid ${workspaceType === value ? "var(--at-teal, #0D9488)" : "var(--at-border, #CCE8E5)"}`,
+                background: workspaceType === value ? "var(--at-teal-soft, #E6F7F5)" : "var(--at-input-bg, #F0FAFB)",
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              <Icon size={16} style={{ color: "var(--at-teal, #0D9488)" }} />
+              <p style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--at-t1, #0C1A1A)", marginTop: 6 }}>{label}</p>
+              <p style={{ fontSize: "0.7rem", color: "var(--at-t2, #3D6663)", marginTop: 2 }}>{description}</p>
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div>
         <label style={labelStyle} htmlFor="sf-company">Company / management name</label>
         <div style={{ position: "relative" }}>

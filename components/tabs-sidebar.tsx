@@ -50,11 +50,18 @@ export function TabsSidebar({
   // visible to a HOSTEL manager — she manages staff and needs the
   // roster — but the payment amounts inside it are owner-only, gated at
   // the page level (app/(app)/team/page.tsx), not hidden from the nav.
-  // RENTAL is untouched.
+  // RENTAL is untouched. STORE (added 2026-09-13) has no owner/operations/
+  // management split either, same as HOSTEL — same Financials-is-owner-
+  // only-for-non-owners rule applies. "Generate report" is hidden outright
+  // for STORE regardless of role — PDF reports haven't been built for it
+  // yet (lib/reports.ts is still entirely booking-shaped), not a
+  // role-based decision like the HOSTEL case.
   const isHostelNonOwner = workspace?.type === "HOSTEL" && effectiveUser.role !== "ACCOUNT_OWNER";
+  const isStore = workspace?.type === "STORE";
+  const isStoreNonOwner = isStore && effectiveUser.role !== "ACCOUNT_OWNER";
   const navItems = allNavItems.filter((i) => {
     if (i.key === "team" && !effectiveCanEdit) return false;
-    if (i.key === "financials" && isHostelNonOwner) return false;
+    if (i.key === "financials" && (isHostelNonOwner || isStoreNonOwner)) return false;
     return true;
   });
   const properties = useProperties(initialProperties).data ?? initialProperties;
@@ -83,7 +90,7 @@ export function TabsSidebar({
         ))}
       </div>
       <div className="mt-auto flex flex-col gap-1 pt-3" style={{ borderTop: `1px solid ${C.border}` }}>
-        {effectiveCanEdit && !isHostelNonOwner && (
+        {effectiveCanEdit && !isHostelNonOwner && !isStore && (
           <button
             onClick={() => setShowReportModal(true)}
             className="w-full text-left text-sm px-3 py-2.5 rounded-xl flex items-center gap-2"
@@ -119,7 +126,7 @@ export function TabsSidebar({
           onClose={() => setShowProfile(false)}
         />
       )}
-      {effectiveCanEdit && !isHostelNonOwner && showReportModal && (
+      {effectiveCanEdit && !isHostelNonOwner && !isStore && showReportModal && (
         <GenerateReportModal
           properties={properties}
           managementLabel={workspaceName}

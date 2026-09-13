@@ -16,6 +16,7 @@ import { useExpenses } from "@/lib/queries/expenses";
 import { useSchedules } from "@/lib/queries/schedules";
 import { useIssues } from "@/lib/queries/issues";
 import { useProperties } from "@/lib/queries/properties";
+import { useShopOrders } from "@/lib/queries/shop";
 import { useWorkspace } from "@/lib/queries/workspace";
 import { C } from "@/lib/colors";
 import { applyMomo, confirmedBookings } from "@/lib/financials";
@@ -78,6 +79,7 @@ export default function DashboardPage() {
   // though the dedicated Financials page already blocked them from it.
   const isCoManager = effectiveUser.role === "CO_MANAGER";
   const workspace = useWorkspace().data;
+  const isStore = workspace?.type === "STORE";
 
   const bookingsQuery = useBookings();
   const expensesQuery = useExpenses();
@@ -89,6 +91,10 @@ export default function DashboardPage() {
   // pending-approvals banner needs order deletion requests too, not just
   // booking ones).
   const ordersQuery = useOrders(undefined, { enabled: isOwner && workspace?.type === "HOSTEL" });
+  // STORE has no bookings at all — its dashboard is a distinct branch
+  // below sourced from ShopOrder instead (Stage 2 of the STORE build,
+  // 2026-09-13). Skipped entirely for RENTAL/HOSTEL.
+  const shopOrdersQuery = useShopOrders({ enabled: isStore });
   const confirmPayout = useConfirmBookingPayout();
   const unconfirmPayout = useUnconfirmBookingPayout();
   const approveBookingDeletion = useApproveBookingDeletion();
@@ -97,8 +103,8 @@ export default function DashboardPage() {
   const rejectOrderDeletion = useRejectOrderDeletion();
 
   const isLoading =
-    bookingsQuery.isLoading || expensesQuery.isLoading || schedulesQuery.isLoading || issuesQuery.isLoading;
-  const isError = bookingsQuery.isError || expensesQuery.isError || schedulesQuery.isError || issuesQuery.isError;
+    bookingsQuery.isLoading || expensesQuery.isLoading || schedulesQuery.isLoading || issuesQuery.isLoading || shopOrdersQuery.isLoading;
+  const isError = bookingsQuery.isError || expensesQuery.isError || schedulesQuery.isError || issuesQuery.isError || shopOrdersQuery.isError;
 
   const showPropertyTag = (propertiesQuery.data?.length ?? 0) > 1;
   const bookings = withPropertyFilter(bookingsQuery.data, activePropertyId);
@@ -199,6 +205,193 @@ export default function DashboardPage() {
   }
   if (isError) {
     return <p className="text-sm text-destructive">Something went wrong loading the dashboard.</p>;
+  }
+
+  // STORE has no bookings — no occupancy, no "Upcoming stays", no
+  // Airbnb-pricing banner, no owner delete-request approvals (ShopOrder has
+  // no delete-request flow). Its finance chart sources income from
+  // ShopOrder line items instead of confirmed bookings, and "Upcoming
+  // stays" is replaced by a recent-orders list. Open issues and Upcoming
+  // schedules are identical to RENTAL/HOSTEL — reused as-is above.
+  if (isStore) {
+    const shopOrders = shopOrdersQuery.data ?? [];
+    // createdAt is a full ISO datetime; inRange compares against date-only
+    // range boundaries, so this must be truncated first — a full timestamp
+    // string sorts *after* its own date-only prefix, which would make the
+    // range-end comparison fail for orders placed on the last day.
+    const currentShopOrders = shopOrders.filter((o) => inRange(o.createdAt.slice(0, 10), period.current));
+    const previousShopOrders = shopOrders.filter((o) => inRange(o.createdAt.slice(0, 10), period.previous));
+    const sumOrdersByCurrency = (list: typeof shopOrders, currency: Currency) =>
+      list.flatMap((o) => o.items).filter((i) => i.currency === currency).reduce((s, i) => s + Number(i.unitPrice) * i.quantity, 0);
+    const currentStoreIncomeGHS = sumOrdersByCurrency(currentShopOrders, "GHS");
+    const previousStoreIncomeGHS = sumOrdersByCurrency(previousShopOrders, "GHS");
+    const currentStoreIncomeEUR = sumOrdersByCurrency(currentShopOrders, "EUR");
+    const previousStoreIncomeEUR = sumOrdersByCurrency(previousShopOrders, "EUR");
+    const currentStoreIncomeForChart = chartCurrency === "GHS" ? currentStoreIncomeGHS : currentStoreIncomeEUR;
+    const previousStoreIncomeForChart = chartCurrency === "GHS" ? previousStoreIncomeGHS : previousStoreIncomeEUR;
+    const [currentStoreFinanceValue, previousStoreFinanceValue] =
+      financeView === "expenses" ? [currentExpenses, previousExpenses] : [currentStoreIncomeForChart, previousStoreIncomeForChart];
+    const storeChartData = [
+      { label: period.previous.label, value: Math.round(previousStoreFinanceValue) },
+      { label: period.current.label, value: Math.round(currentStoreFinanceValue) },
+    ];
+    const recentShopOrders = [...shopOrders].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)).slice(0, 5);
+
+    return (
+      <div className="flex flex-col gap-6">
+        <div>
+          <h1 className="text-2xl font-bold" style={{ color: C.text }}>
+            {timeOfDayGreeting()}, {effectiveUser.name}
+          </h1>
+          <p className="text-sm mt-1" style={{ color: C.muted }}>
+            {dateLabel} — here&apos;s where things stand.
+          </p>
+        </div>
+
+        {openIssues.length > 0 && (
+          <Card style={{ background: "var(--accent-soft, rgba(0,0,0,0.07))", border: "1px solid rgba(255,90,95,0.2)" }}>
+            <p className="text-sm font-semibold mb-2" style={{ color: "var(--accent, #111111)" }}>
+              Open issues ({openIssues.length})
+            </p>
+            <div className="flex flex-col gap-1.5">
+              {openIssues.map((i) => (
+                <button
+                  key={i.id}
+                  onClick={() => router.push(`/issues?issueId=${i.id}`)}
+                  className="w-full text-left flex items-center justify-between py-2 px-3 rounded-xl"
+                  style={{ background: C.bg }}
+                >
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: C.text }}>
+                      {ISSUE_TYPE_LABEL[i.type]}
+                    </p>
+                    <p className="text-xs mt-0.5" style={{ color: C.muted }}>
+                      {i.description}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+                    <Pill tone={ISSUE_STATUS_TONE[i.status!]}>{ISSUE_STATUS_LABEL[i.status!]}</Pill>
+                    <ChevronRight size={14} style={{ color: C.muted }} />
+                  </div>
+                </button>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        <Card style={{ background: C.tealSoft, border: "1px solid rgba(0,166,153,0.2)" }}>
+          <p className="text-sm font-semibold mb-2" style={{ color: C.teal }}>
+            Upcoming schedules
+          </p>
+          <div className="flex flex-col gap-1.5">
+            {upcomingShifts.length === 0 && (
+              <p className="text-sm" style={{ color: C.muted }}>
+                No schedules yet.
+              </p>
+            )}
+            {upcomingShifts.map((s) => (
+              <div key={s.id} className="flex items-center justify-between py-2 px-3 rounded-xl" style={{ background: C.bg }}>
+                <div>
+                  <p className="text-sm font-semibold" style={{ color: C.text }}>
+                    {SCHEDULE_TYPE_LABEL[s.type]}
+                  </p>
+                  <p className="text-xs mt-0.5" style={{ color: C.muted }}>
+                    {s.assignedTo}
+                    {s.note ? ` · ${s.note}` : ""}
+                  </p>
+                </div>
+                <span className="text-xs font-semibold flex-shrink-0 ml-3" style={{ color: C.teal }}>
+                  {s.date}
+                </span>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        {!isCoManager && (
+          <Card>
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-sm font-semibold" style={{ color: C.text }}>
+                {period.current.label} vs {period.previous.label}
+              </p>
+              <div className="flex items-center gap-1 rounded-full p-1" style={{ background: C.bg }}>
+                {PERIOD_KEYS.map((k) => (
+                  <button
+                    key={k}
+                    onClick={() => setPeriodKey(k)}
+                    className="text-xs font-semibold px-3 py-1.5 rounded-full"
+                    style={{ background: periodKey === k ? C.card : "transparent", color: periodKey === k ? C.text : C.muted }}
+                  >
+                    {k}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center justify-between mb-3">
+              <SubToggle
+                value={financeView}
+                onChange={setFinanceView}
+                options={[
+                  { key: "expenses", label: "Expenses" },
+                  { key: "income", label: "Income" },
+                ]}
+              />
+              <CurrencyToggle value={chartCurrency} onChange={setChartCurrency} currencies={["GHS", "EUR"]} />
+            </div>
+            <div style={{ height: 160 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={storeChartData} margin={{ top: 4, right: 8, left: 8, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={C.border} />
+                  <XAxis dataKey="label" tick={{ fontSize: 12, fill: C.muted }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: C.muted }} axisLine={false} tickLine={false} width={40} />
+                  <Tooltip
+                    formatter={(v) => fmtCurrency(Number(v), chartCurrency)}
+                    contentStyle={{ borderRadius: 12, border: `1px solid ${C.border}`, fontSize: 12 }}
+                  />
+                  <Bar dataKey="value" fill="var(--accent, #111111)" radius={[6, 6, 0, 0]} barSize={48} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex flex-col gap-2 mt-3">
+              <DeltaStat label="Orders" current={currentShopOrders.length} previous={previousShopOrders.length} />
+              <DeltaStat label="Income (GHS)" current={currentStoreIncomeGHS} previous={previousStoreIncomeGHS} format={fmtGHS} />
+              <DeltaStat label="Income (EUR)" current={currentStoreIncomeEUR} previous={previousStoreIncomeEUR} format={fmtEUR} />
+            </div>
+          </Card>
+        )}
+
+        <Card>
+          <p className="text-sm font-semibold mb-4" style={{ color: C.text }}>
+            Recent orders
+          </p>
+          <div className="flex flex-col divide-y" style={{ borderColor: C.border }}>
+            {recentShopOrders.length === 0 && (
+              <p className="text-sm" style={{ color: C.muted }}>
+                No orders yet.
+              </p>
+            )}
+            {recentShopOrders.map((o) => {
+              const total = o.items.reduce((s, i) => s + Number(i.unitPrice) * i.quantity, 0);
+              const currency = o.items[0]?.currency ?? "GHS";
+              return (
+                <div key={o.id} className="flex items-center justify-between py-3 first:pt-0 last:pb-0">
+                  <div>
+                    <p className="text-sm font-medium" style={{ color: C.text }}>{o.guestName}</p>
+                    <p className="text-xs" style={{ color: C.muted }}>
+                      {o.items.length} item{o.items.length === 1 ? "" : "s"} · {new Date(o.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-medium" style={{ color: C.text }}>{fmtCurrency(total, currency)}</span>
+                    <Pill tone={ISSUE_STATUS_TONE[o.status]}>{ISSUE_STATUS_LABEL[o.status]}</Pill>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      </div>
+    );
   }
 
   return (

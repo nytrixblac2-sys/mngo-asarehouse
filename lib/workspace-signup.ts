@@ -10,6 +10,12 @@ export const workspaceSignupSchema = z
     email: z.string().email(),
     password: z.string().min(8, "Password must be at least 8 characters"),
     confirmPassword: z.string(),
+    // HOSTEL isn't offered here — every real Hostel workspace so far has
+    // been admin/manual-onboarded (Escape3Points), and its financial model
+    // (fixed 100/0/0 allocation, room-based bookings) needs a person to set
+    // up correctly, not a self-serve form. RENTAL and STORE (added
+    // 2026-09-13) are the two public self-serve options.
+    workspaceType: z.enum(["RENTAL", "STORE"]).default("RENTAL"),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords don't match",
@@ -72,7 +78,7 @@ export async function signUpWorkspace(input: WorkspaceSignupInput) {
   try {
     const slug = await uniqueWorkspaceSlug(input.companyName);
     const workspace = await prisma.workspace.create({
-      data: { name: input.companyName, slug, status: "PENDING", paid: false },
+      data: { name: input.companyName, slug, type: input.workspaceType, status: "PENDING", paid: false },
     });
 
     const user = await prisma.user.create({

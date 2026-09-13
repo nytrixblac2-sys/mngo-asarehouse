@@ -4,6 +4,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight, Plus, AlertTriangle, ClipboardList, Upload } from "lucide-react";
 import { useEffectiveUser } from "@/components/effective-user-context";
+import { Card } from "@/components/primitives";
 import { DeletedBookingsLog } from "@/components/deleted-bookings-log";
 import { useAppStore } from "@/store/use-app-store";
 import { useApproveBookingDeletion, useBookings, useCheckoutBooking, useConfirmBookingPayout, useCreateBooking, useDeleteBooking, useRejectBookingDeletion, useUnconfirmBookingPayout, useUpdateBooking } from "@/lib/queries/bookings";
@@ -145,6 +146,14 @@ function BookingsScreen() {
   }
   if (isError) {
     return <p className="text-sm text-destructive">Something went wrong loading bookings.</p>;
+  }
+  if (workspace?.type === "STORE") {
+    return (
+      <div className="flex flex-col gap-5">
+        <h1 className="text-2xl font-bold" style={{ color: C.text }}>Bookings</h1>
+        <Card><p className="text-sm" style={{ color: C.muted }}>Store workspaces don&apos;t have bookings — see Shop instead.</p></Card>
+      </div>
+    );
   }
   if ((propertiesQuery.data?.length ?? 0) === 0) {
     return (

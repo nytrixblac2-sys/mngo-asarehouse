@@ -43,8 +43,21 @@ export const NAV_ITEMS_RENTAL_SHOP = [
   { key: "financials", label: "Financials", href: "/financials" },
 ] as const;
 
+/** STORE workspaces (added 2026-09-13) — standalone shops/retail
+ * businesses with no bookings at all. Same nav shape as
+ * NAV_ITEMS_RENTAL_SHOP minus "Bookings" — Shop is the whole business,
+ * not an optional guest add-on, so it's always present, not toggled. */
+export const NAV_ITEMS_STORE = [
+  { key: "dashboard", label: "Dashboard", href: "/dashboard" },
+  { key: "shop", label: "Shop", href: "/shop" },
+  { key: "issues", label: "Issues & Schedules", href: "/issues" },
+  { key: "team", label: "Team", href: "/team" },
+  { key: "financials", label: "Financials", href: "/financials" },
+] as const;
+
 export function getNavItems(workspaceType: WorkspaceType | undefined, hasShop?: boolean) {
   if (workspaceType === "HOSTEL") return NAV_ITEMS_HOSTEL;
+  if (workspaceType === "STORE") return NAV_ITEMS_STORE;
   // Show Shop nav for all RENTAL workspaces — hasShop controls the guest-facing
   // feature, not admin visibility. Owner navigates to /shop to enable it.
   if (workspaceType === "RENTAL") return NAV_ITEMS_RENTAL_SHOP;

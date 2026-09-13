@@ -19,6 +19,7 @@ export async function signUp(formData: FormData) {
     email: formData.get("email"),
     password: formData.get("password"),
     confirmPassword: formData.get("confirmPassword"),
+    workspaceType: formData.get("workspaceType") || undefined,
   });
   if (!parsed.success) {
     redirect(`/signup?error=${encodeURIComponent(parsed.error.issues[0]?.message ?? "invalid")}`);

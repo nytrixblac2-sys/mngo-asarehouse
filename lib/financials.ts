@@ -1,4 +1,4 @@
-import type { Allocation, Booking, Currency, Expense, ExpenseCategory, ManualIncome, Order, PrevBalance } from "./types";
+import type { Allocation, Booking, Currency, Expense, ExpenseCategory, ManualIncome, Order, PrevBalance, ShopOrder } from "./types";
 
 /**
  * Financial calculations — context/03-code-standards.md: "Financial logic
@@ -75,6 +75,20 @@ export function sumConfirmedIncomeHostel(bookings: Booking[], orders: Order[], c
   return bookings
     .filter((b) => b.status === "CONFIRMED")
     .reduce((sum, b) => sum + b.amount + bookingOrderTotal(b.id, orders, currency), 0);
+}
+
+/**
+ * STORE-aware confirmed income: a Store has no bookings at all — every sale
+ * is a ShopOrder, and (unlike a guest's RENTAL shop tab) money is collected
+ * at order time, so every order counts, regardless of its OPEN/IN_PROGRESS/
+ * RESOLVED fulfillment status — that status tracks whether the order has
+ * been handed over, not whether it was paid.
+ */
+export function sumConfirmedIncomeStore(orders: ShopOrder[], currency: Currency): number {
+  return orders
+    .flatMap((o) => o.items)
+    .filter((i) => i.currency === currency)
+    .reduce((sum, i) => sum + Number(i.unitPrice) * i.quantity, 0);
 }
 
 export function sumExpensesByCategory(expenses: Expense[], category: ExpenseCategory): number {

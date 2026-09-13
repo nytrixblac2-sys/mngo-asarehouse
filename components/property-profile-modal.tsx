@@ -9,6 +9,12 @@ import { useUpdatePropertyIcal } from "@/lib/queries/properties";
 import { RoomManagerPanel } from "./room-manager";
 
 const DEFAULT_ALLOCATION: Allocation = { owners: 60, operations: 15, management: 25 };
+// STORE has no owner/operations/management split (same as HOSTEL) — a
+// currency added via the toggle below must default to this, or a Store
+// that later adds EUR pricing would silently get a 60/15/25 split for that
+// currency with no allocation editor visible to fix it (Financials would
+// then quietly show only 60% of EUR sales as income).
+const STORE_ALLOCATION: Allocation = { owners: 100, operations: 0, management: 0 };
 const ALLOCATION_FIELDS: Array<[keyof Allocation, string]> = [
   ["owners", "Owners Fund"],
   ["operations", "Operations Fund"],
@@ -57,12 +63,14 @@ export function PropertyProfileModal({
   const [editingIcal, setEditingIcal] = useState(!property.airbnbICalUrl);
   const updateIcal = useUpdatePropertyIcal();
 
+  const isStore = workspaceType === "STORE";
+
   const toggleCurrency = (cur: Currency) => {
     const next = currencies.includes(cur) ? currencies.filter((c) => c !== cur) : [...currencies, cur];
     if (next.length === 0) return;
     setCurrencies(next);
     if (!allocation[cur]) {
-      setAllocation({ ...allocation, [cur]: DEFAULT_ALLOCATION });
+      setAllocation({ ...allocation, [cur]: isStore ? STORE_ALLOCATION : DEFAULT_ALLOCATION });
     }
   };
 
@@ -165,7 +173,7 @@ export function PropertyProfileModal({
             </div>
           </div>
 
-          {workspaceType !== "HOSTEL" && currencies.map((cur) => {
+          {workspaceType !== "HOSTEL" && !isStore && currencies.map((cur) => {
             const total = allocTotal(cur);
             const isValid = total === 100;
             const a = allocation[cur] ?? DEFAULT_ALLOCATION;
@@ -200,7 +208,10 @@ export function PropertyProfileModal({
             );
           })}
 
-          {workspaceType === "HOSTEL" ? (
+          {/* STORE has no rooms/facilities concept — a shop's physical
+              layout isn't tracked here (Stage 2 of the STORE build,
+              2026-09-13). */}
+          {!isStore && (workspaceType === "HOSTEL" ? (
             <RoomManagerPanel propertyId={property.id} />
           ) : (
             <div>
@@ -230,8 +241,9 @@ export function PropertyProfileModal({
                 </button>
               </div>
             </div>
-          )}
+          ))}
 
+          {!isStore && (
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: C.muted }}>Facilities</p>
             <div className="flex flex-wrap gap-2 mb-3">
@@ -261,8 +273,11 @@ export function PropertyProfileModal({
               </button>
             </div>
           </div>
+          )}
 
-          {/* Airbnb iCal sync — separate save, separate endpoint */}
+          {/* Airbnb iCal sync — separate save, separate endpoint. Not
+              applicable to STORE. */}
+          {!isStore && (
           <div>
             <div className="flex items-center gap-2 mb-1">
               <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: C.muted }}>Airbnb sync</p>
@@ -341,6 +356,7 @@ export function PropertyProfileModal({
               </div>
             )}
           </div>
+          )}
 
           <button
             onClick={handleSave}

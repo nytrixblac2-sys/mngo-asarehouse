@@ -19,9 +19,11 @@ const shopOrderInputSchema = z.object({
 export async function POST(req: Request, { params }: { params: { slug: string } }) {
   const workspace = await prisma.workspace.findUnique({
     where: { slug: params.slug },
-    select: { id: true, hasShop: true },
+    select: { id: true, type: true, hasShop: true },
   });
-  if (!workspace || !workspace.hasShop) return apiError("Shop not found", 404);
+  if (!workspace || (workspace.type !== "STORE" && !workspace.hasShop)) {
+    return apiError("Shop not found", 404);
+  }
 
   const parsed = shopOrderInputSchema.safeParse(await req.json());
   if (!parsed.success) return apiError(parsed.error.message, 400);

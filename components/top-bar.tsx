@@ -102,11 +102,13 @@ export function TopBar({
   const workspace = useWorkspace(initialWorkspace).data ?? initialWorkspace;
   const allNavItems = getNavItems(workspace?.type, workspace?.hasShop);
   // Same HOSTEL owner-only inversion as tabs-sidebar.tsx — see its comment
-  // and Architecture Decision 87.
+  // and Architecture Decision 87. STORE gets the same treatment.
   const isHostelNonOwner = workspace?.type === "HOSTEL" && effectiveUser.role !== "ACCOUNT_OWNER";
+  const isStore = workspace?.type === "STORE";
+  const isStoreNonOwner = isStore && effectiveUser.role !== "ACCOUNT_OWNER";
   const navItems = allNavItems.filter((i) => {
     if (i.key === "team" && !effectiveCanEdit) return false;
-    if (i.key === "financials" && isHostelNonOwner) return false;
+    if (i.key === "financials" && (isHostelNonOwner || isStoreNonOwner)) return false;
     return true;
   });
   // Reactive, cache-invalidated list — seeded with the server-rendered
@@ -156,7 +158,7 @@ export function TopBar({
               </Link>
             ))}
             <div style={{ borderTop: `1px solid ${C.border}`, margin: "6px 0" }} />
-            {effectiveCanEdit && !isHostelNonOwner && (
+            {effectiveCanEdit && !isHostelNonOwner && !isStore && (
               <button
                 onClick={() => { setShowReportModal(true); setMenuOpen(false); }}
                 className="w-full text-left text-sm px-3 py-2 rounded-lg flex items-center gap-2"
@@ -254,7 +256,7 @@ export function TopBar({
           onClose={() => setShowProfile(false)}
         />
       )}
-      {effectiveCanEdit && !isHostelNonOwner && showReportModal && (
+      {effectiveCanEdit && !isHostelNonOwner && !isStore && showReportModal && (
         <GenerateReportModal
           properties={properties}
           managementLabel={workspaceName}

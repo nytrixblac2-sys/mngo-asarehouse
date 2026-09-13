@@ -17,11 +17,12 @@ import { useCreateExpense, useExpenses, useUpdateExpense } from "@/lib/queries/e
 import { useCreateManualIncome, useManualIncome } from "@/lib/queries/manual-income";
 import { useOrders } from "@/lib/queries/orders";
 import { useProperties } from "@/lib/queries/properties";
+import { useShopOrders } from "@/lib/queries/shop";
 import { useTeam } from "@/lib/queries/team";
 import { useWorkspace } from "@/lib/queries/workspace";
 import { C } from "@/lib/colors";
 import { fmtCurrency } from "@/lib/format";
-import { applyMomo, bookingOrderTotal, computeManagementReport, computeOwnersReport, confirmedBookings, outstandingBookings, sumConfirmedIncome, sumConfirmedIncomeHostel } from "@/lib/financials";
+import { applyMomo, bookingOrderTotal, computeManagementReport, computeOwnersReport, confirmedBookings, outstandingBookings, sumConfirmedIncome, sumConfirmedIncomeHostel, sumConfirmedIncomeStore } from "@/lib/financials";
 import { EXPENSE_CATEGORY_LABEL, EXPENSE_CATEGORY_TONE } from "@/lib/labels";
 import { MONTH_NAMES, pad2 } from "@/lib/calendar";
 import type { Allocation, Currency, Expense, PrevBalance } from "@/lib/types";
@@ -73,15 +74,16 @@ export default function FinancialsPage() {
   const propertiesQuery = useProperties();
   const teamQuery = useTeam();
   const workspaceQuery = useWorkspace();
+  const shopOrdersQuery = useShopOrders({ enabled: workspaceQuery.data?.type === "STORE" });
 
   const createExpense = useCreateExpense();
   const updateExpense = useUpdateExpense();
   const createManualIncome = useCreateManualIncome();
 
   const isLoading =
-    bookingsQuery.isLoading || expensesQuery.isLoading || manualIncomeQuery.isLoading || ordersQuery.isLoading || propertiesQuery.isLoading;
+    bookingsQuery.isLoading || expensesQuery.isLoading || manualIncomeQuery.isLoading || ordersQuery.isLoading || propertiesQuery.isLoading || shopOrdersQuery.isLoading;
   const isError =
-    bookingsQuery.isError || expensesQuery.isError || manualIncomeQuery.isError || ordersQuery.isError || propertiesQuery.isError;
+    bookingsQuery.isError || expensesQuery.isError || manualIncomeQuery.isError || ordersQuery.isError || propertiesQuery.isError || shopOrdersQuery.isError;
 
   if (isLoading) {
     return <p className="text-sm" style={{ color: C.muted }}>Loading…</p>;
@@ -90,11 +92,13 @@ export default function FinancialsPage() {
     return <p className="text-sm text-destructive">Something went wrong loading financials.</p>;
   }
 
-  // HOSTEL-only: Financials is restricted to the ACCOUNT_OWNER — a
+  // HOSTEL/STORE-only: Financials is restricted to the ACCOUNT_OWNER — a
   // HOSTEL-specific inversion of the usual effectiveCanEdit gate, matching
   // tabs-sidebar.tsx/top-bar.tsx's nav hiding (Architecture Decision 85).
-  // RENTAL is untouched.
-  if (workspaceQuery.data?.type === "HOSTEL" && effectiveUser.role !== "ACCOUNT_OWNER") {
+  // STORE (added 2026-09-13) follows the same rule — same reasoning applies,
+  // no owner/operations/management split to show a Co-Manager either. RENTAL
+  // is untouched.
+  if ((workspaceQuery.data?.type === "HOSTEL" || workspaceQuery.data?.type === "STORE") && effectiveUser.role !== "ACCOUNT_OWNER") {
     return (
       <p className="text-sm" style={{ color: C.muted }}>
         You don&apos;t have access to this page.
@@ -129,6 +133,10 @@ export default function FinancialsPage() {
   // permanently-zero split, so they're hidden rather than left to render
   // meaningless 0% cards.
   const isHostel = workspaceQuery.data?.type === "HOSTEL";
+  // STORE (added 2026-09-13) has no bookings at all — every sale is a
+  // ShopOrder — and the same no-split reasoning as HOSTEL applies, so it
+  // reuses the same simple Income/Expenses/Balance card shape below.
+  const isStore = workspaceQuery.data?.type === "STORE";
   // "oakco" (team payments) is ACCOUNT_OWNER-only now (user request,
   // 2026-08-19: a Co-Manager shouldn't see money sent to team, matching
   // the HOSTEL rule below). Forced back to "owner" here rather than just
@@ -136,7 +144,7 @@ export default function FinancialsPage() {
   // persisted tab: "oakco" — flipped this way before the restriction
   // existed, or carried over on a shared browser from a different
   // account — would otherwise render neither tab's content at all.
-  const effectiveTab = isHostel || !isAccountOwner ? "owner" : tab;
+  const effectiveTab = isHostel || isStore || !isAccountOwner ? "owner" : tab;
 
   const ownerCur: Currency = propCurrencies.includes(ownerCurrency) ? ownerCurrency : propCurrencies[0];
   const oakCur: Currency = propCurrencies.includes(oakCurrency) ? oakCurrency : propCurrencies[0];
@@ -147,6 +155,11 @@ export default function FinancialsPage() {
   const propertyBookings = (bookingsQuery.data ?? []).filter((b) => b.propertyId === activeProperty.id);
   const propertyExpenses = (expensesQuery.data ?? []).filter((e) => e.propertyId === activeProperty.id);
   const propertyManualIncome = (manualIncomeQuery.data ?? []).filter((m) => m.propertyId === activeProperty.id);
+  // STORE has one property and no per-property scoping on ShopOrder (it
+  // isn't booking-shaped), so every workspace order counts here — matching
+  // how the Shop admin page already treats a Store's shop as the whole
+  // business rather than a per-property add-on.
+  const monthShopOrdersOwner = (shopOrdersQuery.data ?? []).filter((o) => o.createdAt.startsWith(monthPrefix));
 
   // Cash-basis: a booking counts toward a month's income when it was
   // *confirmed* (paidAt) in that month, not when the guest stayed
@@ -173,7 +186,9 @@ export default function FinancialsPage() {
 
   const orders = ordersQuery.data ?? [];
   const ownerReport = computeOwnersReport({
-    confirmedIncome: isHostel
+    confirmedIncome: isStore
+      ? sumConfirmedIncomeStore(monthShopOrdersOwner, ownerCur)
+      : isHostel
       ? sumConfirmedIncomeHostel(monthBookingsOwner, orders, ownerCur)
       : sumConfirmedIncome(monthBookingsOwner),
     allocation: allocOwner,
@@ -190,6 +205,16 @@ export default function FinancialsPage() {
     opsAmt: b.amount * (allocOwner.operations / 100),
     foodTotal: isHostel ? bookingOrderTotal(b.id, orders, ownerCur) : 0,
   }));
+  // STORE income rows are ShopOrder-shaped (guest name + line items, no
+  // check-in/checkout, no allocation split worth showing per-row since
+  // allocation is 100% owners) rather than Booking-shaped.
+  const storeIncomeRows = monthShopOrdersOwner
+    .map((o) => ({
+      order: o,
+      total: o.items.filter((i) => i.currency === ownerCur).reduce((s, i) => s + Number(i.unitPrice) * i.quantity, 0),
+    }))
+    .filter((r) => r.total > 0)
+    .sort((a, b) => (a.order.createdAt < b.order.createdAt ? 1 : -1));
 
   const oakReport = computeManagementReport({
     confirmedIncome: sumConfirmedIncome(monthBookingsOak),
@@ -247,7 +272,7 @@ export default function FinancialsPage() {
             <ChevronRight size={16} style={{ color: C.text }} />
           </button>
         )}
-        {effectiveCanEdit && (
+        {effectiveCanEdit && !isStore && (
           <button
             onClick={() => setShowReportModal(true)}
             className="flex items-center gap-2 text-sm font-semibold px-4 py-2.5 rounded-full ml-2"
@@ -258,7 +283,7 @@ export default function FinancialsPage() {
         )}
       </div>
 
-      {!isHostel && (
+      {!isHostel && !isStore && (
         <div className="flex items-center gap-1 rounded-full p-1 w-fit" style={{ background: C.bg }}>
           <button
             onClick={() => setTab("owner")}
@@ -283,7 +308,7 @@ export default function FinancialsPage() {
         <>
           <CurrencyToggle value={ownerCur} onChange={setOwnerCurrency} currencies={propCurrencies} />
 
-          {isHostel ? (
+          {isHostel || isStore ? (
             <Card>
               <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: C.muted }}>Income</p>
               <p className="text-2xl font-bold mt-2" style={{ color: C.text }}>{fmtCurrency(ownerReport.ownersAlloc + ownerReport.opsAlloc, ownerCur)}</p>
@@ -308,7 +333,7 @@ export default function FinancialsPage() {
           )}
 
           <Card style={{ background: C.teal }}>
-            <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.7)" }}>{isHostel ? "Running Balance" : "Owners Running Balance"} — {ownerCur}</p>
+            <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.7)" }}>{isHostel || isStore ? "Running Balance" : "Owners Running Balance"} — {ownerCur}</p>
             <div className="flex items-end justify-between mt-2">
               <p className="text-3xl font-bold" style={{ color: "#fff" }}>{fmtCurrency(ownerReport.runningBalance, ownerCur)}</p>
               <p className="text-xs" style={{ color: "rgba(255,255,255,0.7)" }}>prev {fmtCurrency(ownerReport.prevOwners, ownerCur)} + this month</p>
@@ -317,7 +342,50 @@ export default function FinancialsPage() {
 
           <SubToggle value={ownerSub} onChange={setOwnerSub} options={[{ key: "income", label: "Income" }, { key: "expenses", label: "Expenses" }]} />
 
-          {ownerSub === "income" && (
+          {ownerSub === "income" && isStore && (
+            <Card>
+              <p className="text-sm font-semibold mb-3" style={{ color: C.text }}>Income — {monthLabel} ({ownerCur})</p>
+              <div className="flex flex-col gap-2">
+                {storeIncomeRows.length === 0 && monthManualIncome.length === 0 && (
+                  <p className="text-sm" style={{ color: C.muted }}>No {ownerCur} income for {monthLabel}.</p>
+                )}
+                {storeIncomeRows.map((r) => (
+                  <div key={r.order.id} className="flex items-center justify-between py-2 px-3 rounded-xl" style={{ background: C.bg }}>
+                    <div>
+                      <p className="text-sm font-medium" style={{ color: C.text }}>{r.order.guestName}</p>
+                      <p className="text-xs" style={{ color: C.muted }}>{new Date(r.order.createdAt).toLocaleDateString()} · {r.order.items.length} item{r.order.items.length === 1 ? "" : "s"}</p>
+                    </div>
+                    <span className="text-sm font-semibold" style={{ color: C.text }}>{fmtCurrency(r.total, ownerCur)}</span>
+                  </div>
+                ))}
+                {monthManualIncome.map((m) => (
+                  <div key={m.id} className="flex items-center justify-between py-2 px-3 rounded-xl" style={{ background: C.bg }}>
+                    <div>
+                      <p className="text-sm font-medium" style={{ color: C.text }}>{m.description}</p>
+                      <p className="text-xs" style={{ color: C.muted }}>{m.date}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Pill tone="muted">Manual</Pill>
+                      <span className="text-sm font-semibold" style={{ color: C.text }}>{fmtCurrency(m.amount, ownerCur)}</span>
+                    </div>
+                  </div>
+                ))}
+                {(storeIncomeRows.length > 0 || monthManualIncome.length > 0) && (
+                  <div
+                    className="flex items-center justify-between py-2 px-3 mt-1"
+                    style={{ borderTop: `1px solid ${C.border}` }}
+                  >
+                    <span className="text-sm font-semibold" style={{ color: C.text }}>Total</span>
+                    <span className="text-sm font-bold" style={{ color: C.text }}>
+                      {fmtCurrency(ownerReport.ownersAlloc + ownerReport.opsAlloc + ownerReport.manualIncomeTotal, ownerCur)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </Card>
+          )}
+
+          {ownerSub === "income" && !isStore && (
             <Card>
               <p className="text-sm font-semibold mb-3" style={{ color: C.text }}>Income — {monthLabel} ({ownerCur})</p>
               <div className="flex flex-col gap-2">
@@ -557,8 +625,8 @@ export default function FinancialsPage() {
           onSubmit={(input) => { createExpense.mutate(input); setShowExpenseForm(false); }}
           defaultDate={new Date().toISOString().slice(0, 10)}
           defaultCurrency={effectiveTab === "oakco" ? oakCur : ownerCur}
-          defaultCategory={isHostel ? "OWNERS" : effectiveTab === "oakco" ? "MANAGEMENT" : "OPERATIONS"}
-          hideCategory={isHostel}
+          defaultCategory={isHostel || isStore ? "OWNERS" : effectiveTab === "oakco" ? "MANAGEMENT" : "OPERATIONS"}
+          hideCategory={isHostel || isStore}
           properties={properties}
           defaultPropertyId={defaultPropertyId}
           team={team}
@@ -573,14 +641,14 @@ export default function FinancialsPage() {
           defaultDate={editingExpense.date}
           defaultCurrency={editingExpense.currency}
           defaultCategory={editingExpense.category}
-          hideCategory={isHostel}
+          hideCategory={isHostel || isStore}
           properties={properties}
           defaultPropertyId={editingExpense.propertyId}
           team={team}
           managementLabel={workspaceName}
         />
       )}
-      {effectiveCanEdit && showReportModal && (
+      {effectiveCanEdit && !isStore && showReportModal && (
         <GenerateReportModal
           properties={properties}
           defaultPropertyId={activeProperty.id}

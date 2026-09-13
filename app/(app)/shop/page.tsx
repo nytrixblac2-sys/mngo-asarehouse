@@ -243,11 +243,13 @@ export default function ShopPage() {
 
   const shopUrl = workspace ? `${typeof window !== "undefined" ? window.location.origin : ""}/shop/${workspace.slug}` : "";
 
-  if (workspace && workspace.type !== "RENTAL") {
+  const isStoreWorkspace = workspace?.type === "STORE";
+
+  if (workspace && workspace.type !== "RENTAL" && !isStoreWorkspace) {
     return (
       <div className="flex flex-col gap-5">
         <h1 className="text-2xl font-bold" style={{ color: C.text }}>Shop</h1>
-        <Card><p className="text-sm" style={{ color: C.muted }}>The Shop is only available for RENTAL workspaces.</p></Card>
+        <Card><p className="text-sm" style={{ color: C.muted }}>The Shop is only available for RENTAL and STORE workspaces.</p></Card>
       </div>
     );
   }
@@ -289,7 +291,7 @@ export default function ShopPage() {
     <div className="flex flex-col gap-5">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold" style={{ color: C.text }}>Shop</h1>
-        {isOwner && (
+        {isOwner && !isStoreWorkspace && (
           <button
             onClick={() => toggleShop.mutate(!(workspace?.hasShop ?? false))}
             disabled={toggleShop.isPending}
@@ -305,16 +307,22 @@ export default function ShopPage() {
         )}
       </div>
 
-      {workspace?.hasShop && (
+      {/* STORE's shop link is always live — it's the whole business, not
+          an optional guest add-on toggled per-workspace like RENTAL's.
+          Whether the link is actually shareable on the current plan is a
+          separate, later restriction (Stage 4) — unrestricted for now. */}
+      {(isStoreWorkspace || workspace?.hasShop) && (
         <Card style={{ background: C.tealSoft, border: `1px solid rgba(0,166,153,0.2)` }}>
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-sm font-semibold mb-1" style={{ color: C.teal }}>
-                <QrCode size={14} className="inline mr-1" /> Guest shop link
+                <QrCode size={14} className="inline mr-1" /> {isStoreWorkspace ? "Store link" : "Guest shop link"}
               </p>
               <p className="text-xs break-all" style={{ color: C.teal }}>{shopUrl}</p>
               <p className="text-xs mt-1" style={{ color: C.muted }}>
-                Share this link or generate a QR code. Guests browse and order, then pay at checkout.
+                {isStoreWorkspace
+                  ? "Share this link or generate a QR code. Customers browse and order, then pay at checkout."
+                  : "Share this link or generate a QR code. Guests browse and order, then pay at checkout."}
               </p>
             </div>
             <a
@@ -330,7 +338,7 @@ export default function ShopPage() {
         </Card>
       )}
 
-      {!workspace?.hasShop && isOwner && (
+      {!isStoreWorkspace && !workspace?.hasShop && isOwner && (
         <Card>
           <p className="text-sm" style={{ color: C.muted }}>
             Enable the shop to let guests scan a QR code and browse your products. They can place orders and pay at checkout.
