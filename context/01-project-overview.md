@@ -109,3 +109,26 @@ MNGO is a web-based booking tracking, reporting, and owner insights platform bui
 3. Switching a property's color theme updates every accent-colored element across the entire app simultaneously.
 4. An Account Owner can preview any Property Owner's exact view and exit back to full manager access without losing state.
 5. GHS and EUR running balances update independently and never cross-contaminate.
+
+## Current Product State (as of v1.1.0.7, 2026-09-13)
+
+Everything above this section is the original V1 spec — still accurate for the RENTAL product's core (bookings, allocation splits, owner/manager roles), but the product has grown well past it since launch. This section is the up-to-date supplement; `06-progress-tracker.md`'s Version Log has the full blow-by-blow. Kept here, not folded into the sections above, so this file doesn't need a rewrite every time something ships — update this section (and the pricing figures especially) whenever it drifts from `app/pricing/page.tsx`, the actual source of truth for pricing copy.
+
+### Workspace types today
+
+- **RENTAL** — the original product described above (Oak & Co./Asare House). Optionally adds a guest-facing **Shop** (`Workspace.hasShop`) — a small in-house retail catalog (drinks, toiletries, souvenirs) guests browse and order from via a QR code tied to their stay, unrelated to the workspace's own subscription plan.
+- **HOSTEL** (Escape3Points) — priced rooms with server-computed nightly totals, a food & beverage menu with Kitchen/Bar order fulfillment, public guest self-service booking and stay-tracking, checkout receipts. No owner/operations/management income splits — a single Income/Expenses/Balance ledger instead.
+- **STORE** (planned, not yet built) — a third type for businesses that are only a shop or store (e.g. a phone retailer), with no bookings at all. Nav: Dashboard, Shop, Issues & Schedules, Team, Financials. Always exactly one location per workspace, same as RENTAL's one-property cap (Architecture Decision 94). Reuses the existing `MenuItem`/`ShopOrder`/`ShopOrderItem` models, which were already workspace-scoped rather than tied to a booking or property — see Architecture Decisions in `06-progress-tracker.md` once this is built for the actual design.
+
+### Pricing (real, current copy — see `app/pricing/page.tsx`)
+
+Four tiers, not three (the three-tier version — Starter free / Pro $29 / Enterprise custom — shipped first, restructured to four in v1.0.9.4):
+
+| Plan | Price | Key limits |
+|---|---|---|
+| Free | Free forever | 1 property, financials for the current month only, 2 staff accounts |
+| Starter | $19.99/mo | Up to 5 properties, full financials & reporting, 5 staff accounts |
+| Pro | $39.99/mo | Up to 20 properties, full financials & reporting, Menu & orders module, 10 staff accounts |
+| Enterprise | Custom | Unlimited properties/staff, dedicated support |
+
+**Important — pricing enforcement does not exist yet.** These tiers are marketing copy on the public `/pricing` page only. `Workspace` has a manually admin-toggled `paid: Boolean` (v1.0.1.6) but no `plan`/tier field at all — nothing in the app actually checks which plan a workspace is on or restricts behavior by it. Out of Scope's "Billing and subscription management" (above) is still true: no payment processor, no self-serve upgrade/downgrade. Building the planned Store feature's free-tier limits (current-month-only financials, no shareable public link, limited inventory history) will be the first time any plan tier is actually enforced in the app — see `06-progress-tracker.md` for the live design discussion and decisions once that work starts.

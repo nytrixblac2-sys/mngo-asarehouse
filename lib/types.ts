@@ -19,7 +19,15 @@ export type Currency = "GHS" | "EUR";
 export type BookingSource = "AIRBNB" | "LOCAL" | "WEBSITE";
 export type BookingStatus = "EXPECTED" | "CONFIRMED";
 
-export type WorkspaceType = "RENTAL" | "HOSTEL";
+/** STORE (added 2026-09-13) is for businesses that are only a shop or
+ * store — no bookings at all. See lib/nav.ts. */
+export type WorkspaceType = "RENTAL" | "HOSTEL" | "STORE";
+
+/** Real, enforced plan tier — mirrors the public /pricing page's four
+ * tiers. Enforcement is currently scoped to STORE-workspace features only
+ * (see lib/plan.ts) — RENTAL/HOSTEL are unaffected by a workspace's plan
+ * today, regardless of what value this holds. */
+export type WorkspacePlan = "FREE" | "STARTER" | "PRO" | "ENTERPRISE";
 
 /** "MANAGEMENT" is the generic term for the management company's cut — Oak
  * & Co. is the reference workspace's display name, not a schema value. */
@@ -54,6 +62,7 @@ export interface Workspace {
   name: string;
   slug: string;
   type: WorkspaceType;
+  plan: WorkspacePlan;
   accountOwnerId: string;
   hasShop: boolean;
 }

@@ -44,11 +44,32 @@ enum Currency {
 /// RENTAL is the original Oak & Co.-style short-term rental product (owner/
 /// operations/management income splits, free-typed booking amounts). HOSTEL
 /// is Escape3Points-style: fixed-price rooms, food & beverage ordering, no
-/// income splits, guest self-service booking/tracking. Drives which nav
-/// items and screens render — see lib/nav.ts.
+/// income splits, guest self-service booking/tracking. STORE (added
+/// 2026-09-13) is for businesses that are only a shop or store — a phone
+/// retailer, for example — with no bookings at all: Dashboard, Shop,
+/// Issues & Schedules, Team, Financials. Drives which nav items and
+/// screens render — see lib/nav.ts.
 enum WorkspaceType {
   RENTAL
   HOSTEL
+  STORE
+}
+
+/// Real, enforced plan tiers — added 2026-09-13 alongside the STORE type,
+/// the first time any plan is actually gated in the app (see Workspace.plan
+/// doc comment). Mirrors the public /pricing page's four tiers (Free/
+/// Starter/Pro/Enterprise), though enforcement is deliberately scoped to
+/// STORE-workspace features only for now — RENTAL/HOSTEL's own stated
+/// property/staff limits are a separate, later audit, not bundled into
+/// this work, since retroactively restricting the two live, real
+/// workspaces already using those features would be a live regression if
+/// rushed. One value per tier is enough — the pricing page's exact
+/// dollar amounts and feature copy live in app/pricing/page.tsx, not here.
+enum WorkspacePlan {
+  FREE
+  STARTER
+  PRO
+  ENTERPRISE
 }
 
 enum BookingSource {
@@ -142,8 +163,22 @@ model Workspace {
   /// platform admin approves the signup.
   status            WorkspaceStatus @default(PENDING)
   /// Manual paid/unpaid flag, admin-toggled from /admin — no payment
-  /// processor integration for V1 (billing handled outside MNGO).
+  /// processor integration for V1 (billing handled outside MNGO). Predates
+  /// `plan` below and is a coarser, still-unenforced signal; kept as-is
+  /// rather than removed since nothing currently reads it for gating either.
   paid              Boolean         @default(false)
+  /// Real, enforced plan tier — added 2026-09-13, admin-toggled from /admin
+  /// (same manual pattern as `paid` above, still no payment processor).
+  /// Defaults to FREE for every *new* workspace from here on, but the
+  /// migration that added this column backfilled every workspace that
+  /// already existed at the time to ENTERPRISE — both real, live
+  /// workspaces (Oak & Co./Asare House, Escape3Points) were already using
+  /// full financial history, more than 2 staff accounts, etc. before this
+  /// field existed, so defaulting them to FREE would have been a live
+  /// regression the moment enforcement shipped, not a real reflection of
+  /// what they'd actually purchased. See WorkspacePlan doc comment for
+  /// what's actually gated by this today (STORE-workspace features only).
+  plan              WorkspacePlan   @default(FREE)
   /// bcrypt hash of the owner-set PIN gating a menu item's price change —
   /// never the plaintext, never sent to the client. Null until the owner
   /// sets one via ProfileModal's Security section, available for every
@@ -168,31 +203,31 @@ model Workspace {
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
 
-
-  accountOwner User?          @relation("WorkspaceAccountOwner", fields: [accountOwnerId], references: [id])
-  users        User[]         @relation("WorkspaceUsers")
-  properties   Property[]
-  bookings     Booking[]
-  expenses     Expense[]
-  manualIncome ManualIncome[]
-  schedules    Schedule[]
-  issues       Issue[]
-  teamMembers  TeamMember[]
-  rooms        Room[]
-  menuItems    MenuItem[]
-  orders       Order[]
-  shopOrders   ShopOrder[]
+  accountOwner     User?             @relation("WorkspaceAccountOwner", fields: [accountOwnerId], references: [id])
+  users            User[]            @relation("WorkspaceUsers")
+  properties       Property[]
+  bookings         Booking[]
+  expenses         Expense[]
+  manualIncome     ManualIncome[]
+  schedules        Schedule[]
+  issues           Issue[]
+  teamMembers      TeamMember[]
+  rooms            Room[]
+  menuItems        MenuItem[]
+  orders           Order[]
+  shopOrders       ShopOrder[]
+  stockAdjustments StockAdjustment[]
 }
 
 /// App-level user profile. `authId` links to the Supabase Auth user
 /// (auth.users.id) — Supabase Auth owns credentials; this table owns role
 /// and workspace membership.
 model User {
-  id                 String   @id @default(uuid()) @db.Uuid
-  authId             String   @unique @db.Uuid
-  workspaceId        String   @db.Uuid
+  id                 String    @id @default(uuid()) @db.Uuid
+  authId             String    @unique @db.Uuid
+  workspaceId        String    @db.Uuid
   name               String
-  email              String   @unique
+  email              String    @unique
   role               Role
   /// True only for a user still on their manager-issued one-time invite
   /// password (app/api/users/route.ts) — the (app) layout redirects them to
@@ -388,14 +423,51 @@ model MenuItem {
   station          MenuStation @default(KITCHEN)
   /// Optional placeholder or real image URL for shop items.
   imageUrl         String?
+  /// Stock-on-hand — added 2026-09-13 for STORE workspaces. Null means
+  /// "not tracked" (every RENTAL Shop item and HOSTEL menu item — food and
+  /// gift-shop stock at Escape3Points/Asare House was never counted, and
+  /// still isn't; this stays null for them). A STORE product starts
+  /// tracking the moment it's given a real number. Decremented
+  /// automatically by lib/orders.ts/lib/shop.ts when a ShopOrder/Order is
+  /// placed against it; changed explicitly (restock, correction) through
+  /// StockAdjustment, which is the audit trail — this column is always
+  /// just the current total, never read backwards for history.
+  stockQuantity    Int?
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
 
-  workspace      Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  orderItems     OrderItem[]
-  shopOrderItems ShopOrderItem[]
+  workspace        Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  orderItems       OrderItem[]
+  shopOrderItems   ShopOrderItem[]
+  stockAdjustments StockAdjustment[]
 
   @@index([workspaceId])
+}
+
+/// Audit log for MenuItem.stockQuantity changes — added 2026-09-13 for
+/// STORE workspaces' inventory tracking. `delta` is signed (+5 restock,
+/// -1 sale, -2 correction for shrinkage/damage) so the running total is
+/// always reconstructable from the log, though MenuItem.stockQuantity
+/// itself is the fast-path source of truth for "how many do we have right
+/// now" — this table exists for the "what happened and when" view, which
+/// a FREE-plan STORE workspace only sees for the current month
+/// (lib/plan.ts) while the live stockQuantity always works regardless of
+/// plan. `reason` is short free text ("Sale", "Restock", "Correction")
+/// rather than an enum — nothing branches on it programmatically yet,
+/// it's only ever displayed.
+model StockAdjustment {
+  id          String   @id @default(uuid()) @db.Uuid
+  workspaceId String   @db.Uuid
+  menuItemId  String   @db.Uuid
+  delta       Int
+  reason      String
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  menuItem  MenuItem  @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([menuItemId])
 }
 
 /// A guest's order against their stay — one Booking can have many Orders
@@ -633,15 +705,15 @@ model RateLimitBucket {
 /// Status reuses IssueStatus (OPEN = received, IN_PROGRESS = preparing,
 /// RESOLVED = handed over / paid).
 model ShopOrder {
-  id          String        @id @default(uuid()) @db.Uuid
-  workspaceId String        @db.Uuid
+  id          String      @id @default(uuid()) @db.Uuid
+  workspaceId String      @db.Uuid
   guestName   String
   guestPhone  String?
   notes       String?
-  status      IssueStatus   @default(OPEN)
-  createdAt   DateTime      @default(now())
+  status      IssueStatus @default(OPEN)
+  createdAt   DateTime    @default(now())
 
-  workspace Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   items     ShopOrderItem[]
 
   @@index([workspaceId])

@@ -1,12 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchJson } from "@/lib/api-client";
-import type { WorkspaceType } from "@/lib/types";
+import type { WorkspacePlan, WorkspaceType } from "@/lib/types";
 
 export interface WorkspaceInfo {
   id: string;
   name: string;
   slug: string;
   type: WorkspaceType;
+  /** See lib/types.ts WorkspacePlan doc comment — enforcement is
+   * currently STORE-workspace-only. */
+  plan: WorkspacePlan;
   /** Whether the owner has set the action PIN (Architecture Decision 79)
    * — never the hash or plaintext itself, just presence. */
   hasPin: boolean;
