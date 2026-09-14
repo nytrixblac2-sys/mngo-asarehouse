@@ -8,6 +8,10 @@ export interface IssueInput {
   type: IssueType;
   description: string;
   guest?: string;
+  /** The specific booking this issue is about — see Issue.bookingId's
+   * schema doc comment for why this matters (the issue then shows across
+   * the whole stay on the calendar, not just the day it was logged). */
+  bookingId?: string;
 }
 
 export function useIssues() {

@@ -43,6 +43,13 @@ export async function POST(req: Request) {
     return apiError("Property not found", 404);
   }
 
+  if (parsed.data.bookingId) {
+    const booking = await prisma.booking.findUnique({ where: { id: parsed.data.bookingId } });
+    if (!booking || booking.workspaceId !== user.workspaceId) {
+      return apiError("Booking not found", 404);
+    }
+  }
+
   const initialStatus = parsed.data.type === "NOTE" ? null : ("OPEN" as const);
 
   const created = await prisma.issue.create({
@@ -53,6 +60,7 @@ export async function POST(req: Request) {
       type: parsed.data.type,
       description: parsed.data.description,
       guest: parsed.data.guest?.trim() || null,
+      bookingId: parsed.data.bookingId ?? null,
       status: initialStatus,
       statusHistory: initialStatus ? { create: [{ status: initialStatus }] } : undefined,
     },

@@ -324,6 +324,12 @@ export interface Issue {
   /** Set only for a server-created ROOM_DIRTY issue (booking checkout) —
    * ties the issue to the specific room, same pattern as Booking.roomId. */
   roomId: string | null;
+  /** The specific booking this issue is about, when logged via the
+   * "Related guest" picker — see lib/calendar.ts's `issueAppliesOnDay`,
+   * which uses this to show the issue across the whole stay rather than
+   * just the day it was logged. Null for staff/maintenance issues and
+   * for issues logged before this field existed. */
+  bookingId: string | null;
   /** null for NOTE-type issues — they never enter the Open/In
    * Progress/Resolved lifecycle. */
   status: IssueStatus | null;

@@ -44,7 +44,7 @@ export function PerStayView({
   /** Accepts a full ISO date directly, not just a day-in-active-month
    * number — see the call sites below (Architecture Decision 60). */
   onSchedule: (dayOrDate: number | string) => void;
-  onLogIssue: (dayOrDate: number | string, guest?: string) => void;
+  onLogIssue: (dayOrDate: number | string, guest?: string, bookingId?: string) => void;
   onSubmitEditBooking: (id: string, input: BookingInput, opts: { onSuccess: () => void }) => void;
   editBookingIsPending?: boolean;
   editBookingError?: string | null;
@@ -143,7 +143,7 @@ export function PerStayView({
                       <ClipboardList size={12} /> Add schedule
                     </button>
                     <button
-                      onClick={() => onLogIssue(b.checkIn, b.guest)}
+                      onClick={() => onLogIssue(b.checkIn, b.guest, b.id)}
                       className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-full"
                       style={{ background: "var(--accent-soft, rgba(0,0,0,0.07))", color: "var(--accent, #111111)" }}
                     >

@@ -1,7 +1,7 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { DaySummaryPanel } from "@/components/day-summary-panel";
 import { C } from "@/lib/colors";
-import { WEEKDAY_NAMES, bookingChecksInOn, bookingChecksOutOn, bookingCoversDay, dayOfMonth, isToday, type ActiveMonth } from "@/lib/calendar";
+import { WEEKDAY_NAMES, bookingChecksInOn, bookingChecksOutOn, bookingCoversDay, dayOfMonth, isToday, issueAppliesOnDay, type ActiveMonth } from "@/lib/calendar";
 import type { Booking, Issue, Property, Schedule } from "@/lib/types";
 
 /** context/07-mockup.jsx DayView — horizontal day strip. */
@@ -64,7 +64,7 @@ export function DayView({
             const isCheckIn = bookings.some((b) => bookingChecksInOn(b, activeMonth, day));
             const isCheckOut = bookings.some((b) => bookingChecksOutOn(b, activeMonth, day));
             const hasBooking = bookings.some((b) => bookingCoversDay(b, activeMonth, day));
-            const hasIssue = issues.some((i) => dayOfMonth(i.date) === day);
+            const hasIssue = issues.some((i) => issueAppliesOnDay(i, bookings, activeMonth, day));
             const hasShift = schedules.some((s) => dayOfMonth(s.date) === day);
             const isSelected = selectedDay === day;
             const isCurrentDay = isToday(activeMonth, day);

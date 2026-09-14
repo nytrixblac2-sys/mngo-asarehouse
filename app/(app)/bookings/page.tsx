@@ -57,7 +57,7 @@ function BookingsScreen() {
   const [showBookingForm, setShowBookingForm] = useState(false);
   const [showCsvImport, setShowCsvImport] = useState(false);
   const [shiftFormDate, setShiftFormDate] = useState<string | null>(null);
-  const [issueForm, setIssueForm] = useState<{ date: string; guest: string | null } | null>(null);
+  const [issueForm, setIssueForm] = useState<{ date: string; guest: string | null; bookingId: string | null } | null>(null);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
 
   const bookingsQuery = useBookings();
@@ -116,7 +116,19 @@ function BookingsScreen() {
     (b) => b.checkIn.startsWith(monthPrefix) || b.checkOut.startsWith(monthPrefix)
   );
   const monthShifts = withActiveProperty(schedulesQuery.data).filter((s) => s.date.startsWith(monthPrefix));
-  const monthIssues = withActiveProperty(issuesQuery.data).filter((i) => i.date.startsWith(monthPrefix));
+  // An issue linked to a booking (Issue.bookingId) shows across that whole
+  // stay, not just the day it was logged (see lib/calendar.ts's
+  // `issueAppliesOnDay`) — so it must survive this month-level filter
+  // whenever its booking's stay overlaps the viewed month at all, even if
+  // the issue's own `date` falls in a different month than the stay does.
+  const monthStartIso = `${monthPrefix}-01`;
+  const monthEndIso = `${monthPrefix}-31`;
+  const monthIssues = withActiveProperty(issuesQuery.data).filter((i) => {
+    if (i.date.startsWith(monthPrefix)) return true;
+    if (!i.bookingId) return false;
+    const booking = bookingsQuery.data?.find((b) => b.id === i.bookingId);
+    return !!booking && booking.checkIn <= monthEndIso && booking.checkOut >= monthStartIso;
+  });
 
   const goToPrevMonth = () => {
     const next = bMonth === 0 ? { year: bYear - 1, month: 11 } : { year: bYear, month: bMonth - 1 };
@@ -133,7 +145,8 @@ function BookingsScreen() {
   // different month than the one currently viewed — Architecture Decision 60).
   const dateFor = (dayOrDate: number | string) => (typeof dayOrDate === "number" ? `${monthPrefix}-${pad2(dayOrDate)}` : dayOrDate);
   const openSchedule = (dayOrDate: number | string) => setShiftFormDate(dateFor(dayOrDate));
-  const openIssue = (dayOrDate: number | string, guest?: string) => setIssueForm({ date: dateFor(dayOrDate), guest: guest ?? null });
+  const openIssue = (dayOrDate: number | string, guest?: string, bookingId?: string) =>
+    setIssueForm({ date: dateFor(dayOrDate), guest: guest ?? null, bookingId: bookingId ?? null });
   const handleToggleIssue = (issue: Issue) => {
     if (!issue.status) return;
     setIssueStatus.mutate({ id: issue.id, status: issue.status === "OPEN" ? "RESOLVED" : "OPEN" });
@@ -312,6 +325,7 @@ function BookingsScreen() {
         <IssueForm
           date={issueForm.date}
           defaultGuest={issueForm.guest}
+          defaultBookingId={issueForm.bookingId}
           bookings={monthBookings}
           onClose={() => setIssueForm(null)}
           onSubmit={(input) => { createIssue.mutate(input); setIssueForm(null); }}

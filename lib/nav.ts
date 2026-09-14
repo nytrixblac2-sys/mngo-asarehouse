@@ -27,19 +27,19 @@ export const NAV_ITEMS = [
 export const NAV_ITEMS_HOSTEL = [
   { key: "dashboard", label: "Dashboard", href: "/dashboard" },
   { key: "bookings", label: "Guest", href: "/bookings" },
-  { key: "menu", label: "Menu", href: "/menu" },
-  { key: "orders", label: "Orders", href: "/orders" },
   { key: "issues", label: "Issues & Schedules", href: "/issues" },
   { key: "team", label: "Team", href: "/team" },
+  { key: "menu", label: "Menu", href: "/menu" },
+  { key: "orders", label: "Orders", href: "/orders" },
   { key: "financials", label: "Financials", href: "/financials" },
 ] as const;
 
 export const NAV_ITEMS_RENTAL_SHOP = [
   { key: "dashboard", label: "Dashboard", href: "/dashboard" },
   { key: "bookings", label: "Bookings", href: "/bookings" },
-  { key: "shop", label: "Shop", href: "/shop" },
   { key: "issues", label: "Issues & Schedules", href: "/issues" },
   { key: "team", label: "Team", href: "/team" },
+  { key: "shop", label: "Shop", href: "/shop" },
   { key: "financials", label: "Financials", href: "/financials" },
 ] as const;
 
@@ -49,9 +49,9 @@ export const NAV_ITEMS_RENTAL_SHOP = [
  * not an optional guest add-on, so it's always present, not toggled. */
 export const NAV_ITEMS_STORE = [
   { key: "dashboard", label: "Dashboard", href: "/dashboard" },
-  { key: "shop", label: "Shop", href: "/shop" },
   { key: "issues", label: "Issues & Schedules", href: "/issues" },
   { key: "team", label: "Team", href: "/team" },
+  { key: "shop", label: "Shop", href: "/shop" },
   { key: "financials", label: "Financials", href: "/financials" },
 ] as const;
 

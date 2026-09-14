@@ -368,6 +368,7 @@ model Booking {
   property  Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   room      Room?     @relation(fields: [roomId], references: [id])
   orders    Order[]
+  issues    Issue[]
 
   @@index([workspaceId])
   @@index([propertyId])
@@ -637,6 +638,14 @@ model Issue {
   /// HOSTEL only — set when auto-created by checkout (ROOM_DIRTY), so the
   /// issue is tied to a specific room, not just described in free text.
   roomId      String?      @db.Uuid
+  /// The specific booking this issue is about, if any — set when the
+  /// issue form's "Related guest" picker is used. Nullable: staff/
+  /// maintenance issues have no guest at all, and issues logged before
+  /// this field existed keep `guest` as a free-text name with no real
+  /// link. When set, the issue is shown across the whole stay (check-in
+  /// through check-out) on the Bookings calendar, not just the single
+  /// day it was logged — see lib/calendar.ts's `issueAppliesOnDay`.
+  bookingId   String?      @db.Uuid
   status      IssueStatus?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
@@ -644,11 +653,13 @@ model Issue {
   workspace     Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   property      Property           @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   room          Room?              @relation(fields: [roomId], references: [id])
+  booking       Booking?           @relation(fields: [bookingId], references: [id], onDelete: SetNull)
   statusHistory IssueStatusEvent[]
 
   @@index([workspaceId])
   @@index([propertyId])
   @@index([roomId])
+  @@index([bookingId])
 }
 
 model IssueStatusEvent {

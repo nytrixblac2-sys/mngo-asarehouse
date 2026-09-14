@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Trash2, Pencil, ChevronRight, Search } from "lucide-react";
-import { Card } from "@/components/primitives";
+import { Trash2, Pencil, ChevronRight, Search, Boxes } from "lucide-react";
+import { Card, Pill } from "@/components/primitives";
 import { useEffectiveUser } from "@/components/effective-user-context";
 import { useCreateMenuItem, useDeleteMenuItem, useMenuItems, useToggleMenuItemAvailability, useUpdateMenuItem } from "@/lib/queries/menu";
 import type { MenuItemInput } from "@/lib/queries/menu";
+import { useAdjustStock, useStockAdjustments } from "@/lib/queries/stock";
 import { useWorkspace } from "@/lib/queries/workspace";
 import { C } from "@/lib/colors";
 import { fmtCurrency } from "@/lib/format";
@@ -15,15 +16,22 @@ import type { Currency, MenuItem, MenuStation } from "@/lib/types";
  * (app/track/guest-bill-view.tsx, components/guest-order-form.tsx) —
  * Architecture Decision 97: Shop/Experience items get their own tab here
  * too, not just their own category, so managing them is a direct jump
- * rather than scrolling past every food category first. */
-type MenuTab = "MENU" | "SHOP" | "EXPERIENCE";
-const TAB_STATIONS: Record<MenuTab, MenuStation[]> = {
+ * rather than scrolling past every food category first. "Inventory"
+ * (added 2026-09-15, user request — same stock-tracking mechanism the
+ * STORE/RENTAL Shop screens use) is a fourth tab but not a content tab —
+ * it shows stock activity across every station together rather than
+ * filtering by one, so it's kept out of `ContentTab` and handled as its
+ * own branch below.
+ */
+type ContentTab = "MENU" | "SHOP" | "EXPERIENCE";
+type MenuTab = ContentTab | "INVENTORY";
+const TAB_STATIONS: Record<ContentTab, MenuStation[]> = {
   MENU: ["KITCHEN", "BAR"],
   SHOP: ["SHOP"],
   EXPERIENCE: ["EXPERIENCE"],
 };
-const TAB_LABEL: Record<MenuTab, string> = { MENU: "Food Menu", SHOP: "Shop", EXPERIENCE: "Experiences" };
-const SECTION_LABEL: Record<MenuTab, { daily: string; constant: string }> = {
+const TAB_LABEL: Record<MenuTab, string> = { MENU: "Food Menu", SHOP: "Shop", EXPERIENCE: "Experiences", INVENTORY: "Inventory" };
+const SECTION_LABEL: Record<ContentTab, { daily: string; constant: string }> = {
   MENU: { daily: "Today's Lunch & Dinner", constant: "Always on the menu" },
   SHOP: { daily: "Today's shop specials", constant: "Always in stock" },
   EXPERIENCE: { daily: "Today's experiences", constant: "Always available" },
@@ -33,7 +41,7 @@ const SECTION_LABEL: Record<MenuTab, { daily: string; constant: string }> = {
  * category yet — a sensible default name so Shop/Experience's own tabs
  * always have something to suggest, not just once something's already
  * filed under it (Architecture Decision 95, tab-scoped by 97). */
-const CATEGORY_HINTS: Record<MenuTab, string[]> = { MENU: [], SHOP: ["Shop"], EXPERIENCE: ["Experience"] };
+const CATEGORY_HINTS: Record<ContentTab, string[]> = { MENU: [], SHOP: ["Shop"], EXPERIENCE: ["Experience"] };
 
 const STATION_OPTION_LABEL: Record<MenuStation, string> = {
   KITCHEN: "Kitchen",
@@ -56,7 +64,7 @@ function AddItemForm({
    * tabs each have exactly one, so there's nothing left to pick and the
    * dropdown doesn't render (Architecture Decision 97). */
   stationOptions: MenuStation[];
-  onAdd: (input: { name: string; category: string; price: number; currency: Currency; station: MenuStation }) => void;
+  onAdd: (input: { name: string; category: string; price: number; currency: Currency; station: MenuStation; stockQuantity: number | null }) => void;
   isPending: boolean;
 }) {
   const [name, setName] = useState("");
@@ -64,18 +72,32 @@ function AddItemForm({
   const [price, setPrice] = useState("");
   const [currency, setCurrency] = useState<Currency>("GHS");
   const [station, setStation] = useState<MenuStation>(stationOptions[0]);
+  const [trackStock, setTrackStock] = useState(false);
+  const [startingStock, setStartingStock] = useState("");
   const datalistId = `menu-categories-${alwaysAvailable ? "constant" : "daily"}`;
 
   const parsedPrice = parseFloat(price);
-  const canAdd = name.trim().length > 0 && category.trim().length > 0 && parsedPrice > 0;
+  const parsedStock = parseInt(startingStock, 10);
+  const canAdd =
+    name.trim().length > 0 && category.trim().length > 0 && parsedPrice > 0 &&
+    (!trackStock || (!isNaN(parsedStock) && parsedStock >= 0));
 
   const handleAdd = () => {
     if (!canAdd) return;
     const submittedName = name.trim();
     const submittedPrice = parsedPrice;
-    onAdd({ name: submittedName, category: category.trim(), price: submittedPrice, currency, station });
+    onAdd({
+      name: submittedName,
+      category: category.trim(),
+      price: submittedPrice,
+      currency,
+      station,
+      stockQuantity: trackStock ? parsedStock : null,
+    });
     setName((cur) => (cur.trim() === submittedName ? "" : cur));
     setPrice((cur) => (parseFloat(cur) === submittedPrice ? "" : cur));
+    setTrackStock(false);
+    setStartingStock("");
   };
 
   return (
@@ -147,6 +169,24 @@ function AddItemForm({
           Food goes under Kitchen, drinks under Bar — set Station above to match.
         </p>
       )}
+      <div className="flex items-center gap-3">
+        <label className="flex items-center gap-2 text-sm" style={{ color: C.text }}>
+          <input type="checkbox" checked={trackStock} onChange={(e) => setTrackStock(e.target.checked)} />
+          Track inventory
+        </label>
+        {trackStock && (
+          <input
+            value={startingStock}
+            onChange={(e) => setStartingStock(e.target.value)}
+            placeholder="Starting quantity"
+            type="number"
+            min="0"
+            step="1"
+            className="flex-1 px-3 py-2 rounded-lg text-sm"
+            style={{ border: `1px solid ${C.border}` }}
+          />
+        )}
+      </div>
     </div>
   );
 }
@@ -161,6 +201,9 @@ function ItemRow({
   onUpdate,
   updateIsPending,
   updateError,
+  onAdjustStock,
+  adjustIsPending,
+  adjustError,
 }: {
   item: MenuItem;
   showToggle: boolean;
@@ -173,8 +216,14 @@ function ItemRow({
   onUpdate: (input: MenuItemInput, onSuccess: () => void) => void;
   updateIsPending: boolean;
   updateError: string | null;
+  onAdjustStock: (delta: number, reason: string, onSuccess: () => void) => void;
+  adjustIsPending: boolean;
+  adjustError: string | null;
 }) {
   const [isEditing, setIsEditing] = useState(false);
+  const [showStockForm, setShowStockForm] = useState(false);
+  const [stockDelta, setStockDelta] = useState("");
+  const [stockReason, setStockReason] = useState("");
   const [draftName, setDraftName] = useState(item.name);
   const [draftCategory, setDraftCategory] = useState(item.category);
   const [draftPrice, setDraftPrice] = useState(String(item.price));
@@ -211,6 +260,17 @@ function ItemRow({
       },
       () => setIsEditing(false)
     );
+  };
+
+  const parsedDelta = parseInt(stockDelta, 10);
+  const canSubmitStock = !isNaN(parsedDelta) && parsedDelta !== 0 && stockReason.trim().length > 0;
+  const handleStockSubmit = () => {
+    if (!canSubmitStock) return;
+    onAdjustStock(parsedDelta, stockReason.trim(), () => {
+      setShowStockForm(false);
+      setStockDelta("");
+      setStockReason("");
+    });
   };
 
   if (isEditing) {
@@ -287,31 +347,79 @@ function ItemRow({
   }
 
   return (
-    <div className="flex items-center justify-between py-2.5 px-3 rounded-xl" style={{ background: C.bg }}>
-      <div>
-        <p className="text-sm font-semibold" style={{ color: C.text }}>{item.name}</p>
-        <p className="text-xs" style={{ color: C.muted }}>{fmtCurrency(item.price, item.currency)}</p>
-      </div>
-      {canEdit && (
-        <div className="flex items-center gap-3">
-          {showToggle && (
-            <button
-              onClick={onToggle}
-              className="text-xs font-semibold px-3 py-1.5 rounded-full"
-              style={{
-                background: item.isAvailableToday ? C.tealSoft : C.border,
-                color: item.isAvailableToday ? C.teal : C.muted,
-              }}
-            >
-              {item.isAvailableToday ? "Available today" : "Not available"}
-            </button>
+    <div className="flex flex-col gap-2 py-2.5 px-3 rounded-xl" style={{ background: C.bg }}>
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-semibold" style={{ color: C.text }}>{item.name}</p>
+          <p className="text-xs" style={{ color: C.muted }}>{fmtCurrency(item.price, item.currency)}</p>
+          {item.stockQuantity !== null && (
+            <div className="mt-1">
+              <Pill tone={item.stockQuantity === 0 ? "amber" : "muted"}>
+                {item.stockQuantity === 0 ? "Out of stock" : `${item.stockQuantity} in stock`}
+              </Pill>
+            </div>
           )}
-          <button onClick={startEdit} title="Edit">
-            <Pencil size={14} style={{ color: C.muted }} />
-          </button>
-          <button onClick={onDelete} title="Remove">
-            <Trash2 size={14} style={{ color: C.muted }} />
-          </button>
+        </div>
+        {canEdit && (
+          <div className="flex items-center gap-3">
+            {showToggle && (
+              <button
+                onClick={onToggle}
+                className="text-xs font-semibold px-3 py-1.5 rounded-full"
+                style={{
+                  background: item.isAvailableToday ? C.tealSoft : C.border,
+                  color: item.isAvailableToday ? C.teal : C.muted,
+                }}
+              >
+                {item.isAvailableToday ? "Available today" : "Not available"}
+              </button>
+            )}
+            {!showStockForm && (
+              <button onClick={() => setShowStockForm(true)} className="text-xs font-semibold" style={{ color: C.muted }}>
+                {item.stockQuantity === null ? "Track inventory" : "Adjust stock"}
+              </button>
+            )}
+            <button onClick={startEdit} title="Edit">
+              <Pencil size={14} style={{ color: C.muted }} />
+            </button>
+            <button onClick={onDelete} title="Remove">
+              <Trash2 size={14} style={{ color: C.muted }} />
+            </button>
+          </div>
+        )}
+      </div>
+      {canEdit && showStockForm && (
+        <div className="flex flex-col gap-1.5 p-2 rounded-xl" style={{ background: C.card }}>
+          <input
+            value={stockDelta}
+            onChange={(e) => setStockDelta(e.target.value)}
+            placeholder={item.stockQuantity === null ? "Starting quantity" : "+10 or -2"}
+            type="number"
+            step="1"
+            className="w-full px-2 py-1.5 rounded-lg text-xs"
+            style={{ border: `1px solid ${C.border}` }}
+          />
+          <input
+            value={stockReason}
+            onChange={(e) => setStockReason(e.target.value)}
+            placeholder={item.stockQuantity === null ? "e.g. Initial stock" : "e.g. Restock, damaged, miscount"}
+            className="w-full px-2 py-1.5 rounded-lg text-xs"
+            style={{ border: `1px solid ${C.border}` }}
+          />
+          {adjustError && <p className="text-xs text-destructive">{adjustError}</p>}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleStockSubmit}
+              disabled={!canSubmitStock || adjustIsPending}
+              className="text-xs font-semibold px-2.5 py-1 rounded-full"
+              style={{ background: canSubmitStock ? C.text : C.border, color: canSubmitStock ? "#fff" : C.muted }}
+            >
+              {adjustIsPending ? "Saving…" : "Save"}
+            </button>
+            <button onClick={() => setShowStockForm(false)} className="text-xs font-semibold" style={{ color: C.muted }}>
+              Cancel
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -334,6 +442,8 @@ export default function MenuPage() {
   const toggleAvailability = useToggleMenuItemAvailability();
   const deleteItem = useDeleteMenuItem();
   const updateItem = useUpdateMenuItem();
+  const stockAdjustmentsQuery = useStockAdjustments();
+  const adjustStock = useAdjustStock();
   const isOwner = effectiveUser.role === "ACCOUNT_OWNER";
   const [tab, setTab] = useState<MenuTab>("MENU");
   const [search, setSearch] = useState("");
@@ -361,13 +471,18 @@ export default function MenuPage() {
 
   const isSearching = search.trim().length > 0;
   const query = search.trim().toLowerCase();
-  const items = (menuQuery.data ?? [])
-    .filter((i) => TAB_STATIONS[tab].includes(i.station))
-    .filter((i) => !isSearching || i.name.toLowerCase().includes(query));
+  const isInventoryTab = tab === "INVENTORY";
+  const allItems = menuQuery.data ?? [];
+  const items = isInventoryTab
+    ? []
+    : allItems
+        .filter((i) => TAB_STATIONS[tab].includes(i.station))
+        .filter((i) => !isSearching || i.name.toLowerCase().includes(query));
   const dailyItems = items.filter((i) => !i.alwaysAvailable);
   const constantItems = items.filter((i) => i.alwaysAvailable);
   const dailyCategories = Array.from(new Set(dailyItems.map((i) => i.category)));
   const constantCategories = Array.from(new Set(constantItems.map((i) => i.category)));
+  const stockAdjustments = stockAdjustmentsQuery.data ?? [];
 
   // Bento-card treatment, matching PerStayView's per-booking cards
   // (Architecture Decision 95) — one Card per category, click to expand,
@@ -408,6 +523,9 @@ export default function MenuPage() {
                 onUpdate={(input, onSuccess) => updateItem.mutate({ id: item.id, input }, { onSuccess })}
                 updateIsPending={updateItem.isPending}
                 updateError={updateItem.isError ? (updateItem.error as Error).message : null}
+                onAdjustStock={(delta, reason, onSuccess) => adjustStock.mutate({ id: item.id, delta, reason }, { onSuccess })}
+                adjustIsPending={adjustStock.isPending && adjustStock.variables?.id === item.id}
+                adjustError={adjustStock.isError && adjustStock.variables?.id === item.id ? (adjustStock.error as Error).message : null}
               />
             ))}
           </div>
@@ -437,68 +555,106 @@ export default function MenuPage() {
           ))}
         </div>
 
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search size={14} style={{ color: C.muted, position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }} />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search for a menu item…"
-            className="w-full pl-8 pr-3 py-2.5 rounded-xl text-sm"
-            style={{ border: `1px solid ${C.border}` }}
-          />
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-3">
-        <p className="text-sm font-semibold" style={{ color: C.text }}>{SECTION_LABEL[tab].daily}</p>
-        {dailyItems.length === 0 && (
-          <p className="text-sm" style={{ color: C.muted }}>
-            {isSearching ? `No rotating items match "${search.trim()}".` : "Nothing rotating here yet — add one below."}
-          </p>
-        )}
-        {dailyCategories.map((cat) => renderCategory("daily", cat, dailyItems.filter((i) => i.category === cat), true))}
-        {effectiveCanEdit && !isSearching && (
-          <Card>
-            <p className="text-sm font-bold mb-3" style={{ color: C.text }}>+ Add item</p>
-            <AddItemForm
-              key={`daily-${tab}`}
-              categories={Array.from(new Set([...dailyCategories, ...CATEGORY_HINTS[tab]]))}
-              alwaysAvailable={false}
-              stationOptions={TAB_STATIONS[tab]}
-              isPending={createItem.isPending}
-              onAdd={(input) => createItem.mutate({ ...input, alwaysAvailable: false })}
+        {!isInventoryTab && (
+          <div className="relative flex-1 min-w-[200px] max-w-sm">
+            <Search size={14} style={{ color: C.muted, position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }} />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search for a menu item…"
+              className="w-full pl-8 pr-3 py-2.5 rounded-xl text-sm"
+              style={{ border: `1px solid ${C.border}` }}
             />
-          </Card>
+          </div>
         )}
       </div>
 
-      <div className="flex flex-col gap-3 pt-6" style={{ borderTop: `1px solid ${C.border}` }}>
-        <div>
-          <p className="text-sm font-semibold" style={{ color: C.text }}>{SECTION_LABEL[tab].constant}</p>
-          {tab === "MENU" && (
-            <p className="text-xs mt-0.5" style={{ color: C.muted }}>Breakfast, drinks, the all-day menu — orderable every day, no daily toggle needed.</p>
+      {isInventoryTab ? (
+        <div className="flex flex-col gap-3">
+          {stockAdjustments.length === 0 && (
+            <Card>
+              <div className="flex flex-col items-center gap-2 py-4">
+                <Boxes size={28} style={{ color: C.muted }} />
+                <p className="text-sm" style={{ color: C.muted }}>
+                  No stock activity yet. Turn on &quot;Track inventory&quot; on an item to start.
+                </p>
+              </div>
+            </Card>
           )}
+          {stockAdjustments.map((adj) => {
+            const stockItem = allItems.find((i) => i.id === adj.menuItemId);
+            return (
+              <Card key={adj.id}>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: C.text }}>{stockItem?.name ?? "Removed item"}</p>
+                    <p className="text-xs mt-0.5" style={{ color: C.muted }}>{adj.reason}</p>
+                    <p className="text-xs mt-0.5" style={{ color: C.muted }}>
+                      {new Date(adj.createdAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                    </p>
+                  </div>
+                  <span className="text-sm font-bold flex-shrink-0" style={{ color: adj.delta > 0 ? C.teal : "var(--accent, #111111)" }}>
+                    {adj.delta > 0 ? `+${adj.delta}` : adj.delta}
+                  </span>
+                </div>
+              </Card>
+            );
+          })}
         </div>
-        {constantItems.length === 0 && (
-          <p className="text-sm" style={{ color: C.muted }}>
-            {isSearching ? `No standing items match "${search.trim()}".` : "Nothing here yet — add one below."}
-          </p>
-        )}
-        {constantCategories.map((cat) => renderCategory("constant", cat, constantItems.filter((i) => i.category === cat), false))}
-        {effectiveCanEdit && !isSearching && (
-          <Card>
-            <p className="text-sm font-bold mb-3" style={{ color: C.text }}>+ Add item</p>
-            <AddItemForm
-              key={`constant-${tab}`}
-              categories={Array.from(new Set([...constantCategories, ...CATEGORY_HINTS[tab]]))}
-              alwaysAvailable
-              stationOptions={TAB_STATIONS[tab]}
-              isPending={createItem.isPending}
-              onAdd={(input) => createItem.mutate({ ...input, alwaysAvailable: true })}
-            />
-          </Card>
-        )}
-      </div>
+      ) : (
+        <>
+          <div className="flex flex-col gap-3">
+            <p className="text-sm font-semibold" style={{ color: C.text }}>{SECTION_LABEL[tab].daily}</p>
+            {dailyItems.length === 0 && (
+              <p className="text-sm" style={{ color: C.muted }}>
+                {isSearching ? `No rotating items match "${search.trim()}".` : "Nothing rotating here yet — add one below."}
+              </p>
+            )}
+            {dailyCategories.map((cat) => renderCategory("daily", cat, dailyItems.filter((i) => i.category === cat), true))}
+            {effectiveCanEdit && !isSearching && (
+              <Card>
+                <p className="text-sm font-bold mb-3" style={{ color: C.text }}>+ Add item</p>
+                <AddItemForm
+                  key={`daily-${tab}`}
+                  categories={Array.from(new Set([...dailyCategories, ...CATEGORY_HINTS[tab]]))}
+                  alwaysAvailable={false}
+                  stationOptions={TAB_STATIONS[tab]}
+                  isPending={createItem.isPending}
+                  onAdd={(input) => createItem.mutate({ ...input, alwaysAvailable: false })}
+                />
+              </Card>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-3 pt-6" style={{ borderTop: `1px solid ${C.border}` }}>
+            <div>
+              <p className="text-sm font-semibold" style={{ color: C.text }}>{SECTION_LABEL[tab].constant}</p>
+              {tab === "MENU" && (
+                <p className="text-xs mt-0.5" style={{ color: C.muted }}>Breakfast, drinks, the all-day menu — orderable every day, no daily toggle needed.</p>
+              )}
+            </div>
+            {constantItems.length === 0 && (
+              <p className="text-sm" style={{ color: C.muted }}>
+                {isSearching ? `No standing items match "${search.trim()}".` : "Nothing here yet — add one below."}
+              </p>
+            )}
+            {constantCategories.map((cat) => renderCategory("constant", cat, constantItems.filter((i) => i.category === cat), false))}
+            {effectiveCanEdit && !isSearching && (
+              <Card>
+                <p className="text-sm font-bold mb-3" style={{ color: C.text }}>+ Add item</p>
+                <AddItemForm
+                  key={`constant-${tab}`}
+                  categories={Array.from(new Set([...constantCategories, ...CATEGORY_HINTS[tab]]))}
+                  alwaysAvailable
+                  stationOptions={TAB_STATIONS[tab]}
+                  isPending={createItem.isPending}
+                  onAdd={(input) => createItem.mutate({ ...input, alwaysAvailable: true })}
+                />
+              </Card>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }

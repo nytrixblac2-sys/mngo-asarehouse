@@ -13,6 +13,7 @@ const ISSUE_TYPES: IssueType[] = ["GUEST_COMPLAINT", "MAINTENANCE", "NOTE"];
 export function IssueForm({
   date,
   defaultGuest,
+  defaultBookingId,
   bookings,
   onClose,
   onSubmit,
@@ -21,6 +22,7 @@ export function IssueForm({
 }: {
   date: string;
   defaultGuest?: string | null;
+  defaultBookingId?: string | null;
   bookings: Booking[];
   onClose: () => void;
   onSubmit: (input: IssueInput) => void;
@@ -30,7 +32,12 @@ export function IssueForm({
   const [type, setType] = useState<IssueType>(defaultGuest ? "GUEST_COMPLAINT" : "MAINTENANCE");
   const [issueDate, setIssueDate] = useState(date);
   const [description, setDescription] = useState("");
-  const [guest, setGuest] = useState(defaultGuest ?? "");
+  // Bound to the booking's id, not just its guest name — a name alone
+  // can't tell two same-named guests' stays apart, and doesn't let the
+  // calendar show the issue across the actual stay (Issue.bookingId).
+  const [bookingId, setBookingId] = useState(
+    defaultBookingId ?? bookings.find((b) => b.guest === defaultGuest)?.id ?? ""
+  );
   const [propertyId, setPropertyId] = useState(
     defaultPropertyId !== "all" ? defaultPropertyId : properties[0]?.id ?? ""
   );
@@ -38,7 +45,15 @@ export function IssueForm({
 
   const handleSubmit = () => {
     if (!canSubmit) return;
-    onSubmit({ propertyId, date: issueDate, type, description: description.trim(), guest: guest || undefined });
+    const booking = bookings.find((b) => b.id === bookingId);
+    onSubmit({
+      propertyId,
+      date: issueDate,
+      type,
+      description: description.trim(),
+      guest: booking?.guest,
+      bookingId: booking?.id,
+    });
   };
 
   return (
@@ -95,16 +110,21 @@ export function IssueForm({
           <div>
             <label className="text-xs font-semibold" style={{ color: C.muted }}>Related guest (optional)</label>
             <select
-              value={guest}
-              onChange={(e) => setGuest(e.target.value)}
+              value={bookingId}
+              onChange={(e) => setBookingId(e.target.value)}
               className="w-full mt-1 px-3 py-2.5 rounded-xl text-sm"
               style={{ border: `1px solid ${C.border}` }}
             >
               <option value="">None</option>
               {bookings.map((b) => (
-                <option key={b.id} value={b.guest}>{b.guest}</option>
+                <option key={b.id} value={b.id}>{b.guest} ({b.checkIn} → {b.checkOut})</option>
               ))}
             </select>
+            {bookingId && (
+              <p className="text-[11px] mt-1" style={{ color: C.muted }}>
+                This issue will show on every day of this guest&apos;s stay, not just today.
+              </p>
+            )}
           </div>
           <div>
             <label className="text-xs font-semibold" style={{ color: C.muted }}>Description</label>

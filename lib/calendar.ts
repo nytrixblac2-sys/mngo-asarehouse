@@ -72,3 +72,32 @@ export function bookingChecksInOn(b: { checkIn: string }, activeMonth: { year: n
 export function bookingChecksOutOn(b: { checkOut: string }, activeMonth: { year: number; month: number }, day: number): boolean {
   return isoDateForDay(activeMonth, day) === b.checkOut;
 }
+
+/**
+ * Whether an issue applies to `day` — user report, 2026-09: a guest
+ * cancellation logged as an issue only showed on the single day it was
+ * logged, not across the guest's actual stay, so clicking any other day
+ * of that booking showed nothing. An issue linked to a booking
+ * (`bookingId`) now applies to every day of that booking's stay,
+ * check-in through check-out *inclusive* (unlike `bookingCoversDay`,
+ * which deliberately excludes checkout since that's not an occupied
+ * night — an issue about the booking is still relevant on the day the
+ * guest actually leaves). An issue with no linked booking (staff/
+ * maintenance notes, or an older issue from before this existed) falls
+ * back to the original single-day match on its own `date` field.
+ */
+export function issueAppliesOnDay(
+  i: { date: string; bookingId?: string | null },
+  bookings: { id: string; checkIn: string; checkOut: string }[],
+  activeMonth: { year: number; month: number },
+  day: number
+): boolean {
+  if (i.bookingId) {
+    const booking = bookings.find((b) => b.id === i.bookingId);
+    if (booking) {
+      const iso = isoDateForDay(activeMonth, day);
+      return iso >= booking.checkIn && iso <= booking.checkOut;
+    }
+  }
+  return dayOfMonth(i.date) === day;
+}

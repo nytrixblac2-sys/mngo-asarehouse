@@ -3,7 +3,7 @@ import { Card, Pill } from "@/components/primitives";
 import { C } from "@/lib/colors";
 import { fmtCurrency } from "@/lib/format";
 import { ISSUE_STATUS_LABEL, ISSUE_STATUS_TONE, ISSUE_TYPE_LABEL, SCHEDULE_TYPE_LABEL } from "@/lib/labels";
-import { bookingCoversDay, dayOfMonth, isoDateForDay, MONTH_NAMES } from "@/lib/calendar";
+import { bookingCoversDay, dayOfMonth, isoDateForDay, issueAppliesOnDay, MONTH_NAMES } from "@/lib/calendar";
 import type { Booking, Issue, Property, Schedule } from "@/lib/types";
 
 /** context/07-mockup.jsx DaySummaryPanel — the shared "what's happening
@@ -53,7 +53,7 @@ export function DaySummaryPanel({
     (b) => bookingCoversDay(b, activeMonth, day) || iso === b.checkOut
   );
   const dayShifts = schedules.filter((s) => dayOfMonth(s.date) === day);
-  const dayIssues = issues.filter((i) => dayOfMonth(i.date) === day);
+  const dayIssues = issues.filter((i) => issueAppliesOnDay(i, bookings, activeMonth, day));
 
   return (
     <Card style={{ width }}>
@@ -136,6 +136,11 @@ export function DaySummaryPanel({
                 <p className="text-[11px] mt-0.5" style={{ color: C.muted }}>
                   {i.description}
                 </p>
+                {i.guest && (
+                  <p className="text-[11px] mt-0.5 font-medium" style={{ color: C.muted }}>
+                    {i.guest}
+                  </p>
+                )}
               </Tag>
             );
           })}

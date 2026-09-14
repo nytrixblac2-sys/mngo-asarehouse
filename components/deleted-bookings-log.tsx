@@ -20,7 +20,11 @@ export function DeletedBookingsLog({ activeMonth }: { activeMonth: string }) {
   const bookingsQuery = useBookings();
   const restoreBooking = useRestoreBooking();
   const [restoringId, setRestoringId] = useState<string | null>(null);
-  const [collapsed, setCollapsed] = useState(false);
+  // Defaults closed — user report, 2026-09-15: this panel is remounted
+  // fresh (no persisted state) every time the Bookings screen mounts, so
+  // it was popping open on every visit to any calendar view regardless
+  // of whether the user had previously collapsed it.
+  const [collapsed, setCollapsed] = useState(true);
 
   const allDeleted: Booking[] = deletedBookingsQuery.data ?? [];
   const allBookings: Booking[] = bookingsQuery.data ?? [];

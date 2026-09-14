@@ -297,10 +297,12 @@ export default function ShopPage() {
   const workspace = useWorkspace().data;
   const isStoreWorkspace = workspace?.type === "STORE";
   // Free-tier Store limits (Stage 4 of the STORE build): no shareable
-  // public link, no inventory tracking. RENTAL/HOSTEL are grandfathered
-  // to ENTERPRISE and never hit this.
+  // public link, no inventory tracking. RENTAL is grandfathered to
+  // ENTERPRISE and never hits this, so it always gets inventory tracking
+  // on its Shop — user request, 2026-09-15: "every account will be like
+  // this," extending Store's inventory feature to RENTAL's Shop too.
   const isFreeTierStore = isStoreWorkspace && workspace?.plan === "FREE";
-  const canTrackInventory = isStoreWorkspace && !isFreeTierStore;
+  const canTrackInventory = !isFreeTierStore;
   const menuQuery = useMenuItems();
   const shopOrdersQuery = useShopOrders();
   const createMenuItem = useCreateMenuItem();

@@ -10,6 +10,7 @@ type IssueRow = {
   description: string;
   guest: string | null;
   roomId: string | null;
+  bookingId: string | null;
   status: IssueStatus | null;
   statusHistory: { status: IssueStatus; note: string | null; at: Date }[];
 };
@@ -24,6 +25,7 @@ export function serializeIssue(i: IssueRow): Issue {
     description: i.description,
     guest: i.guest,
     roomId: i.roomId,
+    bookingId: i.bookingId,
     status: i.status,
     statusHistory: i.statusHistory.map((h) => ({ status: h.status, note: h.note, at: h.at.toISOString() })),
   };
@@ -35,6 +37,7 @@ export const issueInputSchema = z.object({
   type: z.enum(["GUEST_COMPLAINT", "MAINTENANCE", "NOTE"]),
   description: z.string().min(1),
   guest: z.string().optional(),
+  bookingId: z.string().uuid().optional(),
 });
 
 export const issueStatusInputSchema = z.object({
