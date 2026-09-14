@@ -157,6 +157,14 @@
   background: linear-gradient(130deg, #0D9488 0%, #5EEAD4 52%, #0D9488 100%);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
 }
+.heroWord {
+  display: inline-block; white-space: nowrap; color: var(--lp-teal);
+  animation: heroWordIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes heroWordIn {
+  from { opacity: 0; transform: translateY(0.3em); }
+  to { opacity: 1; transform: translateY(0); }
+}
 .heroSub {
   font-size: 1.1rem; line-height: 1.7; color: var(--lp-t2);
   max-width: 540px; margin: 0 auto 38px; text-wrap: balance;

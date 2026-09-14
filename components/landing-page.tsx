@@ -3,6 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import s from "./landing-page.module.css";
 
+// Mirrors the Workspaces section's business types below — singular, to
+// read naturally as "Run your {word} from anywhere."
+const HERO_WORDS = ["co-working space", "hotel", "short-let", "event centre", "restaurant", "shop"];
+
 export function LandingPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [scrolled, setScrolled] = useState(false);
@@ -10,6 +14,17 @@ export function LandingPage() {
   const [formSending, setFormSending] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const themeRef = useRef<"light" | "dark">("light");
+  const [heroWordIndex, setHeroWordIndex] = useState(0);
+
+  // Cycles the hero headline's business-type word — user request,
+  // 2026-09-14: "let property keep changing, to the type of business we
+  // manage."
+  useEffect(() => {
+    const id = setInterval(() => {
+      setHeroWordIndex((i) => (i + 1) % HERO_WORDS.length);
+    }, 2200);
+    return () => clearInterval(id);
+  }, []);
 
   // Read stored/system theme on mount and apply
   useEffect(() => {
@@ -157,7 +172,7 @@ export function LandingPage() {
             Management on the Go
           </div>
           <h1 className={s.heroH1}>
-            Run your property<br />
+            Run your <span key={heroWordIndex} className={s.heroWord}>{HERO_WORDS[heroWordIndex]}</span><br />
             <span className={s.shine}>from anywhere.</span>
           </h1>
           <p className={s.heroSub}>
