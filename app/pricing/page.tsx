@@ -31,6 +31,7 @@ const PLANS = [
       "Up to 5 properties",
       "Unlimited rooms / desks",
       "Full financials & reporting",
+      "Inventory tracking (Shop/Store)",
       "5 staff accounts",
       "Email support",
     ],
@@ -48,6 +49,7 @@ const PLANS = [
       "Unlimited rooms / desks",
       "Full financials & reporting",
       "Menu & orders module",
+      "Inventory tracking (Shop/Store)",
       "10 staff accounts",
       "Priority support",
     ],
@@ -65,6 +67,7 @@ const PLANS = [
       "Unlimited staff",
       "Custom roles & permissions",
       "Shop module for RENTAL",
+      "Inventory tracking (Shop/Store)",
       "API access",
       "Dedicated account manager",
       "SLA guarantee",
@@ -185,6 +188,7 @@ export default function PricingPage() {
               { q: "Is there a free trial for paid plans?", a: "The Free plan is free forever and covers a single property, though financials are limited to the current month. If you need full financial history or more properties, contact us and we can arrange a trial." },
               { q: "What counts as a property?", a: "A property is one physical location or managed unit, such as a short-let apartment, hotel branch, or co-working floor. Sub-units like individual rooms do not count." },
               { q: "What is the Enterprise shop module?", a: "RENTAL and short-let properties on the Enterprise plan can enable an optional shop where guests scan a QR code to browse and order items, paying at checkout." },
+              { q: "Does MNGO support running a shop or retail store?", a: "Yes — the Store workspace type is built for standalone shops and retail businesses: a shareable online storefront link, a product catalog, and checkout. It's free forever for one shop, with financials shown for the current month. Inventory tracking — stock levels, restocking, and stock history — is a Starter-and-up feature, since it's most useful once you're managing real stock levels day to day." },
             ].map(({ q, a }) => (
               <div key={q} style={{ borderBottom: "1px solid var(--lp-bdr)" }}>
                 <p style={{ fontWeight: 700, fontSize: 15, color: "var(--lp-t1)", marginBottom: 6 }}>{q}</p>

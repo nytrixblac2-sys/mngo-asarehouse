@@ -160,6 +160,24 @@ export interface MenuItem {
   station: MenuStation;
   /** Optional image URL for shop items. */
   imageUrl: string | null;
+  /** Stock-on-hand, STORE-only — null means "not tracked" (every RENTAL
+   * Shop item and HOSTEL menu item, always). See StockAdjustment for the
+   * audit trail of how this number changes. */
+  stockQuantity: number | null;
+}
+
+/** One entry in a MenuItem's stock history — a sale (negative delta,
+ * created automatically) or a manual restock/correction (either sign,
+ * created through the Shop admin screen). The running total lives on
+ * MenuItem.stockQuantity; this is never read backwards to compute it,
+ * only appended to as a record of what happened and why. */
+export interface StockAdjustment {
+  id: string;
+  workspaceId: string;
+  menuItemId: string;
+  delta: number;
+  reason: string;
+  createdAt: string;
 }
 
 /** A snapshot of one menu item within an Order — `name`/`unitPrice`/

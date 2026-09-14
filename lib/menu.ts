@@ -12,6 +12,7 @@ type MenuItemRow = {
   isAvailableToday: boolean;
   station: MenuItem["station"];
   imageUrl?: string | null;
+  stockQuantity?: number | null;
 };
 
 export function serializeMenuItem(m: MenuItemRow): MenuItem {
@@ -26,6 +27,7 @@ export function serializeMenuItem(m: MenuItemRow): MenuItem {
     isAvailableToday: m.isAvailableToday,
     station: m.station,
     imageUrl: m.imageUrl ?? null,
+    stockQuantity: m.stockQuantity ?? null,
   };
 }
 
@@ -43,6 +45,11 @@ export const menuItemInputSchema = z.object({
   alwaysAvailable: z.boolean().optional(),
   station: z.enum(["KITCHEN", "BAR", "SHOP", "EXPERIENCE"]).optional(),
   imageUrl: z.string().url().optional().nullable(),
+  /** STORE-only, set at creation. Omitted (not `null`) on a general PATCH
+   * edit (name/price/etc.) preserves whatever the item already had —
+   * ongoing changes go through POST /api/menu/[id]/stock-adjustments
+   * instead, so every change past the starting count has a logged reason. */
+  stockQuantity: z.number().int().min(0).optional().nullable(),
   /** Only checked by PATCH /api/menu/[id] when `price` actually changes
    * and the actor isn't the ACCOUNT_OWNER — see Architecture Decision 82.
    * Ignored on create (POST) and on edits that don't touch price. */

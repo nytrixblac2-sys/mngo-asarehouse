@@ -10,6 +10,10 @@ export interface MenuItemInput {
   alwaysAvailable?: boolean;
   station?: MenuStation;
   imageUrl?: string | null;
+  /** STORE-only. Set at creation; omit on a general edit to leave
+   * whatever stock count the item already has untouched — see
+   * lib/queries/stock.ts for the ongoing restock/correction path. */
+  stockQuantity?: number | null;
   /** Only relevant to useUpdateMenuItem when the price actually changes —
    * see Architecture Decision 82. Ignored on create. */
   pin?: string;

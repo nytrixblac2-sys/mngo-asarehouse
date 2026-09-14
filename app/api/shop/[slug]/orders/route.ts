@@ -12,6 +12,10 @@ const shopOrderInputSchema = z.object({
   })).min(1),
 });
 
+/** Thrown inside the transaction below for a condition that should reach
+ * the client as a 400, not a 500 — caught once, outside the transaction. */
+class ShopOrderError extends Error {}
+
 /**
  * Public endpoint — no auth. Guests submit a shop order from /shop/[slug].
  * Items are validated against the workspace's shop menu items.
@@ -29,34 +33,75 @@ export async function POST(req: Request, { params }: { params: { slug: string } 
   if (!parsed.success) return apiError(parsed.error.message, 400);
 
   const menuItemIds = parsed.data.items.map((i) => i.menuItemId);
-  const menuItems = await prisma.menuItem.findMany({
-    where: { id: { in: menuItemIds }, workspaceId: workspace.id, station: "SHOP" },
-  });
-  if (menuItems.length !== menuItemIds.length) return apiError("One or more items not found", 400);
 
-  const menuMap = new Map(menuItems.map((m) => [m.id, m]));
+  let order;
+  try {
+    order = await prisma.$transaction(async (tx) => {
+      // Read stock inside the transaction, not before it — two guests
+      // checking out the same last unit at the same moment must not both
+      // pass a stale outside-transaction stock check.
+      const menuItems = await tx.menuItem.findMany({
+        where: { id: { in: menuItemIds }, workspaceId: workspace.id, station: "SHOP" },
+      });
+      if (menuItems.length !== menuItemIds.length) throw new ShopOrderError("One or more items not found");
 
-  const order = await prisma.shopOrder.create({
-    data: {
-      workspaceId: workspace.id,
-      guestName: parsed.data.guestName,
-      guestPhone: parsed.data.guestPhone ?? null,
-      notes: parsed.data.notes ?? null,
-      items: {
-        create: parsed.data.items.map((i) => {
-          const item = menuMap.get(i.menuItemId)!;
-          return {
-            menuItemId: i.menuItemId,
-            name: item.name,
-            quantity: i.quantity,
-            unitPrice: item.price,
-            currency: item.currency,
-          };
-        }),
-      },
-    },
-    include: { items: true },
-  });
+      const menuMap = new Map(menuItems.map((m) => [m.id, m]));
+      for (const i of parsed.data.items) {
+        const item = menuMap.get(i.menuItemId)!;
+        if (item.stockQuantity !== null && item.stockQuantity < i.quantity) {
+          throw new ShopOrderError(`Not enough stock for ${item.name} — ${item.stockQuantity} left.`);
+        }
+      }
+
+      const created = await tx.shopOrder.create({
+        data: {
+          workspaceId: workspace.id,
+          guestName: parsed.data.guestName,
+          guestPhone: parsed.data.guestPhone ?? null,
+          notes: parsed.data.notes ?? null,
+          items: {
+            create: parsed.data.items.map((i) => {
+              const item = menuMap.get(i.menuItemId)!;
+              return {
+                menuItemId: i.menuItemId,
+                name: item.name,
+                quantity: i.quantity,
+                unitPrice: item.price,
+                currency: item.currency,
+              };
+            }),
+          },
+        },
+        include: { items: true },
+      });
+
+      // Tracked items only (stockQuantity !== null) — decrement on hand
+      // and log the sale as a StockAdjustment, same audit trail a manual
+      // restock uses.
+      for (const i of parsed.data.items) {
+        const item = menuMap.get(i.menuItemId)!;
+        if (item.stockQuantity !== null) {
+          await tx.menuItem.update({
+            where: { id: item.id },
+            data: { stockQuantity: { decrement: i.quantity } },
+          });
+          await tx.stockAdjustment.create({
+            data: {
+              workspaceId: workspace.id,
+              menuItemId: item.id,
+              delta: -i.quantity,
+              reason: `Sale to ${parsed.data.guestName}`,
+            },
+          });
+        }
+      }
+
+      return created;
+    });
+  } catch (err) {
+    if (err instanceof ShopOrderError) return apiError(err.message, 400);
+    throw err;
+  }
 
   return apiSuccess({
     id: order.id,

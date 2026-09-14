@@ -162,7 +162,7 @@ export function LandingPage() {
           </h1>
           <p className={s.heroSub}>
             MNGO brings bookings, financials, team management, and daily operations into one
-            workspace, built for co-working spaces, hotels, short-lets, event centres, restaurants.
+            workspace, built for co-working spaces, hotels, short-lets, event centres, restaurants, and shops.
           </p>
           <div className={s.heroCtas}>
             <a href="/signup" className={`${s.btn} ${s.btnPrimary} ${s.btnLg}`}>
@@ -184,7 +184,7 @@ export function LandingPage() {
       <div className={s.statsBand}>
         <div className={s.statsGrid}>
           {[
-            { n: "5", u: " property types", l: "Hotels, short-lets, co-working, events, restaurants" },
+            { n: "6", u: " property types", l: "Hotels, short-lets, co-working, events, restaurants, shops" },
             { n: "1", u: " dashboard", l: "Every booking, expense, and report" },
             { n: "0", u: " spreadsheets", l: "Financials done for you" },
           ].map(({ n, u, l }) => (
@@ -293,13 +293,23 @@ export function LandingPage() {
                 checks: ["Hall booking with layout", "Catering & bar orders", "Deposit & balance tracking", "Event-day occupancy view"],
               },
               {
-                type: "Food & Retail",
-                name: "Restaurants & Shops",
+                type: "Food & Beverage",
+                name: "Restaurants",
                 desc: "Take dine-in, takeaway, or delivery orders, manage your menu live, and close shifts with one-click sales reports.",
                 checks: ["Live menu management", "Table & takeaway orders", "Shift sales reporting", "Kitchen fulfilment queue"],
               },
+              {
+                type: "Retail",
+                name: "Shops & Stores",
+                desc: "Run your store from one shareable link — customers browse, order, and pay at checkout, no separate storefront to build.",
+                checks: ["Online storefront link", "Product catalog & checkout", "Inventory tracking", "Sales & income reports"],
+              },
             ].map(({ type, name, desc, checks }) => (
-              <div key={name} className={`${s.wsCard} ${s.fu}`}>
+              <div
+                key={name}
+                className={`${s.wsCard} ${s.fu}`}
+                style={name === "Shops & Stores" ? { gridColumn: "1 / -1" } : undefined}
+              >
                 <div className={s.wsType}>{type}</div>
                 <h3 className={s.wsName}>{name}</h3>
                 <p className={s.wsDesc}>{desc}</p>

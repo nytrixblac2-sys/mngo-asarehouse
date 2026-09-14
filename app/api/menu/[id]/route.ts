@@ -46,6 +46,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       alwaysAvailable: parsed.data.alwaysAvailable ?? existing.alwaysAvailable,
       station: parsed.data.station ?? existing.station,
       ...(parsed.data.imageUrl !== undefined ? { imageUrl: parsed.data.imageUrl } : {}),
+      ...(parsed.data.stockQuantity !== undefined ? { stockQuantity: parsed.data.stockQuantity } : {}),
     },
   });
 

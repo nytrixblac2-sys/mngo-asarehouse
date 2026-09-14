@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { QrCode, Package, ShoppingBag, Check, ExternalLink, Plus, Pencil } from "lucide-react";
+import { QrCode, Package, ShoppingBag, Boxes, Check, ExternalLink, Plus, Pencil } from "lucide-react";
 import { Card, Pill } from "@/components/primitives";
 import { useEffectiveUser } from "@/components/effective-user-context";
 import { useWorkspace } from "@/lib/queries/workspace";
 import { useMenuItems, useCreateMenuItem, useDeleteMenuItem, useUpdateMenuItem } from "@/lib/queries/menu";
 import type { MenuItemInput } from "@/lib/queries/menu";
 import { useShopOrders, useUpdateShopOrderStatus, useToggleShop } from "@/lib/queries/shop";
+import { useStockAdjustments, useAdjustStock } from "@/lib/queries/stock";
 import { C } from "@/lib/colors";
 import { fmtCurrency } from "@/lib/format";
 import type { IssueStatus, MenuItem } from "@/lib/types";
@@ -62,20 +63,28 @@ function ShopItemCard({
   item,
   canEdit,
   isOwner,
+  isStoreWorkspace,
   onDelete,
   deleteIsPending,
   onUpdate,
   updateIsPending,
   updateError,
+  onAdjustStock,
+  adjustIsPending,
+  adjustError,
 }: {
   item: MenuItem;
   canEdit: boolean;
   isOwner: boolean;
+  isStoreWorkspace: boolean;
   onDelete: () => void;
   deleteIsPending: boolean;
   onUpdate: (input: MenuItemInput, onSuccess: () => void) => void;
   updateIsPending: boolean;
   updateError: string | null;
+  onAdjustStock: (delta: number, reason: string, onSuccess: () => void) => void;
+  adjustIsPending: boolean;
+  adjustError: string | null;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [draftName, setDraftName] = useState(item.name);
@@ -83,6 +92,9 @@ function ShopItemCard({
   const [draftPrice, setDraftPrice] = useState(String(item.price));
   const [draftImageUrl, setDraftImageUrl] = useState(item.imageUrl ?? "");
   const [pin, setPin] = useState("");
+  const [showStockForm, setShowStockForm] = useState(false);
+  const [stockDelta, setStockDelta] = useState("");
+  const [stockReason, setStockReason] = useState("");
 
   const parsedPrice = parseFloat(draftPrice);
   const priceChanged = parsedPrice !== item.price;
@@ -113,6 +125,17 @@ function ShopItemCard({
       },
       () => setIsEditing(false)
     );
+  };
+
+  const parsedDelta = parseInt(stockDelta, 10);
+  const canSubmitStock = !isNaN(parsedDelta) && parsedDelta !== 0 && stockReason.trim().length > 0;
+  const handleStockSubmit = () => {
+    if (!canSubmitStock) return;
+    onAdjustStock(parsedDelta, stockReason.trim(), () => {
+      setShowStockForm(false);
+      setStockDelta("");
+      setStockReason("");
+    });
   };
 
   if (isEditing) {
@@ -206,11 +229,58 @@ function ShopItemCard({
       <p className="text-sm font-semibold" style={{ color: C.text }}>{item.name}</p>
       <p className="text-xs font-semibold" style={{ color: C.teal }}>{fmtCurrency(item.price, item.currency)}</p>
       <p className="text-xs" style={{ color: C.muted }}>{item.category}</p>
+
+      {item.stockQuantity !== null && (
+        <Pill tone={item.stockQuantity === 0 ? "amber" : "muted"}>
+          {item.stockQuantity === 0 ? "Out of stock" : `${item.stockQuantity} in stock`}
+        </Pill>
+      )}
+
+      {canEdit && isStoreWorkspace && showStockForm && (
+        <div className="flex flex-col gap-1.5 mt-1 p-2 rounded-xl" style={{ background: C.bg }}>
+          <input
+            value={stockDelta}
+            onChange={(e) => setStockDelta(e.target.value)}
+            placeholder={item.stockQuantity === null ? "Starting quantity" : "+10 or -2"}
+            type="number"
+            step="1"
+            className="w-full px-2 py-1.5 rounded-lg text-xs"
+            style={{ border: `1px solid ${C.border}` }}
+          />
+          <input
+            value={stockReason}
+            onChange={(e) => setStockReason(e.target.value)}
+            placeholder={item.stockQuantity === null ? "e.g. Initial stock" : "e.g. Restock, damaged, miscount"}
+            className="w-full px-2 py-1.5 rounded-lg text-xs"
+            style={{ border: `1px solid ${C.border}` }}
+          />
+          {adjustError && <p className="text-xs text-destructive">{adjustError}</p>}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleStockSubmit}
+              disabled={!canSubmitStock || adjustIsPending}
+              className="text-xs font-semibold px-2.5 py-1 rounded-full"
+              style={{ background: canSubmitStock ? C.text : C.border, color: canSubmitStock ? "#fff" : C.muted }}
+            >
+              {adjustIsPending ? "Saving…" : "Save"}
+            </button>
+            <button onClick={() => setShowStockForm(false)} className="text-xs font-semibold" style={{ color: C.muted }}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       {canEdit && (
         <div className="flex items-center gap-3 mt-1">
           <button onClick={startEdit} className="text-xs font-semibold flex items-center gap-1" style={{ color: C.muted }}>
             <Pencil size={12} /> Edit
           </button>
+          {isStoreWorkspace && !showStockForm && (
+            <button onClick={() => setShowStockForm(true)} className="text-xs font-semibold" style={{ color: C.muted }}>
+              {item.stockQuantity === null ? "Track inventory" : "Adjust stock"}
+            </button>
+          )}
           <button onClick={onDelete} disabled={deleteIsPending} className="text-xs font-semibold" style={{ color: C.muted }}>
             Remove
           </button>
@@ -223,6 +293,7 @@ function ShopItemCard({
 export default function ShopPage() {
   const { effectiveUser, effectiveCanEdit } = useEffectiveUser();
   const workspace = useWorkspace().data;
+  const isStoreWorkspace = workspace?.type === "STORE";
   const menuQuery = useMenuItems();
   const shopOrdersQuery = useShopOrders();
   const createMenuItem = useCreateMenuItem();
@@ -230,20 +301,23 @@ export default function ShopPage() {
   const updateMenuItem = useUpdateMenuItem();
   const updateStatus = useUpdateShopOrderStatus();
   const toggleShop = useToggleShop();
+  const stockAdjustmentsQuery = useStockAdjustments({ enabled: isStoreWorkspace });
+  const adjustStock = useAdjustStock();
 
   const isOwner = effectiveUser.role === "ACCOUNT_OWNER";
 
-  const [tab, setTab] = useState<"products" | "orders">("products");
+  const [tab, setTab] = useState<"products" | "orders" | "inventory">("products");
   const [showAddForm, setShowAddForm] = useState(false);
   const [newItem, setNewItem] = useState({ name: "", price: "", category: "Shop", imageUrl: "" });
+  const [trackStock, setTrackStock] = useState(false);
+  const [startingStock, setStartingStock] = useState("");
   const [addError, setAddError] = useState<string | null>(null);
 
   const shopItems = (menuQuery.data ?? []).filter((m) => m.station === "SHOP");
   const shopOrders = shopOrdersQuery.data ?? [];
+  const stockAdjustments = stockAdjustmentsQuery.data ?? [];
 
   const shopUrl = workspace ? `${typeof window !== "undefined" ? window.location.origin : ""}/shop/${workspace.slug}` : "";
-
-  const isStoreWorkspace = workspace?.type === "STORE";
 
   if (workspace && workspace.type !== "RENTAL" && !isStoreWorkspace) {
     return (
@@ -273,6 +347,12 @@ export default function ShopPage() {
     if (!newItem.name.trim()) { setAddError("Name is required"); return; }
     const price = parseFloat(newItem.price);
     if (!price || price <= 0) { setAddError("Enter a valid price"); return; }
+    let stockQuantity: number | null = null;
+    if (isStoreWorkspace && trackStock) {
+      const qty = parseInt(startingStock, 10);
+      if (isNaN(qty) || qty < 0) { setAddError("Enter a valid starting quantity"); return; }
+      stockQuantity = qty;
+    }
     createMenuItem.mutate({
       name: newItem.name.trim(),
       category: newItem.category || "Shop",
@@ -281,8 +361,14 @@ export default function ShopPage() {
       alwaysAvailable: true,
       station: "SHOP",
       imageUrl: newItem.imageUrl.trim() || null,
+      stockQuantity,
     }, {
-      onSuccess: () => { setShowAddForm(false); setNewItem({ name: "", price: "", category: "Shop", imageUrl: "" }); },
+      onSuccess: () => {
+        setShowAddForm(false);
+        setNewItem({ name: "", price: "", category: "Shop", imageUrl: "" });
+        setTrackStock(false);
+        setStartingStock("");
+      },
       onError: (e) => setAddError((e as Error).message),
     });
   };
@@ -348,14 +434,18 @@ export default function ShopPage() {
 
       {/* Tab bar */}
       <div className="flex items-center gap-1 rounded-full p-1 w-fit" style={{ background: C.bg }}>
-        {(["products", "orders"] as const).map((t) => (
+        {(isStoreWorkspace ? (["products", "orders", "inventory"] as const) : (["products", "orders"] as const)).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
             className="text-xs font-semibold px-4 py-1.5 rounded-full capitalize"
             style={{ background: tab === t ? C.card : "transparent", color: tab === t ? C.text : C.muted }}
           >
-            {t === "products" ? `Products (${shopItems.length})` : `Orders (${shopOrders.filter((o) => o.status !== "RESOLVED").length})`}
+            {t === "products"
+              ? `Products (${shopItems.length})`
+              : t === "orders"
+              ? `Orders (${shopOrders.filter((o) => o.status !== "RESOLVED").length})`
+              : "Inventory"}
           </button>
         ))}
       </div>
@@ -426,6 +516,30 @@ export default function ShopPage() {
                         style={{ border: `1px solid ${C.border}`, background: C.card, color: C.text }}
                       />
                     </div>
+                    {isStoreWorkspace && (
+                      <div className="flex items-center gap-3">
+                        <label className="flex items-center gap-2 text-sm" style={{ color: C.text }}>
+                          <input
+                            type="checkbox"
+                            checked={trackStock}
+                            onChange={(e) => setTrackStock(e.target.checked)}
+                          />
+                          Track inventory
+                        </label>
+                        {trackStock && (
+                          <input
+                            value={startingStock}
+                            onChange={(e) => setStartingStock(e.target.value)}
+                            placeholder="Starting quantity"
+                            type="number"
+                            min="0"
+                            step="1"
+                            className="flex-1 px-3 py-2.5 rounded-xl text-sm"
+                            style={{ border: `1px solid ${C.border}`, background: C.card, color: C.text }}
+                          />
+                        )}
+                      </div>
+                    )}
                     {addError && <p className="text-xs text-destructive">{addError}</p>}
                     <div className="flex gap-2">
                       <button
@@ -466,6 +580,7 @@ export default function ShopPage() {
                 item={item}
                 canEdit={effectiveCanEdit}
                 isOwner={isOwner}
+                isStoreWorkspace={isStoreWorkspace}
                 onDelete={() => deleteMenuItem.mutate(item.id)}
                 deleteIsPending={deleteMenuItem.isPending && deleteMenuItem.variables === item.id}
                 onUpdate={(input, onSuccess) => updateMenuItem.mutate({ id: item.id, input }, { onSuccess })}
@@ -473,6 +588,13 @@ export default function ShopPage() {
                 updateError={
                   updateMenuItem.isError && updateMenuItem.variables?.id === item.id
                     ? (updateMenuItem.error as Error).message
+                    : null
+                }
+                onAdjustStock={(delta, reason, onSuccess) => adjustStock.mutate({ id: item.id, delta, reason }, { onSuccess })}
+                adjustIsPending={adjustStock.isPending && adjustStock.variables?.id === item.id}
+                adjustError={
+                  adjustStock.isError && adjustStock.variables?.id === item.id
+                    ? (adjustStock.error as Error).message
                     : null
                 }
               />
@@ -535,6 +657,40 @@ export default function ShopPage() {
               </div>
             </Card>
           ))}
+        </div>
+      )}
+
+      {tab === "inventory" && isStoreWorkspace && (
+        <div className="flex flex-col gap-3">
+          {stockAdjustments.length === 0 && (
+            <Card>
+              <div className="flex flex-col items-center gap-2 py-4">
+                <Boxes size={28} style={{ color: C.muted }} />
+                <p className="text-sm" style={{ color: C.muted }}>
+                  No stock activity yet. Turn on &quot;Track inventory&quot; on a product to start.
+                </p>
+              </div>
+            </Card>
+          )}
+          {stockAdjustments.map((adj) => {
+            const item = shopItems.find((i) => i.id === adj.menuItemId);
+            return (
+              <Card key={adj.id}>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: C.text }}>{item?.name ?? "Removed product"}</p>
+                    <p className="text-xs mt-0.5" style={{ color: C.muted }}>{adj.reason}</p>
+                    <p className="text-xs mt-0.5" style={{ color: C.muted }}>
+                      {new Date(adj.createdAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                    </p>
+                  </div>
+                  <span className="text-sm font-bold flex-shrink-0" style={{ color: adj.delta > 0 ? C.teal : "var(--accent, #111111)" }}>
+                    {adj.delta > 0 ? `+${adj.delta}` : adj.delta}
+                  </span>
+                </div>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>
