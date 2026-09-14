@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { QrCode, Package, ShoppingBag, Boxes, Check, ExternalLink, Plus, Pencil } from "lucide-react";
+import { QrCode, Package, ShoppingBag, Boxes, Check, ExternalLink, Plus, Pencil, Trash2 } from "lucide-react";
 import { Card, Pill } from "@/components/primitives";
 import { useEffectiveUser } from "@/components/effective-user-context";
 import { useWorkspace } from "@/lib/queries/workspace";
@@ -275,16 +275,16 @@ function ShopItemCard({
 
       {canEdit && (
         <div className="flex items-center gap-3 mt-1">
-          <button onClick={startEdit} className="text-xs font-semibold flex items-center gap-1" style={{ color: C.muted }}>
-            <Pencil size={12} /> Edit
+          <button onClick={startEdit} title="Edit">
+            <Pencil size={14} style={{ color: C.muted }} />
           </button>
           {canTrackInventory && !showStockForm && (
-            <button onClick={() => setShowStockForm(true)} className="text-xs font-semibold" style={{ color: C.muted }}>
-              {item.stockQuantity === null ? "Track inventory" : "Adjust stock"}
+            <button onClick={() => setShowStockForm(true)} title={item.stockQuantity === null ? "Track inventory" : "Adjust stock"}>
+              <Boxes size={14} style={{ color: item.stockQuantity !== null ? C.teal : C.muted }} />
             </button>
           )}
-          <button onClick={onDelete} disabled={deleteIsPending} className="text-xs font-semibold" style={{ color: C.muted }}>
-            Remove
+          <button onClick={onDelete} disabled={deleteIsPending} title="Remove">
+            <Trash2 size={14} style={{ color: C.muted }} />
           </button>
         </div>
       )}
