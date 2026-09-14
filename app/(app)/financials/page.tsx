@@ -51,16 +51,6 @@ export default function FinancialsPage() {
   const setOakcoSub = (s: "income" | "expenses") => setFinancialsView({ oakcoSub: s });
 
   const isAccountOwner = effectiveUser.role === "ACCOUNT_OWNER";
-  // A Co-Manager only ever sees the real current month here, no browsing
-  // history — user request, 2026-08-19. Overrides any persisted
-  // financialsView month/year for her specifically (including one set
-  // before this restriction existed, or carried over from a different
-  // account on a shared browser); ACCOUNT_OWNER/PROPERTY_OWNER keep full
-  // navigation via the persisted state as before.
-  const isCoManager = effectiveUser.role === "CO_MANAGER";
-  const realNow = new Date();
-  const fYear = isCoManager ? realNow.getFullYear() : storedYear;
-  const fMonth = isCoManager ? realNow.getMonth() : storedMonth;
 
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
@@ -75,6 +65,22 @@ export default function FinancialsPage() {
   const teamQuery = useTeam();
   const workspaceQuery = useWorkspace();
   const shopOrdersQuery = useShopOrders({ enabled: workspaceQuery.data?.type === "STORE" });
+
+  // A Co-Manager only ever sees the real current month here, no browsing
+  // history — user request, 2026-08-19. A Free-tier STORE workspace gets
+  // the same lock regardless of role (Stage 4 of the STORE build — the
+  // original scoping decision: "you will see finances for only the
+  // current month" on Free). Overrides any persisted financialsView
+  // month/year (including one set before either restriction existed, or
+  // carried over from a different account on a shared browser);
+  // ACCOUNT_OWNER/PROPERTY_OWNER on a paid-or-non-Store workspace keep
+  // full navigation via the persisted state as before.
+  const isCoManager = effectiveUser.role === "CO_MANAGER";
+  const isFreeTierStore = workspaceQuery.data?.type === "STORE" && workspaceQuery.data?.plan === "FREE";
+  const lockedToCurrentMonth = isCoManager || isFreeTierStore;
+  const realNow = new Date();
+  const fYear = lockedToCurrentMonth ? realNow.getFullYear() : storedYear;
+  const fMonth = lockedToCurrentMonth ? realNow.getMonth() : storedMonth;
 
   const createExpense = useCreateExpense();
   const updateExpense = useUpdateExpense();
@@ -261,16 +267,19 @@ export default function FinancialsPage() {
       </div>
 
       <div className="flex items-center gap-2">
-        {!isCoManager && (
+        {!lockedToCurrentMonth && (
           <button onClick={goToPrevMonth} className="p-2 rounded-full" style={{ background: C.card, border: `1px solid ${C.border}` }}>
             <ChevronLeft size={16} style={{ color: C.text }} />
           </button>
         )}
         <span className="text-sm font-semibold w-32 text-center" style={{ color: C.text }}>{monthLabel}</span>
-        {!isCoManager && (
+        {!lockedToCurrentMonth && (
           <button onClick={goToNextMonth} className="p-2 rounded-full" style={{ background: C.card, border: `1px solid ${C.border}` }}>
             <ChevronRight size={16} style={{ color: C.text }} />
           </button>
+        )}
+        {isFreeTierStore && (
+          <span className="text-xs" style={{ color: C.muted }}>Free plan — current month only</span>
         )}
         {effectiveCanEdit && !isStore && (
           <button

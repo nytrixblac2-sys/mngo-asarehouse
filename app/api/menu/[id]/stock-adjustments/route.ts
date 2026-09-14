@@ -22,6 +22,14 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     return apiError("Not found", 404);
   }
 
+  // Inventory tracking is Starter-and-up — same enforcement as POST/PATCH
+  // /api/menu, needed here too since this is the other way tracking can
+  // start (the first adjustment on a previously-untracked item).
+  const workspace = await prisma.workspace.findUnique({ where: { id: user.workspaceId }, select: { type: true, plan: true } });
+  if (workspace?.type === "STORE" && workspace.plan === "FREE") {
+    return apiError("Inventory tracking requires the Starter plan or higher.", 403);
+  }
+
   const parsed = stockAdjustmentInputSchema.safeParse(await req.json());
   if (!parsed.success) return apiError(parsed.error.message, 400);
 

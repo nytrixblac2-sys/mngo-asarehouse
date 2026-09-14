@@ -2,7 +2,9 @@ import { requireAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import { C } from "@/lib/colors";
 import { signOut } from "@/app/(app)/actions";
-import { setWorkspaceStatus, setWorkspacePaid } from "./actions";
+import { setWorkspaceStatus, setWorkspacePaid, setWorkspacePlan } from "./actions";
+
+const PLAN_OPTIONS = ["FREE", "STARTER", "PRO", "ENTERPRISE"] as const;
 
 function formatLastSeen(dt: Date | null | undefined): { label: string; dot: string } {
   if (!dt) return { label: "Never active", dot: "#9CA3AF" };
@@ -202,6 +204,34 @@ export default async function AdminPage() {
                       </button>
                     </form>
                   </div>
+                </div>
+
+                {/* Plan row — only STORE gates on this today (Free-tier
+                    limits), but shown for every workspace so it's ready
+                    when RENTAL/HOSTEL enforcement happens too. */}
+                <div
+                  className="flex items-center gap-2 px-5 py-2.5 flex-wrap"
+                  style={{ borderBottom: `1px solid ${C.border}` }}
+                >
+                  <span className="text-xs font-semibold" style={{ color: C.muted }}>Plan</span>
+                  {PLAN_OPTIONS.map((p) => (
+                    <form key={p} action={setWorkspacePlan}>
+                      <input type="hidden" name="workspaceId" value={w.id} />
+                      <input type="hidden" name="plan" value={p} />
+                      <button
+                        type="submit"
+                        disabled={w.plan === p}
+                        className="text-xs font-semibold px-2.5 py-1 rounded-full capitalize"
+                        style={{
+                          background: w.plan === p ? C.teal : C.bg,
+                          color: w.plan === p ? "#fff" : C.muted,
+                          border: `1px solid ${w.plan === p ? "transparent" : C.border}`,
+                        }}
+                      >
+                        {p.charAt(0) + p.slice(1).toLowerCase()}
+                      </button>
+                    </form>
+                  ))}
                 </div>
 
                 {/* Main content */}

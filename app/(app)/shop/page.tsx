@@ -63,7 +63,7 @@ function ShopItemCard({
   item,
   canEdit,
   isOwner,
-  isStoreWorkspace,
+  canTrackInventory,
   onDelete,
   deleteIsPending,
   onUpdate,
@@ -76,7 +76,9 @@ function ShopItemCard({
   item: MenuItem;
   canEdit: boolean;
   isOwner: boolean;
-  isStoreWorkspace: boolean;
+  /** Starter-and-up (Stage 4 of the STORE build) — false on a Free-tier
+   * Store, always false for RENTAL/HOSTEL. */
+  canTrackInventory: boolean;
   onDelete: () => void;
   deleteIsPending: boolean;
   onUpdate: (input: MenuItemInput, onSuccess: () => void) => void;
@@ -236,7 +238,7 @@ function ShopItemCard({
         </Pill>
       )}
 
-      {canEdit && isStoreWorkspace && showStockForm && (
+      {canEdit && canTrackInventory && showStockForm && (
         <div className="flex flex-col gap-1.5 mt-1 p-2 rounded-xl" style={{ background: C.bg }}>
           <input
             value={stockDelta}
@@ -276,7 +278,7 @@ function ShopItemCard({
           <button onClick={startEdit} className="text-xs font-semibold flex items-center gap-1" style={{ color: C.muted }}>
             <Pencil size={12} /> Edit
           </button>
-          {isStoreWorkspace && !showStockForm && (
+          {canTrackInventory && !showStockForm && (
             <button onClick={() => setShowStockForm(true)} className="text-xs font-semibold" style={{ color: C.muted }}>
               {item.stockQuantity === null ? "Track inventory" : "Adjust stock"}
             </button>
@@ -294,6 +296,11 @@ export default function ShopPage() {
   const { effectiveUser, effectiveCanEdit } = useEffectiveUser();
   const workspace = useWorkspace().data;
   const isStoreWorkspace = workspace?.type === "STORE";
+  // Free-tier Store limits (Stage 4 of the STORE build): no shareable
+  // public link, no inventory tracking. RENTAL/HOSTEL are grandfathered
+  // to ENTERPRISE and never hit this.
+  const isFreeTierStore = isStoreWorkspace && workspace?.plan === "FREE";
+  const canTrackInventory = isStoreWorkspace && !isFreeTierStore;
   const menuQuery = useMenuItems();
   const shopOrdersQuery = useShopOrders();
   const createMenuItem = useCreateMenuItem();
@@ -301,7 +308,7 @@ export default function ShopPage() {
   const updateMenuItem = useUpdateMenuItem();
   const updateStatus = useUpdateShopOrderStatus();
   const toggleShop = useToggleShop();
-  const stockAdjustmentsQuery = useStockAdjustments({ enabled: isStoreWorkspace });
+  const stockAdjustmentsQuery = useStockAdjustments({ enabled: canTrackInventory });
   const adjustStock = useAdjustStock();
 
   const isOwner = effectiveUser.role === "ACCOUNT_OWNER";
@@ -348,7 +355,7 @@ export default function ShopPage() {
     const price = parseFloat(newItem.price);
     if (!price || price <= 0) { setAddError("Enter a valid price"); return; }
     let stockQuantity: number | null = null;
-    if (isStoreWorkspace && trackStock) {
+    if (canTrackInventory && trackStock) {
       const qty = parseInt(startingStock, 10);
       if (isNaN(qty) || qty < 0) { setAddError("Enter a valid starting quantity"); return; }
       stockQuantity = qty;
@@ -395,9 +402,18 @@ export default function ShopPage() {
 
       {/* STORE's shop link is always live — it's the whole business, not
           an optional guest add-on toggled per-workspace like RENTAL's.
-          Whether the link is actually shareable on the current plan is a
-          separate, later restriction (Stage 4) — unrestricted for now. */}
-      {(isStoreWorkspace || workspace?.hasShop) && (
+          On the Free plan the link itself isn't shareable yet (Stage 4 of
+          the STORE build) — the public endpoint rejects it server-side
+          (app/api/shop/[slug]), so this shows an upgrade prompt instead of
+          a link that would just dead-end for a customer who scans it. */}
+      {isFreeTierStore ? (
+        <Card>
+          <p className="text-sm font-semibold mb-1" style={{ color: C.text }}>Store link — Starter plan and up</p>
+          <p className="text-xs" style={{ color: C.muted }}>
+            Upgrade to share an online link customers can browse and order from. On the Free plan, products and orders are managed here, but there&apos;s no public storefront yet.
+          </p>
+        </Card>
+      ) : (isStoreWorkspace || workspace?.hasShop) && (
         <Card style={{ background: C.tealSoft, border: `1px solid rgba(0,166,153,0.2)` }}>
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -434,7 +450,7 @@ export default function ShopPage() {
 
       {/* Tab bar */}
       <div className="flex items-center gap-1 rounded-full p-1 w-fit" style={{ background: C.bg }}>
-        {(isStoreWorkspace ? (["products", "orders", "inventory"] as const) : (["products", "orders"] as const)).map((t) => (
+        {(canTrackInventory ? (["products", "orders", "inventory"] as const) : (["products", "orders"] as const)).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -516,7 +532,7 @@ export default function ShopPage() {
                         style={{ border: `1px solid ${C.border}`, background: C.card, color: C.text }}
                       />
                     </div>
-                    {isStoreWorkspace && (
+                    {canTrackInventory && (
                       <div className="flex items-center gap-3">
                         <label className="flex items-center gap-2 text-sm" style={{ color: C.text }}>
                           <input
@@ -539,6 +555,11 @@ export default function ShopPage() {
                           />
                         )}
                       </div>
+                    )}
+                    {isFreeTierStore && (
+                      <p className="text-xs" style={{ color: C.muted }}>
+                        Inventory tracking requires the Starter plan or higher.
+                      </p>
                     )}
                     {addError && <p className="text-xs text-destructive">{addError}</p>}
                     <div className="flex gap-2">
@@ -580,7 +601,7 @@ export default function ShopPage() {
                 item={item}
                 canEdit={effectiveCanEdit}
                 isOwner={isOwner}
-                isStoreWorkspace={isStoreWorkspace}
+                canTrackInventory={canTrackInventory}
                 onDelete={() => deleteMenuItem.mutate(item.id)}
                 deleteIsPending={deleteMenuItem.isPending && deleteMenuItem.variables === item.id}
                 onUpdate={(input, onSuccess) => updateMenuItem.mutate({ id: item.id, input }, { onSuccess })}
@@ -660,7 +681,7 @@ export default function ShopPage() {
         </div>
       )}
 
-      {tab === "inventory" && isStoreWorkspace && (
+      {tab === "inventory" && canTrackInventory && (
         <div className="flex flex-col gap-3">
           {stockAdjustments.length === 0 && (
             <Card>

@@ -23,10 +23,15 @@ class ShopOrderError extends Error {}
 export async function POST(req: Request, { params }: { params: { slug: string } }) {
   const workspace = await prisma.workspace.findUnique({
     where: { slug: params.slug },
-    select: { id: true, type: true, hasShop: true },
+    select: { id: true, type: true, hasShop: true, plan: true },
   });
   if (!workspace || (workspace.type !== "STORE" && !workspace.hasShop)) {
     return apiError("Shop not found", 404);
+  }
+  // See GET /api/shop/[slug]'s matching comment — Free-tier Store, no
+  // online orders yet, enforced server-side since this is public.
+  if (workspace.type === "STORE" && workspace.plan === "FREE") {
+    return apiError("This store isn't accepting online orders yet.", 403);
   }
 
   const parsed = shopOrderInputSchema.safeParse(await req.json());

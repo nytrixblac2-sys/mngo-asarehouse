@@ -28,6 +28,16 @@ export async function POST(req: Request) {
   const parsed = menuItemInputSchema.safeParse(await req.json());
   if (!parsed.success) return apiError(parsed.error.message, 400);
 
+  // Inventory tracking is Starter-and-up (Stage 4 of the STORE build) —
+  // enforced here too, not just hidden in the Add Product form, since the
+  // form omitting the checkbox doesn't stop a direct API call.
+  if (parsed.data.stockQuantity != null) {
+    const workspace = await prisma.workspace.findUnique({ where: { id: user.workspaceId }, select: { type: true, plan: true } });
+    if (workspace?.type === "STORE" && workspace.plan === "FREE") {
+      return apiError("Inventory tracking requires the Starter plan or higher.", 403);
+    }
+  }
+
   const created = await prisma.menuItem.create({
     data: {
       workspaceId: user.workspaceId,
