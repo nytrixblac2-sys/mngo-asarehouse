@@ -53,21 +53,21 @@ export function LandingPage() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Orbit speed/phase tuned for a full slow rotation roughly every
-    // 80-130s — visibly turning without being distracting. `orbit` is
-    // how far each one strays from its home cx/cy, as a fraction of
-    // canvas size; matched sin/cos frequency traces a true circle
-    // (previously used slightly different x/y frequencies, which drifted
-    // instead of visibly rotating).
+    // All three orbs share one rotation speed so they orbit "together"
+    // (as one rotating formation, offset by phase) rather than drifting
+    // apart independently — a full rotation roughly every 115s. Each also
+    // "breathes": its radius pulses gently (±12%) on its own slower,
+    // phase-offset cycle, so it feels alive rather than just spinning.
+    // `orbit` is how far each strays from its home cx/cy, as a fraction
+    // of canvas size.
+    const ROTATE_SPEED = 0.00092;
+    const BREATHE_SPEED = 0.00055;
+    const BREATHE_AMOUNT = 0.12;
     const orbs = [
-      { cx: 0.15, cy: 0.25, r: 0.55, rgb: [13, 148, 136], s: 0.00105, ph: 0.0, orbit: 0.11 },
-      { cx: 0.80, cy: 0.60, r: 0.50, rgb: [56, 189, 248], s: 0.00080, ph: 2.1, orbit: 0.13 },
-      { cx: 0.48, cy: 0.95, r: 0.44, rgb: [94, 234, 212], s: 0.00130, ph: 4.2, orbit: 0.10 },
+      { cx: 0.15, cy: 0.25, r: 0.55, rgb: [13, 148, 136], ph: 0.0, orbit: 0.11 },
+      { cx: 0.80, cy: 0.60, r: 0.50, rgb: [56, 189, 248], ph: 2.1, orbit: 0.13 },
+      { cx: 0.48, cy: 0.95, r: 0.44, rgb: [94, 234, 212], ph: 4.2, orbit: 0.10 },
     ];
-    // Faint orange fade partway through each orb's gradient — user
-    // request, 2026-09-14 — ties the hero visual to the same accent color
-    // as the headline's cycling word (--lp-orange's dark-mode value).
-    const ORANGE = [251, 146, 60];
 
     let raf = 0;
     let t = 0;
@@ -86,13 +86,13 @@ export function LandingPage() {
       const isDark = themeRef.current === "dark";
       const alpha = isDark ? 0.14 : 0.18;
       for (const o of orbs) {
-        const angle = t * o.s + o.ph;
+        const angle = t * ROTATE_SPEED + o.ph;
         const x = (o.cx + o.orbit * Math.cos(angle)) * w;
         const y = (o.cy + o.orbit * Math.sin(angle)) * h;
-        const rad = o.r * Math.max(w, h) * 0.55;
+        const breathe = 1 + BREATHE_AMOUNT * Math.sin(t * BREATHE_SPEED + o.ph);
+        const rad = o.r * Math.max(w, h) * 0.55 * breathe;
         const g = ctx!.createRadialGradient(x, y, 0, x, y, rad);
         g.addColorStop(0, `rgba(${o.rgb},${alpha})`);
-        g.addColorStop(0.55, `rgba(${ORANGE},${alpha * 0.35})`);
         g.addColorStop(1, `rgba(${o.rgb},0)`);
         ctx!.fillStyle = g;
         ctx!.fillRect(0, 0, w, h);
