@@ -172,7 +172,8 @@ export function LandingPage() {
             Management on the Go
           </div>
           <h1 className={s.heroH1}>
-            Run your <span key={heroWordIndex} className={s.heroWord}>{HERO_WORDS[heroWordIndex]}</span><br />
+            Run your<br />
+            <span key={heroWordIndex} className={s.heroWord}>{HERO_WORDS[heroWordIndex]}</span><br />
             <span className={s.shine}>from anywhere.</span>
           </h1>
           <p className={s.heroSub}>
