@@ -13,7 +13,6 @@ export function LandingPage() {
   const [formSent, setFormSent] = useState(false);
   const [formSending, setFormSending] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("light");
-  const themeRef = useRef<"light" | "dark">("light");
   const [heroWordIndex, setHeroWordIndex] = useState(0);
 
   // Cycles the hero headline's business-type word — user request,
@@ -33,76 +32,63 @@ export function LandingPage() {
     const initial = (stored === "dark" || stored === "light")
       ? (stored as "light" | "dark")
       : "light";
-    themeRef.current = initial;
     setTheme(initial);
     document.documentElement.setAttribute("data-theme", initial);
   }, []);
 
   function toggleTheme() {
     const next = theme === "dark" ? "light" : "dark";
-    themeRef.current = next;
     setTheme(next);
     document.documentElement.setAttribute("data-theme", next);
     try { localStorage.setItem("mngo-theme", next); } catch {}
   }
 
-  // Canvas orbs
+  // Canvas orbs — drawn once (static), not animated. A continuous
+  // requestAnimationFrame loop redrawing three full-canvas radial
+  // gradients every frame was heavy enough to noticeably block the main
+  // thread — user report, 2026-09-14: scroll felt heavy, and the stats
+  // band's fade-up transition visibly froze mid-fade for ~450ms before
+  // jumping, confirmed by sampling its computed opacity while the orb
+  // loop was running. Removed the loop entirely; redraws only on resize
+  // and on theme change (alpha differs light/dark).
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // All three orbs share one rotation speed so they orbit "together"
-    // (as one rotating formation, offset by phase) rather than drifting
-    // apart independently — a full rotation roughly every 115s. Each also
-    // "breathes": its radius pulses gently (±12%) on its own slower,
-    // phase-offset cycle, so it feels alive rather than just spinning.
-    // `orbit` is how far each strays from its home cx/cy, as a fraction
-    // of canvas size.
-    const ROTATE_SPEED = 0.00092;
-    const BREATHE_SPEED = 0.00055;
-    const BREATHE_AMOUNT = 0.12;
     const orbs = [
-      { cx: 0.15, cy: 0.25, r: 0.55, rgb: [13, 148, 136], ph: 0.0, orbit: 0.11 },
-      { cx: 0.80, cy: 0.60, r: 0.50, rgb: [56, 189, 248], ph: 2.1, orbit: 0.13 },
-      { cx: 0.48, cy: 0.95, r: 0.44, rgb: [94, 234, 212], ph: 4.2, orbit: 0.10 },
+      { cx: 0.15, cy: 0.25, r: 0.55, rgb: [13, 148, 136] },
+      { cx: 0.80, cy: 0.60, r: 0.50, rgb: [56, 189, 248] },
+      { cx: 0.48, cy: 0.95, r: 0.44, rgb: [94, 234, 212] },
     ];
-
-    let raf = 0;
-    let t = 0;
-
-    function resize() {
-      canvas!.width = canvas!.offsetWidth;
-      canvas!.height = canvas!.offsetHeight;
-    }
-    resize();
-    const ro = new ResizeObserver(resize);
-    ro.observe(canvas);
 
     function draw() {
       const w = canvas!.width; const h = canvas!.height;
       ctx!.clearRect(0, 0, w, h);
-      const isDark = themeRef.current === "dark";
-      const alpha = isDark ? 0.14 : 0.18;
+      const alpha = theme === "dark" ? 0.14 : 0.18;
       for (const o of orbs) {
-        const angle = t * ROTATE_SPEED + o.ph;
-        const x = (o.cx + o.orbit * Math.cos(angle)) * w;
-        const y = (o.cy + o.orbit * Math.sin(angle)) * h;
-        const breathe = 1 + BREATHE_AMOUNT * Math.sin(t * BREATHE_SPEED + o.ph);
-        const rad = o.r * Math.max(w, h) * 0.55 * breathe;
+        const x = o.cx * w;
+        const y = o.cy * h;
+        const rad = o.r * Math.max(w, h) * 0.55;
         const g = ctx!.createRadialGradient(x, y, 0, x, y, rad);
         g.addColorStop(0, `rgba(${o.rgb},${alpha})`);
         g.addColorStop(1, `rgba(${o.rgb},0)`);
         ctx!.fillStyle = g;
         ctx!.fillRect(0, 0, w, h);
       }
-      t++;
-      raf = requestAnimationFrame(draw);
     }
-    draw();
-    return () => { cancelAnimationFrame(raf); ro.disconnect(); };
-  }, []);
+
+    function resize() {
+      canvas!.width = canvas!.offsetWidth;
+      canvas!.height = canvas!.offsetHeight;
+      draw();
+    }
+    resize();
+    const ro = new ResizeObserver(resize);
+    ro.observe(canvas);
+    return () => ro.disconnect();
+  }, [theme]);
 
   // Scroll listener
   useEffect(() => {
@@ -111,12 +97,18 @@ export function LandingPage() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // Fade-up observer
+  // Fade-up observer. `rootMargin` extends the trigger zone 200px below
+  // the actual viewport — user report, 2026-09-14: scrolling to the
+  // stats band showed a visible "flash" before it faded in. Triggering
+  // right as an element crosses the fold left no buffer for the 0.6s
+  // transition to complete before it was already in full view; starting
+  // it 200px early gives it a head start so it's normally done well
+  // before the section is actually being looked at.
   useEffect(() => {
     const els = document.querySelectorAll(`.${s.fu}`);
     const obs = new IntersectionObserver(
       (entries) => entries.forEach((e) => { if (e.isIntersecting) { e.target.classList.add(s.fuIn); obs.unobserve(e.target); } }),
-      { threshold: 0.1 }
+      { threshold: 0, rootMargin: "0px 0px 200px 0px" }
     );
     els.forEach((el) => obs.observe(el));
     return () => obs.disconnect();

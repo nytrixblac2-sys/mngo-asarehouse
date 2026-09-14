@@ -381,7 +381,10 @@
 .ftDotaiStrong { color: #2DD4BF; font-weight: 600; }
 
 /* ── FADE-UP ── */
-.fu { opacity: 0; transform: translateY(22px); transition: opacity 0.6s ease, transform 0.6s ease; }
+.fu {
+  opacity: 0; transform: translateY(22px); will-change: opacity, transform;
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
 .fuIn { opacity: 1; transform: none; }
 
 /* ── RESPONSIVE ── */
