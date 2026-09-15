@@ -13,7 +13,8 @@ import { useProperties } from "@/lib/queries/properties";
 import { useAppStore } from "@/store/use-app-store";
 import { C } from "@/lib/colors";
 import { fmtCurrency } from "@/lib/format";
-import type { IssueStatus, MenuItem } from "@/lib/types";
+import { CURRENCY_CODES } from "@/lib/currencies";
+import type { Currency, IssueStatus, MenuItem } from "@/lib/types";
 
 const STATUS_LABEL: Record<IssueStatus, string> = {
   OPEN: "Received",
@@ -149,6 +150,7 @@ function ShopItemCard({
   canEdit,
   isOwner,
   canTrackInventory,
+  currencyOptions,
   onDelete,
   deleteIsPending,
   onUpdate,
@@ -164,6 +166,10 @@ function ShopItemCard({
   /** Starter-and-up (Stage 4 of the STORE build) — false on a Free-tier
    * Store, always false for RENTAL/HOSTEL. */
   canTrackInventory: boolean;
+  /** The property's own currencies — lets each product be priced in
+   * whichever one applies (e.g. a shop that sells in both GHS and EUR),
+   * rather than being stuck with whatever currency it was created in. */
+  currencyOptions: Currency[];
   onDelete: () => void;
   deleteIsPending: boolean;
   onUpdate: (input: MenuItemInput, onSuccess: () => void) => void;
@@ -177,6 +183,7 @@ function ShopItemCard({
   const [draftName, setDraftName] = useState(item.name);
   const [draftCategory, setDraftCategory] = useState(item.category);
   const [draftPrice, setDraftPrice] = useState(String(item.price));
+  const [draftCurrency, setDraftCurrency] = useState<Currency>(item.currency);
   const [draftImageUrl, setDraftImageUrl] = useState(item.imageUrl ?? "");
   const [pin, setPin] = useState("");
   const [showStockForm, setShowStockForm] = useState(false);
@@ -184,7 +191,7 @@ function ShopItemCard({
   const [stockReason, setStockReason] = useState("");
 
   const parsedPrice = parseFloat(draftPrice);
-  const priceChanged = parsedPrice !== item.price;
+  const priceChanged = parsedPrice !== item.price || draftCurrency !== item.currency;
   const needsPin = priceChanged && !isOwner;
   const canSave = draftName.trim().length > 0 && draftCategory.trim().length > 0 && parsedPrice > 0 && (!needsPin || pin.trim().length > 0);
 
@@ -192,6 +199,7 @@ function ShopItemCard({
     setDraftName(item.name);
     setDraftCategory(item.category);
     setDraftPrice(String(item.price));
+    setDraftCurrency(item.currency);
     setDraftImageUrl(item.imageUrl ?? "");
     setPin("");
     setIsEditing(true);
@@ -204,7 +212,7 @@ function ShopItemCard({
         name: draftName.trim(),
         category: draftCategory.trim(),
         price: parsedPrice,
-        currency: item.currency,
+        currency: draftCurrency,
         station: item.station,
         alwaysAvailable: item.alwaysAvailable,
         imageUrl: draftImageUrl.trim() || null,
@@ -249,14 +257,24 @@ function ShopItemCard({
             className="w-full px-2.5 py-2 rounded-lg text-sm"
             style={{ border: `1px solid ${C.border}` }}
           />
-          <input
-            value={draftCategory}
-            onChange={(e) => setDraftCategory(e.target.value)}
-            placeholder="Category"
-            className="w-full px-2.5 py-2 rounded-lg text-sm"
+          <select
+            value={draftCurrency}
+            onChange={(e) => setDraftCurrency(e.target.value as Currency)}
+            className="px-2.5 py-2 rounded-lg text-sm"
             style={{ border: `1px solid ${C.border}` }}
-          />
+          >
+            {currencyOptions.map((cur) => (
+              <option key={cur} value={cur}>{cur}</option>
+            ))}
+          </select>
         </div>
+        <input
+          value={draftCategory}
+          onChange={(e) => setDraftCategory(e.target.value)}
+          placeholder="Category"
+          className="w-full px-2.5 py-2 rounded-lg text-sm"
+          style={{ border: `1px solid ${C.border}` }}
+        />
         <ImageUploadField value={draftImageUrl} onChange={setDraftImageUrl} />
         {needsPin && (
           <input
@@ -402,7 +420,7 @@ export default function ShopPage() {
 
   const [tab, setTab] = useState<"products" | "orders" | "inventory">("products");
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newItem, setNewItem] = useState({ name: "", price: "", category: "Shop", imageUrl: "" });
+  const [newItem, setNewItem] = useState({ name: "", price: "", category: "Shop", imageUrl: "", currency: "" as Currency | "" });
   const [trackStock, setTrackStock] = useState(false);
   const [startingStock, setStartingStock] = useState("");
   const [addError, setAddError] = useState<string | null>(null);
@@ -451,7 +469,7 @@ export default function ShopPage() {
       name: newItem.name.trim(),
       category: newItem.category || "Shop",
       price,
-      currency: shopCurrency,
+      currency: newItem.currency || shopCurrency,
       alwaysAvailable: true,
       station: "SHOP",
       imageUrl: newItem.imageUrl.trim() || null,
@@ -459,7 +477,7 @@ export default function ShopPage() {
     }, {
       onSuccess: () => {
         setShowAddForm(false);
-        setNewItem({ name: "", price: "", category: "Shop", imageUrl: "" });
+        setNewItem({ name: "", price: "", category: "Shop", imageUrl: "", currency: "" });
         setTrackStock(false);
         setStartingStock("");
       },
@@ -580,21 +598,31 @@ export default function ShopPage() {
                       <input
                         value={newItem.price}
                         onChange={(e) => setNewItem((p) => ({ ...p, price: e.target.value }))}
-                        placeholder="Price (GHS)"
+                        placeholder="Price"
                         type="number"
                         min="0"
                         step="0.01"
                         className="flex-1 px-3 py-2.5 rounded-xl text-sm"
                         style={{ border: `1px solid ${C.border}`, background: C.card, color: C.text }}
                       />
-                      <input
-                        value={newItem.category}
-                        onChange={(e) => setNewItem((p) => ({ ...p, category: e.target.value }))}
-                        placeholder="Category"
-                        className="flex-1 px-3 py-2.5 rounded-xl text-sm"
+                      <select
+                        value={newItem.currency || shopCurrency}
+                        onChange={(e) => setNewItem((p) => ({ ...p, currency: e.target.value as Currency }))}
+                        className="px-3 py-2.5 rounded-xl text-sm"
                         style={{ border: `1px solid ${C.border}`, background: C.card, color: C.text }}
-                      />
+                      >
+                        {(activeShopProperty?.currencies ?? CURRENCY_CODES).map((cur) => (
+                          <option key={cur} value={cur}>{cur}</option>
+                        ))}
+                      </select>
                     </div>
+                    <input
+                      value={newItem.category}
+                      onChange={(e) => setNewItem((p) => ({ ...p, category: e.target.value }))}
+                      placeholder="Category"
+                      className="w-full px-3 py-2.5 rounded-xl text-sm"
+                      style={{ border: `1px solid ${C.border}`, background: C.card, color: C.text }}
+                    />
                     <div className="flex gap-3 items-center">
                       <div
                         className="rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden text-3xl"
@@ -681,6 +709,7 @@ export default function ShopPage() {
                 canEdit={effectiveCanEdit}
                 isOwner={isOwner}
                 canTrackInventory={canTrackInventory}
+                currencyOptions={activeShopProperty?.currencies ?? CURRENCY_CODES}
                 onDelete={() => deleteMenuItem.mutate(item.id)}
                 deleteIsPending={deleteMenuItem.isPending && deleteMenuItem.variables === item.id}
                 onUpdate={(input, onSuccess) => updateMenuItem.mutate({ id: item.id, input }, { onSuccess })}
