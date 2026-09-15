@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Building2, User, Mail, Lock, Eye, EyeOff, Loader2, Home, Store, Check, MapPin } from "lucide-react";
+import { Building2, User, Mail, Lock, Eye, EyeOff, Loader2, Home, Store, Check, MapPin, Banknote } from "lucide-react";
 import { signUp } from "./actions";
 import { COUNTRY_CURRENCY, CURRENCY_ENUM_VALUES } from "@/lib/currencies";
 
@@ -50,7 +50,12 @@ const TYPE_OPTIONS: {
   {
     value: "RENTAL",
     label: "Rental property",
-    description: "Airbnb, guesthouse, managed units",
+    // Anything with a booking/appointment belongs here, not Shop/store —
+    // a barbershop takes bookings just like a guesthouse takes stays, so
+    // it needs the real booking calendar RENTAL has and STORE doesn't.
+    // Reclassified 2026-09-15 after the user caught barbershop miscategorized
+    // under Shop/store, which has zero booking support by design.
+    description: "Airbnb, guesthouse, salons, barbershops — anything with bookings",
     icon: Home,
     features: [
       "Booking calendar & guest tracking",
@@ -63,7 +68,7 @@ const TYPE_OPTIONS: {
   {
     value: "STORE",
     label: "Shop / store",
-    description: "Retail, barbershop, any storefront business — no bookings",
+    description: "Retail and product-based stores — no bookings",
     icon: Store,
     features: [
       "Product catalog with inventory tracking",
@@ -98,19 +103,6 @@ export function SignupForm({ errorMessage }: { errorMessage: string | null }) {
     if (match) setCurrencies([match.currency]);
   };
 
-  const toggleCurrency = (cur: Currency) => {
-    setCurrencies((prev) => {
-      if (prev.includes(cur)) {
-        // At least one currency must stay selected — the property can't be
-        // created with an empty currencies array (updatePropertySchema and
-        // workspaceSignupSchema both require min(1)).
-        if (prev.length === 1) return prev;
-        return prev.filter((c) => c !== cur);
-      }
-      return [...prev, cur];
-    });
-  };
-
   return (
     <form
       action={signUp}
@@ -135,6 +127,14 @@ export function SignupForm({ errorMessage }: { errorMessage: string | null }) {
                 background: workspaceType === value ? "var(--at-teal-soft, #E6F7F5)" : "var(--at-input-bg, #F0FAFB)",
                 cursor: "pointer",
                 fontFamily: "inherit",
+                // Explicit column flex, top-anchored — without this the
+                // grid row (both buttons stretched to the taller one's
+                // height) let the shorter-description button's content
+                // drift vertically, so the two icons didn't line up.
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "flex-start",
+                justifyContent: "flex-start",
               }}
             >
               <Icon size={16} style={{ color: "var(--at-teal, #0D9488)" }} />
@@ -191,7 +191,7 @@ export function SignupForm({ errorMessage }: { errorMessage: string | null }) {
             name="propertyName"
             required
             style={inputStyle}
-            placeholder={workspaceType === "STORE" ? "e.g. Kwame's Barbershop" : "e.g. Osu Loft"}
+            placeholder={workspaceType === "STORE" ? "e.g. Kwame's Phone Shop" : "e.g. Osu Loft or Kwame's Barbershop"}
           />
         </div>
       </div>
@@ -214,39 +214,23 @@ export function SignupForm({ errorMessage }: { errorMessage: string | null }) {
       </div>
 
       <div>
-        <label style={labelStyle}>Currency</label>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-          {CURRENCY_ENUM_VALUES.map((cur) => (
-            <label
-              key={cur}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                fontSize: "0.8rem",
-                fontWeight: 600,
-                padding: "8px 14px",
-                borderRadius: 10,
-                border: `1px solid ${currencies.includes(cur) ? "var(--at-teal, #0D9488)" : "var(--at-border, #CCE8E5)"}`,
-                background: currencies.includes(cur) ? "var(--at-teal-soft, #E6F7F5)" : "var(--at-input-bg, #F0FAFB)",
-                color: "var(--at-t1, #0C1A1A)",
-                cursor: "pointer",
-              }}
-            >
-              <input
-                type="checkbox"
-                name="currencies"
-                value={cur}
-                checked={currencies.includes(cur)}
-                onChange={() => toggleCurrency(cur)}
-                style={{ accentColor: "#0D9488" }}
-              />
-              {cur}
-            </label>
-          ))}
+        <label style={labelStyle} htmlFor="sf-currency">Currency</label>
+        <div style={{ position: "relative" }}>
+          <Banknote size={14} style={iconStyle} />
+          <select
+            id="sf-currency"
+            name="currencies"
+            value={currencies[0]}
+            onChange={(e) => setCurrencies([e.target.value as Currency])}
+            style={{ ...inputStyle, appearance: "none" }}
+          >
+            {CURRENCY_ENUM_VALUES.map((cur) => (
+              <option key={cur} value={cur}>{cur}</option>
+            ))}
+          </select>
         </div>
         <p style={{ fontSize: "0.72rem", color: "var(--at-t2, #3D6663)", marginTop: 5 }}>
-          Pre-selected from your country above — add more (e.g. EUR for Airbnb payouts) or change later from your property settings.
+          Pre-selected from your country above — you can add more currencies (e.g. EUR for Airbnb payouts) later from your property settings.
         </p>
       </div>
 
@@ -355,6 +339,14 @@ export function SignupForm({ errorMessage }: { errorMessage: string | null }) {
 
       <p style={{ fontSize: "0.78rem", textAlign: "center", color: "var(--at-t2, #3D6663)", lineHeight: 1.55 }}>
         A team member reviews every new workspace before it goes live — you&apos;ll get access as soon as it&apos;s approved.
+      </p>
+
+      <p style={{ fontSize: "0.78rem", textAlign: "center", color: "var(--at-t2, #3D6663)", lineHeight: 1.55 }}>
+        Starts free, no card required.{" "}
+        <a href="/pricing" target="_blank" rel="noopener noreferrer" style={{ fontWeight: 600, color: "var(--at-teal, #0D9488)", textDecoration: "none" }}>
+          See what&apos;s on each plan
+        </a>
+        .
       </p>
     </form>
   );
