@@ -15,11 +15,13 @@ export async function signUp(formData: FormData) {
 
   const parsed = workspaceSignupSchema.safeParse({
     companyName: formData.get("companyName"),
+    propertyName: formData.get("propertyName"),
     name: formData.get("name"),
     email: formData.get("email"),
     password: formData.get("password"),
     confirmPassword: formData.get("confirmPassword"),
     workspaceType: formData.get("workspaceType") || undefined,
+    currencies: formData.getAll("currencies").length ? formData.getAll("currencies") : undefined,
   });
   if (!parsed.success) {
     redirect(`/signup?error=${encodeURIComponent(parsed.error.issues[0]?.message ?? "invalid")}`);

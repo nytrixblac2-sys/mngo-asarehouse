@@ -1,6 +1,6 @@
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { createPropertySchema, getVisibleProperties, serializeProperty } from "@/lib/properties";
+import { createPropertySchema, defaultAllocationForCurrencies, getVisibleProperties, serializeProperty } from "@/lib/properties";
 import { apiSuccess, apiError } from "@/lib/api-response";
 
 export async function GET() {
@@ -34,15 +34,8 @@ export async function POST(req: Request) {
   const parsed = createPropertySchema.safeParse(await req.json());
   if (!parsed.success) return apiError(parsed.error.message, 400);
 
-  // STORE has no owner/operations/management split — same shape as HOSTEL
-  // (Architecture Decision 71) — so its confirmed income (Shop sales, not
-  // bookings) must land 100% in the owners bucket, or 25% of every sale
-  // would silently disappear into a management fund nobody can see (STORE's
-  // Financials page has no Internal/oakco tab, same as HOSTEL).
   const workspace = await prisma.workspace.findUnique({ where: { id: user.workspaceId }, select: { type: true } });
-  const allocation = workspace?.type === "STORE"
-    ? { GHS: { owners: 100, operations: 0, management: 0 } }
-    : { GHS: { owners: 60, operations: 15, management: 25 } };
+  const allocation = defaultAllocationForCurrencies(workspace?.type ?? "RENTAL", ["GHS"]);
 
   const created = await prisma.property.create({
     data: {

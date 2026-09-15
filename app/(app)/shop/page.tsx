@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { QrCode, Package, ShoppingBag, Boxes, Check, ExternalLink, Plus, Pencil, Trash2 } from "lucide-react";
+import { useRef, useState } from "react";
+import { QrCode, Package, ShoppingBag, Boxes, Check, ExternalLink, Plus, Pencil, Trash2, Upload, Loader2 } from "lucide-react";
 import { Card, Pill } from "@/components/primitives";
 import { useEffectiveUser } from "@/components/effective-user-context";
 import { useWorkspace } from "@/lib/queries/workspace";
-import { useMenuItems, useCreateMenuItem, useDeleteMenuItem, useUpdateMenuItem } from "@/lib/queries/menu";
+import { useMenuItems, useCreateMenuItem, useDeleteMenuItem, useUpdateMenuItem, useUploadShopImage } from "@/lib/queries/menu";
 import type { MenuItemInput } from "@/lib/queries/menu";
 import { useShopOrders, useUpdateShopOrderStatus, useToggleShop } from "@/lib/queries/shop";
 import { useStockAdjustments, useAdjustStock } from "@/lib/queries/stock";
@@ -50,6 +50,57 @@ function getEmoji(name: string): string {
     if (lower.includes(key)) return emoji;
   }
   return "🛍️";
+}
+
+/**
+ * Product photo input — paste-a-link (the only option before this) plus a
+ * real file picker that, on a phone, opens straight to the camera roll.
+ * `useUploadShopImage` posts to /api/upload/shop-image (Supabase Storage,
+ * bucket created lazily on first use) and the returned public URL lands in
+ * the exact same `imageUrl` field the link input already wrote to.
+ */
+function ImageUploadField({ value, onChange }: { value: string; onChange: (url: string) => void }) {
+  const uploadImage = useUploadShopImage();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  return (
+    <div className="flex-1 flex flex-col gap-1.5">
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Image URL (optional — paste a link to a photo)"
+        className="w-full px-3 py-2.5 rounded-xl text-sm"
+        style={{ border: `1px solid ${C.border}`, background: C.card, color: C.text }}
+      />
+      <div className="flex items-center gap-2">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          hidden
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (!file) return;
+            uploadImage.mutate(file, { onSuccess: (res) => onChange(res.url) });
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploadImage.isPending}
+          className="text-xs font-semibold px-3 py-1.5 rounded-full flex items-center gap-1.5"
+          style={{ background: C.bg, color: C.text, border: `1px solid ${C.border}` }}
+        >
+          {uploadImage.isPending ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+          {uploadImage.isPending ? "Uploading…" : "Upload from device"}
+        </button>
+        {uploadImage.isError && (
+          <span className="text-xs text-destructive">{(uploadImage.error as Error).message}</span>
+        )}
+      </div>
+    </div>
+  );
 }
 
 /**
@@ -172,13 +223,7 @@ function ShopItemCard({
             style={{ border: `1px solid ${C.border}` }}
           />
         </div>
-        <input
-          value={draftImageUrl}
-          onChange={(e) => setDraftImageUrl(e.target.value)}
-          placeholder="Image URL (optional)"
-          className="w-full px-2.5 py-2 rounded-lg text-sm"
-          style={{ border: `1px solid ${C.border}` }}
-        />
+        <ImageUploadField value={draftImageUrl} onChange={setDraftImageUrl} />
         {needsPin && (
           <input
             value={pin}
@@ -526,12 +571,9 @@ export default function ShopPage() {
                           getEmoji(newItem.name)
                         )}
                       </div>
-                      <input
+                      <ImageUploadField
                         value={newItem.imageUrl}
-                        onChange={(e) => setNewItem((p) => ({ ...p, imageUrl: e.target.value }))}
-                        placeholder="Image URL (optional — paste a link to a photo)"
-                        className="flex-1 px-3 py-2.5 rounded-xl text-sm"
-                        style={{ border: `1px solid ${C.border}`, background: C.card, color: C.text }}
+                        onChange={(url) => setNewItem((p) => ({ ...p, imageUrl: url }))}
                       />
                     </div>
                     {canTrackInventory && (

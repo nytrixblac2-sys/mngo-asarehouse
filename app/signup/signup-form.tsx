@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Building2, User, Mail, Lock, Eye, EyeOff, Loader2, Home, Store } from "lucide-react";
+import { Building2, User, Mail, Lock, Eye, EyeOff, Loader2, Home, Store, Check } from "lucide-react";
 import { signUp } from "./actions";
 
 type WorkspaceType = "RENTAL" | "STORE";
@@ -39,17 +39,61 @@ const iconStyle: React.CSSProperties = {
   pointerEvents: "none",
 };
 
-const TYPE_OPTIONS: { value: WorkspaceType; label: string; description: string; icon: typeof Home }[] = [
-  { value: "RENTAL", label: "Rental property", description: "Airbnb, guesthouse, managed units", icon: Home },
-  { value: "STORE", label: "Shop / store", description: "Retail, phones, any storefront business", icon: Store },
+const TYPE_OPTIONS: {
+  value: WorkspaceType;
+  label: string;
+  description: string;
+  icon: typeof Home;
+  features: string[];
+}[] = [
+  {
+    value: "RENTAL",
+    label: "Rental property",
+    description: "Airbnb, guesthouse, managed units",
+    icon: Home,
+    features: [
+      "Booking calendar & guest tracking",
+      "Owner / operations / management income splits",
+      "Optional in-stay shop for guests",
+      "Monthly PDF owner reports",
+      "Invite co-managers and property owners",
+    ],
+  },
+  {
+    value: "STORE",
+    label: "Shop / store",
+    description: "Retail, barbershop, any storefront business — no bookings",
+    icon: Store,
+    features: [
+      "Product catalog with inventory tracking",
+      "Shareable storefront link — customers order & pay at checkout",
+      "Sales and income reports",
+      "Staff accounts",
+      "No booking calendar — built for walk-in / sale-based businesses",
+    ],
+  },
 ];
 
 export function SignupForm({ errorMessage }: { errorMessage: string | null }) {
   const [showPw, setShowPw] = useState(false);
   const [workspaceType, setWorkspaceType] = useState<WorkspaceType>("RENTAL");
+  const [currencies, setCurrencies] = useState<("GHS" | "EUR")[]>(["GHS"]);
   // See app/login/login-form.tsx's identical submitting state for why
   // this is a plain onSubmit flag rather than useFormStatus.
   const [submitting, setSubmitting] = useState(false);
+
+  const toggleCurrency = (cur: "GHS" | "EUR") => {
+    setCurrencies((prev) => {
+      if (prev.includes(cur)) {
+        // At least one currency must stay selected — the property can't be
+        // created with an empty currencies array (updatePropertySchema and
+        // workspaceSignupSchema both require min(1)).
+        if (prev.length === 1) return prev;
+        return prev.filter((c) => c !== cur);
+      }
+      return [...prev, cur];
+    });
+  };
 
   return (
     <form
@@ -83,6 +127,27 @@ export function SignupForm({ errorMessage }: { errorMessage: string | null }) {
             </button>
           ))}
         </div>
+        <div
+          style={{
+            marginTop: 8,
+            padding: "10px 12px",
+            borderRadius: 10,
+            background: "var(--at-teal-soft, #E6F7F5)",
+            border: "1px solid var(--at-border, #CCE8E5)",
+          }}
+        >
+          <p style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--at-t2, #3D6663)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.02em" }}>
+            What you&apos;ll get
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {TYPE_OPTIONS.find((t) => t.value === workspaceType)?.features.map((f) => (
+              <div key={f} style={{ display: "flex", alignItems: "flex-start", gap: 6 }}>
+                <Check size={12} style={{ color: "var(--at-teal, #0D9488)", marginTop: 2, flexShrink: 0 }} />
+                <span style={{ fontSize: "0.75rem", color: "var(--at-t1, #0C1A1A)", lineHeight: 1.4 }}>{f}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       <div>
@@ -97,6 +162,59 @@ export function SignupForm({ errorMessage }: { errorMessage: string | null }) {
             placeholder="e.g. Oak & Co."
           />
         </div>
+      </div>
+
+      <div>
+        <label style={labelStyle} htmlFor="sf-property">
+          {workspaceType === "STORE" ? "Shop name" : "Property name"}
+        </label>
+        <div style={{ position: "relative" }}>
+          {workspaceType === "STORE" ? <Store size={14} style={iconStyle} /> : <Home size={14} style={iconStyle} />}
+          <input
+            id="sf-property"
+            name="propertyName"
+            required
+            style={inputStyle}
+            placeholder={workspaceType === "STORE" ? "e.g. Kwame's Barbershop" : "e.g. Osu Loft"}
+          />
+        </div>
+      </div>
+
+      <div>
+        <label style={labelStyle}>Currency</label>
+        <div style={{ display: "flex", gap: 8 }}>
+          {(["GHS", "EUR"] as const).map((cur) => (
+            <label
+              key={cur}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                fontSize: "0.8rem",
+                fontWeight: 600,
+                padding: "8px 14px",
+                borderRadius: 10,
+                border: `1px solid ${currencies.includes(cur) ? "var(--at-teal, #0D9488)" : "var(--at-border, #CCE8E5)"}`,
+                background: currencies.includes(cur) ? "var(--at-teal-soft, #E6F7F5)" : "var(--at-input-bg, #F0FAFB)",
+                color: "var(--at-t1, #0C1A1A)",
+                cursor: "pointer",
+              }}
+            >
+              <input
+                type="checkbox"
+                name="currencies"
+                value={cur}
+                checked={currencies.includes(cur)}
+                onChange={() => toggleCurrency(cur)}
+                style={{ accentColor: "#0D9488" }}
+              />
+              {cur}
+            </label>
+          ))}
+        </div>
+        <p style={{ fontSize: "0.72rem", color: "var(--at-t2, #3D6663)", marginTop: 5 }}>
+          You can add or change currencies later from your property settings.
+        </p>
       </div>
 
       <div>

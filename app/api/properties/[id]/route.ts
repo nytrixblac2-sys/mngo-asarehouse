@@ -24,6 +24,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   const updated = await prisma.property.update({
     where: { id: params.id },
     data: {
+      name: parsed.data.name,
       color: parsed.data.color,
       currencies: parsed.data.currencies,
       allocation: parsed.data.allocation,

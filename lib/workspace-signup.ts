@@ -2,10 +2,19 @@ import { z } from "zod";
 import { prisma } from "./prisma";
 import { createAdminClient } from "./supabase/admin";
 import { uniqueWorkspaceSlug } from "./slugify";
+import { defaultAllocationForCurrencies } from "./properties";
 
 export const workspaceSignupSchema = z
   .object({
     companyName: z.string().min(1, "Company name is required"),
+    // The workspace's one property (Architecture Decision 94 — capped at
+    // one per workspace) is created right here at signup instead of left
+    // for a separate "Add property" step afterward — real user feedback,
+    // 2026-09-15: a friend picked "Shop" but had no way to name the shop
+    // itself (only the company/management name) or set its currency until
+    // digging into an edit modal after admin approval, and by then had
+    // already made a naming mistake with no visible way to fix it.
+    propertyName: z.string().min(1, "This name is required"),
     name: z.string().min(1, "Your name is required"),
     email: z.string().email(),
     password: z.string().min(8, "Password must be at least 8 characters"),
@@ -16,6 +25,7 @@ export const workspaceSignupSchema = z
     // up correctly, not a self-serve form. RENTAL and STORE (added
     // 2026-09-13) are the two public self-serve options.
     workspaceType: z.enum(["RENTAL", "STORE"]).default("RENTAL"),
+    currencies: z.array(z.enum(["GHS", "EUR"])).min(1, "Pick at least one currency").default(["GHS"]),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords don't match",
@@ -77,23 +87,47 @@ export async function signUpWorkspace(input: WorkspaceSignupInput) {
 
   try {
     const slug = await uniqueWorkspaceSlug(input.companyName);
-    const workspace = await prisma.workspace.create({
-      data: { name: input.companyName, slug, type: input.workspaceType, status: "PENDING", paid: false },
-    });
+    // One transaction for all four writes — previously the workspace/user/
+    // owner-backfill steps ran as separate un-transacted calls (pre-dating
+    // the property creation added here), so a failure partway through
+    // (now a real possibility: the property write is new) would leave an
+    // orphaned workspace/user pointing at an auth account the catch below
+    // deletes. Wrapped now rather than carrying that gap forward.
+    const workspace = await prisma.$transaction(async (tx) => {
+      const workspace = await tx.workspace.create({
+        data: { name: input.companyName, slug, type: input.workspaceType, status: "PENDING", paid: false },
+      });
 
-    const user = await prisma.user.create({
-      data: {
-        authId: authData.user.id,
-        workspaceId: workspace.id,
-        name: input.name,
-        email: input.email,
-        role: "ACCOUNT_OWNER",
-      },
-    });
+      const user = await tx.user.create({
+        data: {
+          authId: authData.user.id,
+          workspaceId: workspace.id,
+          name: input.name,
+          email: input.email,
+          role: "ACCOUNT_OWNER",
+        },
+      });
 
-    await prisma.workspace.update({
-      where: { id: workspace.id },
-      data: { accountOwnerId: user.id },
+      await tx.workspace.update({
+        where: { id: workspace.id },
+        data: { accountOwnerId: user.id },
+      });
+
+      await tx.property.create({
+        data: {
+          workspaceId: workspace.id,
+          name: input.propertyName,
+          color: "#111111",
+          rooms: [],
+          facilities: [],
+          currencies: input.currencies,
+          allocation: defaultAllocationForCurrencies(input.workspaceType, input.currencies),
+          prevBalanceGhs: { owners: 0, management: 0 },
+          prevBalanceEur: { owners: 0, management: 0 },
+        },
+      });
+
+      return workspace;
     });
 
     return { workspaceId: workspace.id };

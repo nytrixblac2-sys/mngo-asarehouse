@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { prisma } from "./prisma";
-import type { Property, User } from "./types";
+import type { Allocation, Currency, Property, User, WorkspaceType } from "./types";
 
 export function serializeProperty(p: {
   id: string;
@@ -61,6 +61,24 @@ export const createPropertySchema = z.object({
   name: z.string().min(1),
 });
 
+/** STORE has no owner/operations/management split (same as HOSTEL) — its
+ * confirmed income (Shop sales, not bookings) must land 100% in the owners
+ * bucket, or a slice of every sale would silently disappear into a
+ * management fund nobody can see. Shared by the property-creation route
+ * and the signup flow (which creates the workspace's one property
+ * directly) so both apply the exact same default for every currency the
+ * property is given, not just GHS. */
+export function defaultAllocationForCurrencies(workspaceType: WorkspaceType, currencies: Currency[]) {
+  const single: Allocation =
+    workspaceType === "STORE" ? { owners: 100, operations: 0, management: 0 } : { owners: 60, operations: 15, management: 25 };
+  // JSON round-trip rather than a typed cast — the result feeds straight
+  // into a Prisma Json column, which (a well-known Prisma/TS friction
+  // point) rejects a value typed through a named interface like
+  // `Allocation` even though it's structurally a plain object; a genuine
+  // plain object sidesteps it instead of casting past the type checker.
+  return JSON.parse(JSON.stringify(Object.fromEntries(currencies.map((c) => [c, single]))));
+}
+
 const allocationSchema = z.object({
   owners: z.number().min(0).max(100),
   operations: z.number().min(0).max(100),
@@ -72,6 +90,7 @@ const allocationSchema = z.object({
  * be saved." Enforced here, not just in the form UI. */
 export const updatePropertySchema = z
   .object({
+    name: z.string().min(1),
     color: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
     currencies: z.array(z.enum(["GHS", "EUR"])).min(1),
     allocation: z.record(z.enum(["GHS", "EUR"]), allocationSchema),

@@ -72,3 +72,17 @@ export function useDeleteMenuItem() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["menu"] }),
   });
 }
+
+/** Uploads a shop product photo (camera roll or file picker) and returns
+ * its public URL — feeds straight into MenuItemInput.imageUrl, same field
+ * the paste-a-link input already used, so create/edit forms don't need a
+ * second code path for an uploaded vs. linked image. */
+export function useUploadShopImage() {
+  return useMutation({
+    mutationFn: (file: File) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      return fetchJson<{ url: string }>("/api/upload/shop-image", { method: "POST", body: formData });
+    },
+  });
+}

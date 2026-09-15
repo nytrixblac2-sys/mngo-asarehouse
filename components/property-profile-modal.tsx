@@ -51,6 +51,7 @@ export function PropertyProfileModal({
    * the plain string room-name list below. */
   workspaceType?: WorkspaceType;
 }) {
+  const [name, setName] = useState(property.name);
   const [color, setColor] = useState(property.color);
   const [currencies, setCurrencies] = useState<Currency[]>(property.currencies);
   const [allocation, setAllocation] = useState(property.allocation);
@@ -100,16 +101,17 @@ export function PropertyProfileModal({
 
   const allocationValid = currencies.every((cur) => allocTotal(cur) === 100);
   const hasChanges =
+    name.trim() !== property.name ||
     color !== property.color ||
     JSON.stringify(currencies) !== JSON.stringify(property.currencies) ||
     JSON.stringify(allocation) !== JSON.stringify(property.allocation) ||
     JSON.stringify(rooms) !== JSON.stringify(property.rooms) ||
     JSON.stringify(facilities) !== JSON.stringify(property.facilities);
-  const canSave = hasChanges && allocationValid;
+  const canSave = hasChanges && allocationValid && name.trim().length > 0;
 
   const handleSave = () => {
     if (!canSave) return;
-    onSave({ color, currencies, allocation, rooms, facilities });
+    onSave({ name: name.trim(), color, currencies, allocation, rooms, facilities });
   };
 
   if (isDeleting) {
@@ -128,12 +130,25 @@ export function PropertyProfileModal({
       <div className="w-full max-w-md rounded-2xl overflow-hidden flex flex-col" style={{ background: C.card, maxHeight: "85vh" }}>
         <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: `1px solid ${C.border}` }}>
           <div className="flex items-center gap-2">
-            <div className="w-2.5 h-2.5 rounded-full" style={{ background: color }} />
-            <p className="text-lg font-bold" style={{ color: C.text }}>{property.name}</p>
+            <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: color }} />
+            <p className="text-lg font-bold" style={{ color: C.text }}>Edit {isStore ? "shop" : "property"}</p>
           </div>
           <button onClick={onClose}><X size={20} style={{ color: C.muted }} /></button>
         </div>
         <div className="px-6 py-4 overflow-y-auto flex flex-col gap-6">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: C.muted }}>
+              {isStore ? "Shop name" : "Property name"}
+            </p>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full px-3 py-2.5 rounded-xl text-sm"
+              style={{ border: `1px solid ${C.border}`, background: C.card, color: C.text }}
+              placeholder={isStore ? "e.g. Kwame's Barbershop" : "e.g. Osu Loft"}
+            />
+          </div>
+
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: C.muted }}>Color theme</p>
             <div className="flex flex-wrap gap-3 mb-3">

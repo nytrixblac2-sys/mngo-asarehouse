@@ -8,6 +8,7 @@ export interface CreatePropertyInput {
 }
 
 export interface UpdatePropertyInput {
+  name: string;
   color: string;
   currencies: Currency[];
   allocation: Partial<Record<Currency, Allocation>>;

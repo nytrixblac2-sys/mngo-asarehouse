@@ -168,6 +168,7 @@ export function PropertySwitcher({ properties, canEdit }: { properties: Property
       {showAddForm && (
         <PropertyForm
           onClose={() => setShowAddForm(false)}
+          workspaceType={workspaceType}
           isPending={createProperty.isPending}
           isError={createProperty.isError}
           error={createProperty.error as Error | null}
