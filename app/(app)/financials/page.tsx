@@ -23,6 +23,7 @@ import { useWorkspace } from "@/lib/queries/workspace";
 import { C } from "@/lib/colors";
 import { fmtCurrency } from "@/lib/format";
 import { applyMomo, bookingOrderTotal, computeManagementReport, computeOwnersReport, confirmedBookings, outstandingBookings, sumConfirmedIncome, sumConfirmedIncomeHostel, sumConfirmedIncomeStore } from "@/lib/financials";
+import { getPrevBalance } from "@/lib/currencies";
 import { EXPENSE_CATEGORY_LABEL, EXPENSE_CATEGORY_TONE } from "@/lib/labels";
 import { MONTH_NAMES, pad2 } from "@/lib/calendar";
 import type { Allocation, Currency, Expense, PrevBalance } from "@/lib/types";
@@ -187,8 +188,8 @@ export default function FinancialsPage() {
 
   const allocOwner: Allocation = propAlloc[ownerCur] ?? DEFAULT_ALLOCATION;
   const allocOak: Allocation = propAlloc[oakCur] ?? DEFAULT_ALLOCATION;
-  const prevBalanceOwner: PrevBalance = ownerCur === "GHS" ? activeProperty.prevBalanceGhs : activeProperty.prevBalanceEur;
-  const prevBalanceOak: PrevBalance = oakCur === "GHS" ? activeProperty.prevBalanceGhs : activeProperty.prevBalanceEur;
+  const prevBalanceOwner: PrevBalance = getPrevBalance(activeProperty, ownerCur);
+  const prevBalanceOak: PrevBalance = getPrevBalance(activeProperty, oakCur);
 
   const orders = ordersQuery.data ?? [];
   const ownerReport = computeOwnersReport({

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { prisma } from "./prisma";
 import { findOverlappingBooking } from "./rooms";
+import { CURRENCY_ENUM_VALUES } from "./currencies";
 import type { Booking } from "./types";
 
 type BookingRow = {
@@ -68,7 +69,7 @@ export const rentalBookingInputSchema = z.object({
   checkIn: dateStringSchema,
   checkOut: dateStringSchema,
   amount: z.number().positive(),
-  currency: z.enum(["GHS", "EUR"]),
+  currency: z.enum(CURRENCY_ENUM_VALUES),
   source: z.enum(["AIRBNB", "LOCAL"]),
 });
 

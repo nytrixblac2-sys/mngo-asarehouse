@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { prisma } from "./prisma";
+import { CURRENCY_ENUM_VALUES } from "./currencies";
 import type { Allocation, Currency, Property, User, WorkspaceType } from "./types";
 
 export function serializeProperty(p: {
@@ -13,6 +14,7 @@ export function serializeProperty(p: {
   allocation: unknown;
   prevBalanceGhs: unknown;
   prevBalanceEur: unknown;
+  prevBalancesOther: unknown;
   airbnbICalUrl?: string | null;
 }): Property {
   return {
@@ -26,6 +28,7 @@ export function serializeProperty(p: {
     allocation: p.allocation as Property["allocation"],
     prevBalanceGhs: p.prevBalanceGhs as Property["prevBalanceGhs"],
     prevBalanceEur: p.prevBalanceEur as Property["prevBalanceEur"],
+    prevBalancesOther: (p.prevBalancesOther as Property["prevBalancesOther"]) ?? {},
     airbnbICalUrl: p.airbnbICalUrl ?? null,
   };
 }
@@ -92,8 +95,8 @@ export const updatePropertySchema = z
   .object({
     name: z.string().min(1),
     color: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
-    currencies: z.array(z.enum(["GHS", "EUR"])).min(1),
-    allocation: z.record(z.enum(["GHS", "EUR"]), allocationSchema),
+    currencies: z.array(z.enum(CURRENCY_ENUM_VALUES)).min(1),
+    allocation: z.record(z.enum(CURRENCY_ENUM_VALUES), allocationSchema),
     rooms: z.array(z.string()),
     facilities: z.array(z.string()),
   })

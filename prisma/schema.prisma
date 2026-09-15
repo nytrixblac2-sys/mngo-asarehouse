@@ -34,11 +34,23 @@ enum WorkspaceStatus {
   REJECTED
 }
 
-/// GHS and EUR only — context/02-architecture-context.md invariant #2:
-/// GHS and EUR balances are never mixed, converted, or aggregated.
+/// GHS and EUR were the original pair — context/02-architecture-context.md
+/// invariant #2 ("never mixed, converted, or aggregated") still holds for
+/// every currency here, it just isn't a two-currency-only list anymore.
+/// The rest were added 2026-09-15 (a real signup attempt for a
+/// Nigeria-based shop had no way to pick NGN) — see lib/currencies.ts for
+/// the curated list/labels and the signup country map. GHS/EUR are still
+/// the only two with a dedicated Property.prevBalance* column
+/// (prevBalanceGhs/prevBalanceEur); every other currency's running
+/// balance lives in the generic prevBalancesOther JSON map below.
 enum Currency {
   GHS
   EUR
+  NGN
+  USD
+  GBP
+  ZAR
+  KES
 }
 
 /// RENTAL is the original Oak & Co.-style short-term rental product (owner/
@@ -267,27 +279,36 @@ model UserProperty {
 
 /// context/02-architecture-context.md "Property Theming Model" and
 /// "Financial Calculation Model". `allocation` shape:
-/// { GHS?: { owners, operations, management }, EUR?: { owners, operations, management } }
+/// { GHS?: { owners, operations, management }, EUR?: { owners, operations, management }, ... }
 /// (percentages, must sum to 100 per currency — enforced at the API layer).
 /// `prevBalanceGhs` / `prevBalanceEur` shape: { owners: number, management: number }.
 model Property {
-  id             String     @id @default(uuid()) @db.Uuid
-  workspaceId    String     @db.Uuid
-  name           String
-  color          String     @default("#111111")
-  rooms          String[]   @default([])
-  facilities     String[]   @default([])
-  currencies     Currency[] @default([GHS])
-  allocation     Json
-  prevBalanceGhs Json
-  prevBalanceEur Json
+  id                String     @id @default(uuid()) @db.Uuid
+  workspaceId       String     @db.Uuid
+  name              String
+  color             String     @default("#111111")
+  rooms             String[]   @default([])
+  facilities        String[]   @default([])
+  currencies        Currency[] @default([GHS])
+  allocation        Json
+  prevBalanceGhs    Json
+  prevBalanceEur    Json
+  /// Running balance for every currency other than GHS/EUR, keyed by
+  /// currency code: { NGN?: { owners, management }, USD?: {...}, ... }.
+  /// Added 2026-09-15 alongside the wider Currency enum — GHS/EUR keep
+  /// their own dedicated columns above (untouched, so the two original
+  /// live workspaces are unaffected) rather than adding a new hardcoded
+  /// column per currency, which doesn't scale. A currency with no entry
+  /// here yet is simply `{ owners: 0, management: 0 }` — see
+  /// lib/properties.ts getPrevBalance().
+  prevBalancesOther Json       @default("{}")
   /// Airbnb iCal export URL for this property — set once in the Property
   /// profile modal. The cron job at /api/cron/sync-airbnb polls every hour
   /// and auto-creates/cancels bookings. Amount is set to 0 on creation and
   /// must be filled in manually by the manager (iCal does not include pricing).
-  airbnbICalUrl  String?
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
+  airbnbICalUrl     String?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
 
   workspace    Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   owners       UserProperty[]

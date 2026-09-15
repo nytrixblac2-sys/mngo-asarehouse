@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Check, Loader2, X, Link2, Link2Off } from "lucide-react";
 import { C, THEME_COLORS } from "@/lib/colors";
+import { CURRENCY_CODES } from "@/lib/currencies";
 import type { Allocation, Currency, Property, WorkspaceType } from "@/lib/types";
 import type { UpdatePropertyInput } from "@/lib/queries/properties";
 import { useUpdatePropertyIcal } from "@/lib/queries/properties";
@@ -168,10 +169,10 @@ export function PropertyProfileModal({
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: C.muted }}>Currencies</p>
             <p className="text-xs mb-3" style={{ color: C.muted }}>
-              Select the currencies this property operates in. Financials will show a GHS/EUR switcher for enabled currencies.
+              Select the currencies this property operates in. Financials will show a currency switcher for enabled currencies.
             </p>
-            <div className="flex gap-2">
-              {(["GHS", "EUR"] as const).map((cur) => (
+            <div className="flex flex-wrap gap-2">
+              {CURRENCY_CODES.map((cur) => (
                 <button
                   key={cur}
                   onClick={() => toggleCurrency(cur)}

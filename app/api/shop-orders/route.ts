@@ -1,12 +1,12 @@
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { apiSuccess, apiError } from "@/lib/api-response";
-import type { ShopOrder } from "@/lib/types";
+import type { Currency, ShopOrder } from "@/lib/types";
 
 function serialize(o: {
   id: string; workspaceId: string; guestName: string; guestPhone: string | null;
   notes: string | null; status: "OPEN" | "IN_PROGRESS" | "RESOLVED"; createdAt: Date;
-  items: { id: string; menuItemId: string | null; name: string; quantity: number; unitPrice: unknown; currency: "GHS" | "EUR" }[];
+  items: { id: string; menuItemId: string | null; name: string; quantity: number; unitPrice: unknown; currency: Currency }[];
 }): ShopOrder {
   return {
     id: o.id,

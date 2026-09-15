@@ -10,8 +10,14 @@
 
 export type Role = "ACCOUNT_OWNER" | "CO_MANAGER" | "PROPERTY_OWNER";
 
-/** GHS and EUR only — never mixed, converted, or aggregated. */
-export type Currency = "GHS" | "EUR";
+/** A property always operates in one or more of these, GHS and EUR being
+ * the original pair (still the only two with a dedicated running-balance
+ * column — see Property.prevBalanceGhs/prevBalanceEur/prevBalancesOther
+ * below). Currencies are never mixed, converted, or aggregated with each
+ * other regardless of how many a property has — each keeps its own
+ * income, expenses, and running balance. See lib/currencies.ts for the
+ * curated list/labels and the country → currency map used at signup. */
+export type Currency = "GHS" | "EUR" | "NGN" | "USD" | "GBP" | "ZAR" | "KES";
 
 /** "WEBSITE" is a HOSTEL-workspace guest self-service booking (app/book/[slug])
  * — never client-supplied on the authenticated staff booking form, which
@@ -120,6 +126,13 @@ export interface Property {
   allocation: Partial<Record<Currency, Allocation>>;
   prevBalanceGhs: PrevBalance;
   prevBalanceEur: PrevBalance;
+  /** Running balance for every currency other than GHS/EUR, keyed by
+   * currency code — those two keep their own dedicated columns above
+   * (unchanged, so the two original live workspaces are untouched by
+   * this). A currency missing here simply hasn't had one written yet;
+   * treat as `{ owners: 0, management: 0 }`, same as a brand-new property
+   * — see lib/properties.ts getPrevBalance(). */
+  prevBalancesOther: Partial<Record<Currency, PrevBalance>>;
   /** Airbnb "Export calendar" URL — set once in Property profile. Null until configured. */
   airbnbICalUrl: string | null;
 }

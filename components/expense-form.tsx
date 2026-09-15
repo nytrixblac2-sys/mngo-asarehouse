@@ -4,6 +4,7 @@ import { useState } from "react";
 import { X, DollarSign } from "lucide-react";
 import { C } from "@/lib/colors";
 import { EXPENSE_CATEGORY_LABEL } from "@/lib/labels";
+import { CURRENCY_CODES } from "@/lib/currencies";
 import type { Currency, Expense, ExpenseCategory, Property, TeamMember } from "@/lib/types";
 import type { ExpenseInput } from "@/lib/queries/expenses";
 
@@ -53,6 +54,7 @@ export function ExpenseForm({
     expense?.propertyId ?? (defaultPropertyId !== "all" ? defaultPropertyId : properties[0]?.id ?? "")
   );
 
+  const currencyOptions = properties.find((p) => p.id === propertyId)?.currencies ?? CURRENCY_CODES;
   const parsedAmount = parseFloat(amount);
   const canSubmit = description.trim() && parsedAmount > 0 && propertyId && (category !== "MANAGEMENT" || person);
 
@@ -97,7 +99,7 @@ export function ExpenseForm({
           <div>
             <label className="text-xs font-semibold" style={{ color: C.muted }}>Currency</label>
             <div className="flex gap-2 mt-1">
-              {(["GHS", "EUR"] as const).map((cur) => (
+              {currencyOptions.map((cur) => (
                 <button
                   key={cur}
                   onClick={() => setCurrency(cur)}

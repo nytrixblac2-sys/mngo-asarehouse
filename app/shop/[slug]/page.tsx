@@ -1,7 +1,28 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ShoppingCart, Minus, Plus, ChevronLeft } from "lucide-react";
+import { ShoppingCart, Minus, Plus, ChevronLeft, Loader2 } from "lucide-react";
+
+/** Same loading-spinner treatment as the admin Shop page's `ShopImage` —
+ * a Supabase Storage URL can take noticeably longer than a normal image
+ * load, especially right after the bucket is first created, and a blank
+ * box during that reads as broken rather than "still loading." */
+function ShopImg({ src, alt, fallback }: { src: string; alt: string; fallback: React.ReactNode }) {
+  const [status, setStatus] = useState<"loading" | "loaded" | "error">("loading");
+  if (status === "error") return <>{fallback}</>;
+  return (
+    <>
+      {status === "loading" && <Loader2 size={16} className="animate-spin" style={{ color: "#999" }} />}
+      <img
+        src={src}
+        alt={alt}
+        onLoad={() => setStatus("loaded")}
+        onError={() => setStatus("error")}
+        style={{ width: "100%", height: "100%", objectFit: "contain", display: status === "loaded" ? "block" : "none" }}
+      />
+    </>
+  );
+}
 
 interface ShopItem {
   id: string;
@@ -269,7 +290,7 @@ export default function PublicShopPage({ params }: { params: { slug: string } })
                   <div key={item.id} style={{ background: "#fff", borderRadius: 16, padding: 16, display: "flex", alignItems: "center", gap: 12, border: "1px solid #F0F0F0" }}>
                     <div style={{ fontSize: 32, width: 48, height: 48, display: "flex", alignItems: "center", justifyContent: "center", background: "#F8F9FA", borderRadius: 12, overflow: "hidden" }}>
                       {item.imageUrl ? (
-                        <img src={item.imageUrl} alt={item.name} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                        <ShopImg src={item.imageUrl} alt={item.name} fallback={getEmoji(item.name)} />
                       ) : (
                         getEmoji(item.name)
                       )}
@@ -354,7 +375,7 @@ export default function PublicShopPage({ params }: { params: { slug: string } })
                     >
                       <div style={{ height: 100, background: "#F8F9FA", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 44 }}>
                         {item.imageUrl ? (
-                          <img src={item.imageUrl} alt={item.name} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                          <ShopImg src={item.imageUrl} alt={item.name} fallback={getEmoji(item.name)} />
                         ) : (
                           getEmoji(item.name)
                         )}

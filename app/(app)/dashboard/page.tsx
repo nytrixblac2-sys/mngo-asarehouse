@@ -86,6 +86,16 @@ export default function DashboardPage() {
   const schedulesQuery = useSchedules();
   const issuesQuery = useIssues();
   const propertiesQuery = useProperties();
+  // Which currencies to offer in the chart's toggle — the active
+  // property's own list when one is selected (a workspace is capped at
+  // one property, so this is the normal case), otherwise the union across
+  // every visible property. Was hardcoded to ["GHS","EUR"], which broke
+  // for any property using a different currency (e.g. NGN) — the toggle
+  // would offer two currencies the property doesn't actually have data in.
+  const activeDashboardProperty = propertiesQuery.data?.find((p) => p.id === activePropertyId);
+  const dashboardCurrencies =
+    activeDashboardProperty?.currencies ??
+    Array.from(new Set((propertiesQuery.data ?? []).flatMap((p) => p.currencies)));
   // Only fetched for the owner, and only where orders even exist — same
   // enabled-gating pattern used elsewhere (Architecture Decision 99's
   // pending-approvals banner needs order deletion requests too, not just
@@ -336,7 +346,7 @@ export default function DashboardPage() {
                   { key: "income", label: "Income" },
                 ]}
               />
-              <CurrencyToggle value={chartCurrency} onChange={setChartCurrency} currencies={["GHS", "EUR"]} />
+              <CurrencyToggle value={chartCurrency} onChange={setChartCurrency} currencies={dashboardCurrencies} />
             </div>
             <div style={{ height: 160 }}>
               <ResponsiveContainer width="100%" height="100%">
@@ -597,7 +607,7 @@ export default function DashboardPage() {
                 { key: "income", label: "Income" },
               ]}
             />
-            <CurrencyToggle value={chartCurrency} onChange={setChartCurrency} currencies={["GHS", "EUR"]} />
+            <CurrencyToggle value={chartCurrency} onChange={setChartCurrency} currencies={dashboardCurrencies} />
           </div>
           <div style={{ height: 160 }}>
             <ResponsiveContainer width="100%" height="100%">

@@ -3,6 +3,7 @@ import { prisma } from "./prisma";
 import { createAdminClient } from "./supabase/admin";
 import { uniqueWorkspaceSlug } from "./slugify";
 import { defaultAllocationForCurrencies } from "./properties";
+import { CURRENCY_ENUM_VALUES } from "./currencies";
 
 export const workspaceSignupSchema = z
   .object({
@@ -25,7 +26,7 @@ export const workspaceSignupSchema = z
     // up correctly, not a self-serve form. RENTAL and STORE (added
     // 2026-09-13) are the two public self-serve options.
     workspaceType: z.enum(["RENTAL", "STORE"]).default("RENTAL"),
-    currencies: z.array(z.enum(["GHS", "EUR"])).min(1, "Pick at least one currency").default(["GHS"]),
+    currencies: z.array(z.enum(CURRENCY_ENUM_VALUES)).min(1, "Pick at least one currency").default(["GHS"]),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords don't match",

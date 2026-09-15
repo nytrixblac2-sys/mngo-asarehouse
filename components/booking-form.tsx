@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { X, Calendar as CalendarIcon } from "lucide-react";
 import { C } from "@/lib/colors";
+import { CURRENCY_CODES } from "@/lib/currencies";
 import type { Booking, BookingSource, Currency, Property } from "@/lib/types";
 import type { BookingInput } from "@/lib/queries/bookings";
 
@@ -35,6 +36,7 @@ export function BookingForm({
     booking?.propertyId ?? (defaultPropertyId !== "all" ? defaultPropertyId : properties[0]?.id ?? "")
   );
 
+  const currencyOptions = properties.find((p) => p.id === propertyId)?.currencies ?? CURRENCY_CODES;
   const parsedAmount = parseFloat(amount);
   const canSubmit = guest.trim() && checkIn && checkOut && amount && parsedAmount > 0 && propertyId;
 
@@ -142,8 +144,9 @@ export function BookingForm({
                 className="w-full mt-1 px-3 py-2.5 rounded-xl text-sm"
                 style={{ border: `1px solid ${C.border}` }}
               >
-                <option value="EUR">EUR</option>
-                <option value="GHS">GHS</option>
+                {currencyOptions.map((cur) => (
+                  <option key={cur} value={cur}>{cur}</option>
+                ))}
               </select>
             </div>
           </div>

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CURRENCY_ENUM_VALUES } from "./currencies";
 import type { Expense } from "./types";
 
 type ExpenseRow = {
@@ -36,7 +37,7 @@ export const expenseInputSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Expected YYYY-MM-DD"),
   description: z.string().min(1),
   amount: z.number().positive(),
-  currency: z.enum(["GHS", "EUR"]),
+  currency: z.enum(CURRENCY_ENUM_VALUES),
   category: z.enum(["OWNERS", "OPERATIONS", "MANAGEMENT"]),
   person: z.string().optional(),
 });

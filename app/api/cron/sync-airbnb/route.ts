@@ -86,7 +86,7 @@ export async function POST(req: Request) {
       );
 
       // Default to first currency on the property (managers can edit later)
-      const defaultCurrency = (property.currencies[0] ?? "GHS") as "GHS" | "EUR";
+      const defaultCurrency = property.currencies[0] ?? "GHS";
 
       // Create bookings for new reservations not already synced — unless
       // an existing, not-yet-synced booking already covers the same

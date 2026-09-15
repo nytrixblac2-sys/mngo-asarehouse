@@ -9,6 +9,8 @@ import { useMenuItems, useCreateMenuItem, useDeleteMenuItem, useUpdateMenuItem, 
 import type { MenuItemInput } from "@/lib/queries/menu";
 import { useShopOrders, useUpdateShopOrderStatus, useToggleShop } from "@/lib/queries/shop";
 import { useStockAdjustments, useAdjustStock } from "@/lib/queries/stock";
+import { useProperties } from "@/lib/queries/properties";
+import { useAppStore } from "@/store/use-app-store";
 import { C } from "@/lib/colors";
 import { fmtCurrency } from "@/lib/format";
 import type { IssueStatus, MenuItem } from "@/lib/types";
@@ -50,6 +52,38 @@ function getEmoji(name: string): string {
     if (lower.includes(key)) return emoji;
   }
   return "🛍️";
+}
+
+/**
+ * Product photo display — shows a spinner while the image is loading
+ * (Supabase Storage URLs, especially right after the bucket is first
+ * created, can take noticeably longer than a normal image load) and falls
+ * back to the emoji placeholder on error, same as before. Without this the
+ * thumbnail box just sat blank/empty during a slow load, which read as
+ * broken rather than "still loading."
+ */
+function ShopImage({ src, alt, fallback }: { src: string; alt: string; fallback: React.ReactNode }) {
+  const [status, setStatus] = useState<"loading" | "loaded" | "error">("loading");
+
+  if (status === "error") return <>{fallback}</>;
+
+  return (
+    <>
+      {status === "loading" && <Loader2 size={18} className="animate-spin" style={{ color: C.muted }} />}
+      <img
+        src={src}
+        alt={alt}
+        onLoad={() => setStatus("loaded")}
+        onError={() => setStatus("error")}
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "contain",
+          display: status === "loaded" ? "block" : "none",
+        }}
+      />
+    </>
+  );
 }
 
 /**
@@ -263,12 +297,7 @@ function ShopItemCard({
         style={{ height: 80, background: C.bg }}
       >
         {item.imageUrl ? (
-          <img
-            src={item.imageUrl}
-            alt={item.name}
-            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-            style={{ width: "100%", height: "100%", objectFit: "contain" }}
-          />
+          <ShopImage src={item.imageUrl} alt={item.name} fallback={getEmoji(item.name)} />
         ) : (
           getEmoji(item.name)
         )}
@@ -357,6 +386,17 @@ export default function ShopPage() {
   const toggleShop = useToggleShop();
   const stockAdjustmentsQuery = useStockAdjustments({ enabled: canTrackInventory });
   const adjustStock = useAdjustStock();
+  // A shop's products were always priced in GHS regardless of what
+  // currencies the property actually operates in — invisible for Ghana
+  // shops (GHS was already the default) but a real blocker for a shop
+  // whose property currency is e.g. NGN, which never had a way to price
+  // its own products in its own currency. Falls back to GHS only if
+  // there's genuinely no property data yet (loading state).
+  const activePropertyId = useAppStore((s) => s.activePropertyId);
+  const propertiesQuery = useProperties();
+  const activeShopProperty =
+    propertiesQuery.data?.find((p) => p.id === activePropertyId) ?? propertiesQuery.data?.[0];
+  const shopCurrency = activeShopProperty?.currencies[0] ?? "GHS";
 
   const isOwner = effectiveUser.role === "ACCOUNT_OWNER";
 
@@ -411,7 +451,7 @@ export default function ShopPage() {
       name: newItem.name.trim(),
       category: newItem.category || "Shop",
       price,
-      currency: "GHS",
+      currency: shopCurrency,
       alwaysAvailable: true,
       station: "SHOP",
       imageUrl: newItem.imageUrl.trim() || null,
@@ -561,12 +601,7 @@ export default function ShopPage() {
                         style={{ width: 56, height: 56, background: C.bg, border: `1px solid ${C.border}` }}
                       >
                         {newItem.imageUrl ? (
-                          <img
-                            src={newItem.imageUrl}
-                            alt=""
-                            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                            style={{ width: "100%", height: "100%", objectFit: "contain" }}
-                          />
+                          <ShopImage src={newItem.imageUrl} alt="" fallback={getEmoji(newItem.name)} />
                         ) : (
                           getEmoji(newItem.name)
                         )}

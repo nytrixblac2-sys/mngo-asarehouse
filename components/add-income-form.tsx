@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import { C } from "@/lib/colors";
+import { CURRENCY_CODES } from "@/lib/currencies";
 import type { Currency, Property } from "@/lib/types";
 import type { ManualIncomeInput } from "@/lib/queries/manual-income";
 
@@ -33,6 +34,7 @@ export function AddIncomeForm({
   const [date, setDate] = useState(defaultDate);
   const [currency, setCurrency] = useState<Currency>(defaultCurrency);
   const [propertyId, setPropertyId] = useState(defaultPropertyId !== "all" ? defaultPropertyId : properties[0]?.id ?? "");
+  const currencyOptions = properties.find((p) => p.id === propertyId)?.currencies ?? CURRENCY_CODES;
 
   const parsedAmount = parseFloat(amount);
   const canSubmit = description.trim() && parsedAmount > 0 && propertyId;
@@ -99,8 +101,9 @@ export function AddIncomeForm({
                 className="w-full mt-1 px-3 py-2.5 rounded-xl text-sm"
                 style={{ border: `1px solid ${C.border}` }}
               >
-                <option value="GHS">GHS</option>
-                <option value="EUR">EUR</option>
+                {currencyOptions.map((cur) => (
+                  <option key={cur} value={cur}>{cur}</option>
+                ))}
               </select>
             </div>
           </div>

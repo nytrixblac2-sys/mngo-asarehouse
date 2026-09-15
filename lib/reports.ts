@@ -1,4 +1,5 @@
 import { applyMomo, bookingOrderTotal, computeManagementReport, computeOwnersReport, confirmedBookings, outstandingBookings, sumConfirmedIncome, sumConfirmedIncomeHostel } from "./financials";
+import { getPrevBalance } from "./currencies";
 import type { Allocation, Booking, Currency, Expense, ManualIncome, Order, PrevBalance, Property } from "./types";
 
 /** context/07-mockup.jsx GenerateReportModal's two checkboxes ("Owner Report",
@@ -111,7 +112,7 @@ function computeCurrencyFigures(params: {
   );
 
   const allocation = property.allocation[currency] ?? DEFAULT_ALLOCATION;
-  const storedPrevBalance: PrevBalance = currency === "GHS" ? property.prevBalanceGhs : property.prevBalanceEur;
+  const storedPrevBalance: PrevBalance = getPrevBalance(property, currency);
   const ownersBalanceStated = openingBalanceOverride?.owners !== undefined;
   const managementBalanceStated = openingBalanceOverride?.management !== undefined;
   const prevBalance: PrevBalance = {

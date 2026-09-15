@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CURRENCY_ENUM_VALUES } from "./currencies";
 import type { MenuItem } from "./types";
 
 type MenuItemRow = {
@@ -41,7 +42,7 @@ export const menuItemInputSchema = z.object({
   name: z.string().min(1),
   category: z.string().min(1),
   price: z.number().positive(),
-  currency: z.enum(["GHS", "EUR"]),
+  currency: z.enum(CURRENCY_ENUM_VALUES),
   alwaysAvailable: z.boolean().optional(),
   station: z.enum(["KITCHEN", "BAR", "SHOP", "EXPERIENCE"]).optional(),
   imageUrl: z.string().url().optional().nullable(),

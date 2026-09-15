@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Building2, User, Mail, Lock, Eye, EyeOff, Loader2, Home, Store, Check } from "lucide-react";
+import { Building2, User, Mail, Lock, Eye, EyeOff, Loader2, Home, Store, Check, MapPin } from "lucide-react";
 import { signUp } from "./actions";
+import { COUNTRY_CURRENCY, CURRENCY_ENUM_VALUES } from "@/lib/currencies";
 
 type WorkspaceType = "RENTAL" | "STORE";
 
@@ -74,15 +75,30 @@ const TYPE_OPTIONS: {
   },
 ];
 
+type Currency = (typeof CURRENCY_ENUM_VALUES)[number];
+
 export function SignupForm({ errorMessage }: { errorMessage: string | null }) {
   const [showPw, setShowPw] = useState(false);
   const [workspaceType, setWorkspaceType] = useState<WorkspaceType>("RENTAL");
-  const [currencies, setCurrencies] = useState<("GHS" | "EUR")[]>(["GHS"]);
+  // Country drives the default currency — real gap reported 2026-09-15: a
+  // friend signing up a Nigeria-based shop had no way to get NGN, only
+  // GHS/EUR. Picking a country pre-selects its currency below; the
+  // currency picker stays editable so e.g. a Ghana-based Airbnb host can
+  // still add EUR alongside GHS for Airbnb payouts (same as the real Oak &
+  // Co. workspace).
+  const [country, setCountry] = useState(COUNTRY_CURRENCY[0].country);
+  const [currencies, setCurrencies] = useState<Currency[]>([COUNTRY_CURRENCY[0].currency]);
   // See app/login/login-form.tsx's identical submitting state for why
   // this is a plain onSubmit flag rather than useFormStatus.
   const [submitting, setSubmitting] = useState(false);
 
-  const toggleCurrency = (cur: "GHS" | "EUR") => {
+  const handleCountryChange = (nextCountry: string) => {
+    setCountry(nextCountry);
+    const match = COUNTRY_CURRENCY.find((c) => c.country === nextCountry);
+    if (match) setCurrencies([match.currency]);
+  };
+
+  const toggleCurrency = (cur: Currency) => {
     setCurrencies((prev) => {
       if (prev.includes(cur)) {
         // At least one currency must stay selected — the property can't be
@@ -181,9 +197,26 @@ export function SignupForm({ errorMessage }: { errorMessage: string | null }) {
       </div>
 
       <div>
+        <label style={labelStyle} htmlFor="sf-country">Where is it located?</label>
+        <div style={{ position: "relative" }}>
+          <MapPin size={14} style={iconStyle} />
+          <select
+            id="sf-country"
+            value={country}
+            onChange={(e) => handleCountryChange(e.target.value)}
+            style={{ ...inputStyle, appearance: "none" }}
+          >
+            {COUNTRY_CURRENCY.map(({ country: c, currency }) => (
+              <option key={c} value={c}>{c} ({currency})</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div>
         <label style={labelStyle}>Currency</label>
-        <div style={{ display: "flex", gap: 8 }}>
-          {(["GHS", "EUR"] as const).map((cur) => (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          {CURRENCY_ENUM_VALUES.map((cur) => (
             <label
               key={cur}
               style={{
@@ -213,7 +246,7 @@ export function SignupForm({ errorMessage }: { errorMessage: string | null }) {
           ))}
         </div>
         <p style={{ fontSize: "0.72rem", color: "var(--at-t2, #3D6663)", marginTop: 5 }}>
-          You can add or change currencies later from your property settings.
+          Pre-selected from your country above — add more (e.g. EUR for Airbnb payouts) or change later from your property settings.
         </p>
       </div>
 

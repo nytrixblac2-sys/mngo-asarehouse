@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { prisma } from "./prisma";
+import { CURRENCY_ENUM_VALUES } from "./currencies";
 import type { Currency, Room } from "./types";
 
 type RoomRow = {
@@ -28,7 +29,7 @@ export const roomInputSchema = z.object({
   propertyId: z.string().uuid(),
   name: z.string().min(1),
   pricePerNight: z.number().positive(),
-  currency: z.enum(["GHS", "EUR"]),
+  currency: z.enum(CURRENCY_ENUM_VALUES),
   active: z.boolean().optional(),
 });
 
